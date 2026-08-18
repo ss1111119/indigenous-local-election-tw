@@ -220,7 +220,7 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 都必須等於該單位的有效票。只比對總和會放過互相抵銷的錯誤。
 實測誤加總（不篩層級）會讓得票膨脹 **4.00 倍**。
 
-`python scripts/test_build_local_election.py` 跑 49 項測試（單元＋迴歸）。
+`python scripts/test_build_local_election.py` 跑 56 項測試（單元＋迴歸）。
 已用變異測試確認測試會失敗——並因此發現一個缺口：**2022 T2 沒有任何 `!`
 婦女保障列**，該邏輯目前只由單元測試守住，見
 [`docs/schema/cec-local-election.md`](docs/schema/cec-local-election.md)。

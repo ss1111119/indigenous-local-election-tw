@@ -208,7 +208,7 @@ votes 表只回答「某位候選人在某個地方拿到多少票」。
 
 ### 測試與已知的驗證缺口
 
-`python scripts/test_build_local_election.py`（也可用 pytest）跑 49 項：
+`python scripts/test_build_local_election.py`（也可用 pytest）跑 56 項：
 單元測試涵蓋層級判定、版面偵測、CSV 讀取、當選註記、gzip 可重現性；
 迴歸測試把 2022 T2 的實際數字釘死（列數、層級分布、各檔別與全國數字）。
 
