@@ -1,0 +1,455 @@
+<title>原住民族地方選舉三屆</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#FBFAF7; --panel:#FFFFFF; --ink:#1B1E21; --ink2:#5F6469; --ink3:#8A9096;
+  --rule:#E2DFD8; --rule2:#EFEDE7; --grid:#EAE7E0;
+  --accent:#2a78d6; --limit:#8A6A28; --limitbg:#FAF4E6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#9BA0A5;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
+    --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
+    --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C838A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
+  --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
+  --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C838A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans TC",-apple-system,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.75;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 88px}
+.col{max-width:660px}
+h1,h2{font-family:"Noto Serif TC",serif;text-wrap:balance;line-height:1.32;margin:0}
+h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(19px,2.4vw,25px);font-weight:600}
+p{margin:0 0 16px}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+strong{font-weight:700}
+header{border-bottom:1px solid var(--rule);padding:52px 0 26px;margin-bottom:8px}
+.eyebrow{font-size:11.5px;letter-spacing:.16em;color:var(--ink3);
+  font-family:"IBM Plex Mono",monospace;margin:0 0 14px}
+.lede{font-size:17.5px;color:var(--ink2);margin:18px 0 0;max-width:640px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:22px;font-size:12px;color:var(--ink3);
+  font-family:"IBM Plex Mono",monospace}
+section{padding:38px 0;border-bottom:1px solid var(--rule2)}
+section:last-of-type{border:0}
+.sh{display:flex;align-items:baseline;gap:13px;margin-bottom:18px}
+.sn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink3);
+  border:1px solid var(--rule);border-radius:3px;padding:2px 7px;flex:none}
+.limit{border-left:3px solid var(--limit);background:var(--limitbg);
+  padding:15px 20px;margin:24px 0 0;border-radius:0 4px 4px 0}
+.limit .lt{font-size:11.5px;letter-spacing:.13em;color:var(--limit);
+  font-family:"IBM Plex Mono",monospace;margin:0 0 9px;font-weight:500}
+.limit p{margin:0 0 10px;font-size:15px;color:var(--ink2);line-height:1.7}
+.limit p:last-child{margin:0}
+.limit strong{color:var(--ink)}
+figure{margin:24px 0 0}
+figcaption{font-size:12.5px;color:var(--ink3);margin-top:14px;line-height:1.65;max-width:660px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:14px}
+.panel{background:var(--panel);border:1px solid var(--rule2);border-radius:5px;padding:12px 13px 9px}
+.pt{display:flex;align-items:baseline;gap:7px;margin-bottom:6px;flex-wrap:wrap}
+.pc{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3)}
+.pn{font-size:12.5px;font-weight:500;line-height:1.35}
+.ref{font-size:9.5px;color:var(--ink3);border:1px solid var(--rule);padding:0 4px;border-radius:2px;flex:none}
+.tw{overflow-x:auto;margin:20px 0 0}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--rule2);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+thead th{font-size:11px;letter-spacing:.07em;color:var(--ink3);font-weight:500;
+  border-bottom:1px solid var(--rule);font-family:"IBM Plex Mono",monospace}
+tbody td{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:"Noto Sans TC",sans-serif}
+tbody tr:hover{background:var(--rule2)}
+/* 欄多的表給足最小寬度，讓它橫向捲動而不是把首欄壓成逐字換行 */
+#t-scale{min-width:760px}
+#t-scale td:first-child{white-space:nowrap}
+/* 文字欄靠左；只有數字欄靠右。th 設了 left 的欄位，td 也要跟著 */
+#t-scope td:nth-child(2),#t-scope td:nth-child(3){text-align:left;font-family:"Noto Sans TC",sans-serif}
+.rr td{color:var(--ink3)}
+.hl{color:var(--limit);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 14px;font-size:13px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:11px;height:11px;border-radius:2px;flex:none}
+#tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--ink);color:var(--paper);padding:7px 10px;border-radius:4px;
+  font-size:12.5px;font-family:"IBM Plex Mono",monospace;z-index:9;line-height:1.55;white-space:pre}
+svg{display:block;overflow:visible}
+.foot{font-size:12.5px;color:var(--ink3);margin-top:34px;line-height:1.75}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">中選會選舉資料庫 · 2014 / 2018 / 2022</p>
+  <h1>六種原住民族相關<br>地方選舉三屆概況</h1>
+  <p class="lede">以數字呈現為主，另說明比較限制與不可由本資料推出的結論。<strong>不解釋成因。</strong>
+    每個數字都可從專案的三張長表重新算出。</p>
+  <div class="meta">
+    <span>來源　中央選舉委員會 votedata.zip</span>
+    <span>雜湊　84740535…</span>
+    <span>授權　政府資料開放授權條款第 1 版</span>
+  </div>
+</header>
+
+<section>
+  <div class="sh"><span class="sn">範圍</span><h2>涵蓋什麼、不涵蓋什麼</h2></div>
+  <div class="col"><p>這不是原住民族地方選舉的完整清單。<strong>T1 議員（區域）是參考組，不是原住民資料</strong>；
+    R2 只是該鄉鎮的平地原住民代表席次，不是全部席次。</p></div>
+  <div class="tw"><table><thead><tr>
+    <th>代碼</th><th style="text-align:left">選舉種類</th><th style="text-align:left">性質</th><th>2022 席次</th>
+  </tr></thead><tbody id="t-scope"></tbody></table></div>
+  <div class="limit">
+    <p class="lt">未涵蓋</p>
+    <p>原住民族地區的鄉鎮市長與鄉鎮市民代表（區域席次）、村里長、縣市長，
+      以及 <strong>2014 年以前的所有屆別</strong>——資料存在且可回溯至 1994，但尚未納入。</p>
+    <p><strong>這是三屆資料，不是完整歷史序列。</strong></p>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">01</span><h2>投票率</h2></div>
+  <div class="col"><p>六種選舉在 2014→2018 的變化都在 ±2.1 個百分點內；
+    2018→2022 則六種全部下降，幅度 4.51 至 7.33 個百分點。參考組 T1 同期降 5.83。</p></div>
+  <figure>
+    <div class="grid" id="c-turnout"></div>
+    <figcaption>各面板共用 45–85% 的縱軸，故高低可直接比較。算法為投票數 ÷ 選舉人數；
+      T2／T3／T1 分 city／prv 兩份檔案，為相加後重算的<strong>本專案計算值</strong>。</figcaption>
+  </figure>
+  <div class="limit">
+    <p class="lt">本資料不足以支持</p>
+    <p>「投票率持續下滑」——三個時間點顯示 2014→2018 幾乎持平，下降集中在單一屆。<br>
+      「原住民投票意願下降」——參考組 T1 同期亦下降。<br>
+      任何成因。</p>
+    <p><strong>本專案曾在這裡犯錯。</strong>只有 2018／2022 兩屆時，我們把它寫成「下滑」。
+      加入 2014 後才看出前段幾乎持平。<strong>兩個點畫不出趨勢。</strong></p>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">02</span><h2>政黨</h2></div>
+  <div class="col"><p>下圖為<strong>當選席次</strong>的政黨組成，每段直接標註席次數。
+    「無黨籍」是原始檔政黨代碼 <code>999</code>，官方名稱為「無黨籍及未經政黨推薦」，
+    包含未獲任何政黨推薦者。</p></div>
+  <figure>
+    <div class="legend" id="l-party"></div>
+    <div class="grid" id="c-party"></div>
+    <figcaption>每個面板三條由上而下為 2014／2018／2022，條長按該屆總席次歸一化。
+      段內數字為席次，1 席以下不標，完整數字見滑鼠停留提示。
+      「其他各政黨」含親民黨、台灣民眾黨等。</figcaption>
+  </figure>
+  <div class="limit">
+    <p class="lt">限制</p>
+    <p>以上為<strong>席次數，不是得票數</strong>。政黨得票率需另從得票長表計算，本頁未計。</p>
+    <p>民主進步黨在 T3 三屆共出現 <strong>10 筆候選人紀錄，皆未當選</strong>；在 R3 三屆無候選人紀錄。
+      原始檔<strong>沒有跨屆候選人識別碼</strong>，故一律稱「候選人紀錄數」而非「人數」。</p>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">03</span><h2>性別</h2></div>
+  <div class="col"><p>每個方格代表一個當選席次，實心為女性當選人。</p></div>
+  <figure>
+    <div class="grid" id="c-gender"></div>
+    <figcaption>T1 席次逾 800，改以比例條呈現。括號內為女性候選人紀錄數／總候選人紀錄數。</figcaption>
+  </figure>
+  <div class="limit">
+    <p class="lt">D2 直轄市原住民區長</p>
+    <p><strong>三屆共 18 個當選席次，女性當選 0 席。</strong>同期女性候選人紀錄為
+      2014 年 1 筆、2018 年 2 筆、2022 年 0 筆——<strong>有女性參選，但三屆都沒有當選。</strong></p>
+    <p>D2 每屆僅 6 席，<strong>每 1 席就相當於 16.7 個百分點</strong>。以上為這 6 席的全數觀察，
+      不是抽樣估計，但不足以支撐任何關於原因或一般規律的推論。</p>
+  </div>
+  <div class="tw"><table><thead><tr>
+    <th style="text-align:left">婦女保障當選（原始檔註記 <code>!</code>）</th><th>2014</th><th>2018</th><th>2022</th>
+  </tr></thead><tbody id="t-quota"></tbody></table></div>
+  <div class="limit">
+    <p class="lt">容易漏算</p>
+    <p><strong>只數 <code>*</code> 會漏掉這些席次，而且不會報錯。</strong>
+      本專案的「當選」欄已把 <code>*</code> 與 <code>!</code> 都算為當選。
+      原始檔另有 <code>-</code>（因婦女保障被排擠未當選），在這三屆中未出現。</p>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">04</span><h2>規模、現任者與同額競選</h2></div>
+  <div class="tw"><table id="t-scale"></table></div>
+  <div class="limit">
+    <p class="lt">限制</p>
+    <p>D2 與 R3 在同一批原住民區、同日舉行，選舉人母體高度重疊，
+      但<strong>兩者的官方選舉人數並不完全相同</strong>（2022：31,807 與 31,803）。
+      <strong>不同選舉種類之間不可相加</strong>，相加會嚴重重複計算。</p>
+    <p>T1 涵蓋<strong>從六都會區到農業縣的全部區域議員選區</strong>，放在這裡只是提供全國背景基線；
+      把它當成「其他條件相同的對照」是錯的。</p>
+    <p>D2 與 R3 在 2014 年沒有任何現任者參選——直轄市原住民區依 2014 年修正的地方制度法設立，
+      該屆是第一次選舉。</p>
+  </div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">附錄</span><h2>全國選舉人數 ÷ 席次的粗略比值</h2></div>
+  <div class="limit">
+    <p class="lt">這不是代表性指標</p>
+    <p>本專案<strong>尚未定義</strong>地方層級的代表性指標。此處僅呈現一個可重現的描述性比值。</p>
+    <p>它是全國加總後相除，<strong>會掩蓋地方差異</strong>；且<strong>不宜將不同選舉種類的比值
+      直接用來比較代表性或公平性</strong>——R3 與 T1 測量的是不同制度單位，
+      職位層級、選區地理範圍、職權皆不同。</p>
+  </div>
+  <div class="tw"><table id="t-perseat"></table></div>
+</section>
+
+<p class="foot">重現：<code>python scripts/build_local_election.py</code> 產生三張長表，
+  <code>python scripts/test_build_local_election.py</code> 跑 127 項測試。
+  建置時執行 18 項自我驗證，任何一項不通過即中止。</p>
+</div>
+<div id="tip"></div>
+
+<script>
+const DATA = {"types":[{"code":"T2","name":"議員(平地原住民)","indigenous":true,"years":{"2014":{"electors":179268,"votes":105688,"turnout":58.96,"seats":33,"cands":77,"districts":21,"party":{"中國國民黨":[22,40],"無黨籍及未經政黨推薦":[7,27],"民主進步黨":[2,4],"其他":[2,6]},"femaleSeats":12,"femaleCands":25,"quota":0,"incCands":25,"incWon":19,"uncontestedDist":4,"uncontestedSeats":5,"perSeat":5432},"2018":{"electors":192460,"votes":115407,"turnout":59.96,"seats":34,"cands":84,"districts":22,"party":{"中國國民黨":[22,34],"無黨籍及未經政黨推薦":[11,35],"民主進步黨":[1,7],"其他":[0,8]},"femaleSeats":13,"femaleCands":28,"quota":0,"incCands":25,"incWon":16,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5661},"2022":{"electors":202477,"votes":106573,"turnout":52.63,"seats":34,"cands":73,"districts":22,"party":{"中國國民黨":[18,28],"無黨籍及未經政黨推薦":[14,32],"民主進步黨":[2,8],"其他":[0,5]},"femaleSeats":14,"femaleCands":28,"quota":0,"incCands":33,"incWon":28,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5955}}},{"code":"T3","name":"議員(山地原住民)","indigenous":true,"years":{"2014":{"electors":189042,"votes":137544,"turnout":72.76,"seats":33,"cands":79,"districts":32,"party":{"中國國民黨":[20,42],"無黨籍及未經政黨推薦":[12,30],"民主進步黨":[0,3],"其他":[1,4]},"femaleSeats":9,"femaleCands":20,"quota":0,"incCands":22,"incWon":15,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":5729},"2018":{"electors":204127,"votes":149675,"turnout":73.32,"seats":35,"cands":98,"districts":33,"party":{"中國國民黨":[15,34],"無黨籍及未經政黨推薦":[18,54],"民主進步黨":[0,3],"其他":[2,7]},"femaleSeats":12,"femaleCands":24,"quota":0,"incCands":25,"incWon":15,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5832},"2022":{"electors":216262,"votes":144164,"turnout":66.66,"seats":35,"cands":80,"districts":33,"party":{"中國國民黨":[18,25],"無黨籍及未經政黨推薦":[16,48],"民主進步黨":[0,4],"其他":[1,3]},"femaleSeats":14,"femaleCands":28,"quota":0,"incCands":28,"incWon":21,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":6179}}},{"code":"D2","name":"直轄市原住民區長","indigenous":true,"years":{"2014":{"electors":28850,"votes":23348,"turnout":80.93,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[3,8],"無黨籍及未經政黨推薦":[2,10],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":0,"femaleCands":1,"quota":0,"incCands":0,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4808},"2018":{"electors":30904,"votes":24862,"turnout":80.45,"seats":6,"cands":19,"districts":6,"party":{"中國國民黨":[3,4],"無黨籍及未經政黨推薦":[3,15],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":0,"femaleCands":2,"quota":0,"incCands":5,"incWon":3,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5151},"2022":{"electors":31807,"votes":23712,"turnout":74.55,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[5,15],"民主進步黨":[0,2],"其他":[0,1]},"femaleSeats":0,"femaleCands":0,"quota":0,"incCands":4,"incWon":3,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5301}}},{"code":"R3","name":"直轄市原住民區民代表","indigenous":true,"years":{"2014":{"electors":28842,"votes":23346,"turnout":80.94,"seats":50,"cands":94,"districts":16,"party":{"中國國民黨":[17,30],"無黨籍及未經政黨推薦":[33,64],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":12,"femaleCands":21,"quota":0,"incCands":0,"incWon":0,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":577},"2018":{"electors":30895,"votes":24856,"turnout":80.45,"seats":50,"cands":98,"districts":16,"party":{"中國國民黨":[12,15],"無黨籍及未經政黨推薦":[38,83],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":11,"femaleCands":18,"quota":1,"incCands":39,"incWon":27,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":618},"2022":{"electors":31803,"votes":23712,"turnout":74.56,"seats":50,"cands":92,"districts":16,"party":{"中國國民黨":[5,7],"無黨籍及未經政黨推薦":[45,84],"民主進步黨":[0,0],"其他":[0,1]},"femaleSeats":11,"femaleCands":19,"quota":0,"incCands":43,"incWon":33,"uncontestedDist":2,"uncontestedSeats":4,"perSeat":636}}},{"code":"R2","name":"鄉(鎮、市)民代表(平原)","indigenous":true,"years":{"2014":{"electors":88079,"votes":55604,"turnout":63.13,"seats":68,"cands":118,"districts":24,"party":{"中國國民黨":[44,66],"無黨籍及未經政黨推薦":[23,50],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":16,"femaleCands":31,"quota":3,"incCands":50,"incWon":36,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":1295},"2018":{"electors":90281,"votes":58870,"turnout":65.21,"seats":71,"cands":131,"districts":25,"party":{"中國國民黨":[30,45],"無黨籍及未經政黨推薦":[41,81],"民主進步黨":[0,2],"其他":[0,3]},"femaleSeats":18,"femaleCands":30,"quota":3,"incCands":52,"incWon":40,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":1272},"2022":{"electors":91627,"votes":55614,"turnout":60.7,"seats":72,"cands":134,"districts":27,"party":{"中國國民黨":[23,33],"無黨籍及未經政黨推薦":[47,95],"民主進步黨":[2,5],"其他":[0,1]},"femaleSeats":23,"femaleCands":42,"quota":2,"incCands":57,"incWon":45,"uncontestedDist":1,"uncontestedSeats":2,"perSeat":1273}}},{"code":"T1","name":"議員(區域)","indigenous":false,"years":{"2014":{"electors":18084841,"votes":12241793,"turnout":67.69,"seats":841,"cands":1444,"districts":164,"party":{"中國國民黨":[344,472],"無黨籍及未經政黨推薦":[184,471],"民主進步黨":[289,363],"其他":[24,138]},"femaleSeats":257,"femaleCands":409,"quota":9,"incCands":646,"incWon":542,"uncontestedDist":9,"uncontestedSeats":19,"perSeat":21504},"2018":{"electors":18656541,"votes":12499109,"turnout":67.0,"seats":843,"cands":1569,"districts":159,"party":{"中國國民黨":[357,422],"無黨籍及未經政黨推薦":[205,600],"民主進步黨":[237,397],"其他":[44,150]},"femaleSeats":282,"femaleCands":480,"quota":4,"incCands":639,"incWon":528,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":22131},"2022":{"electors":18710006,"votes":11445404,"turnout":61.17,"seats":841,"cands":1524,"districts":160,"party":{"中國國民黨":[331,404],"無黨籍及未經政黨推薦":[197,533],"民主進步黨":[275,368],"其他":[38,219]},"femaleSeats":314,"femaleCands":485,"quota":4,"incCands":684,"incWon":600,"uncontestedDist":6,"uncontestedSeats":10,"perSeat":22247}}}],"years":["2014","2018","2022"]};
+const YS = DATA.years;
+const PARTIES = [
+  ["中國國民黨","中國國民黨","--s1"],
+  ["無黨籍及未經政黨推薦","999 無黨籍及未經政黨推薦","--s2"],
+  ["民主進步黨","民主進步黨","--s3"],
+  ["其他","其他各政黨","--s4"]
+];
+const NF = n => n.toLocaleString("en-US");
+const tip = document.getElementById("tip");
+function bind(el, text){
+  el.addEventListener("pointerenter", e => {
+    tip.textContent = text; tip.style.opacity = 1;
+  });
+  el.addEventListener("pointermove", e => {
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y < 8) y = e.clientY + 16;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  el.addEventListener("pointerleave", () => tip.style.opacity = 0);
+}
+const svgEl = (n, a) => {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  return e;
+};
+function panel(t, extra){
+  const d = document.createElement("div"); d.className = "panel";
+  const h = document.createElement("div"); h.className = "pt";
+  const c = document.createElement("span"); c.className = "pc"; c.textContent = t.code;
+  const n = document.createElement("span"); n.className = "pn"; n.textContent = t.name;
+  h.append(c, n);
+  if (!t.indigenous){ const r = document.createElement("span"); r.className="ref"; r.textContent="參考組"; h.append(r); }
+  d.append(h); if (extra) d.append(extra);
+  return d;
+}
+
+/* 範圍表 */
+{
+  const tb = document.getElementById("t-scope");
+  DATA.types.forEach(t => {
+    const tr = document.createElement("tr");
+    if (!t.indigenous) tr.className = "rr";
+    tr.innerHTML = `<td class="mono">${t.code}</td><td>${t.name}選舉</td>`
+      + `<td>${t.indigenous ? (t.code==="R2" ? "平地原住民代表席次" : "原住民專屬") : "參考組，非原住民資料"}</td>`
+      + `<td>${t.years["2022"].seats}</td>`;
+    tb.append(tr);
+  });
+}
+
+/* 01 投票率：小倍數，共用 45–85 縱軸 */
+{
+  const W = 168, H = 88, P = { t: 10, r: 26, b: 18, l: 4 }, LO = 45, HI = 85;
+  const x = i => P.l + i * (W - P.l - P.r) / (YS.length - 1);
+  const y = v => P.t + (HI - v) * (H - P.t - P.b) / (HI - LO);
+  const box = document.getElementById("c-turnout");
+  DATA.types.forEach(t => {
+    const s = svgEl("svg", { viewBox:`0 0 ${W} ${H}`, width:"100%", role:"img",
+      "aria-label": `${t.code} 投票率 ${YS.map(v=>t.years[v].turnout+"%").join("、")}` });
+    [50,60,70,80].forEach(g => {
+      s.append(svgEl("line",{x1:P.l,x2:W-P.r,y1:y(g),y2:y(g),stroke:"var(--grid)","stroke-width":1}));
+      const lb = svgEl("text",{x:W-P.r+5,y:y(g)+3.5,fill:"var(--ink3)","font-size":8,
+        "font-family":"IBM Plex Mono, monospace"}); lb.textContent = g; s.append(lb);
+    });
+    const pts = YS.map((v,i)=>[x(i), y(t.years[v].turnout)]);
+    s.append(svgEl("path",{ d:"M"+pts.map(p=>p.join(" ")).join("L"), fill:"none",
+      stroke: t.indigenous ? "var(--accent)" : "var(--ink3)", "stroke-width":2,
+      "stroke-linecap":"round","stroke-linejoin":"round",
+      "stroke-dasharray": t.indigenous ? "none" : "4 3" }));
+    pts.forEach((p,i) => {
+      s.append(svgEl("circle",{cx:p[0],cy:p[1],r:4.5,fill:"var(--panel)",
+        stroke: t.indigenous ? "var(--accent)" : "var(--ink3)", "stroke-width":2}));
+      const hit = svgEl("circle",{cx:p[0],cy:p[1],r:14,fill:"transparent"});
+      bind(hit, `${YS[i]}　${t.code} ${t.name}\n投票率 ${t.years[YS[i]].turnout}%\n選舉人 ${NF(t.years[YS[i]].electors)}\n投票數 ${NF(t.years[YS[i]].votes)}`);
+      s.append(hit);
+      const lb = svgEl("text",{x:p[0],y:p[1]-9,fill:"var(--ink2)","font-size":9.5,
+        "text-anchor": i===0?"start":(i===2?"end":"middle"),
+        "font-family":"IBM Plex Mono, monospace"});
+      lb.textContent = t.years[YS[i]].turnout.toFixed(1); s.append(lb);
+    });
+    YS.forEach((v,i) => {
+      const lb = svgEl("text",{x:x(i),y:H-4,fill:"var(--ink3)","font-size":8.5,
+        "text-anchor": i===0?"start":(i===2?"end":"middle"),
+        "font-family":"IBM Plex Mono, monospace"});
+      lb.textContent = v; s.append(lb);
+    });
+    box.append(panel(t, s));
+  });
+}
+
+/* 02 政黨：堆疊條，直接標籤 */
+{
+  const lg = document.getElementById("l-party");
+  PARTIES.forEach(([, label, cv]) => {
+    const sp = document.createElement("span");
+    const sw = document.createElement("i"); sw.className = "sw";
+    sw.style.background = `var(${cv})`; sw.style.display = "block";
+    sp.append(sw, document.createTextNode(label)); lg.append(sp);
+  });
+  const W = 172, BH = 17, GAP = 9, LW = 26;
+  const box = document.getElementById("c-party");
+  DATA.types.forEach(t => {
+    const H = YS.length * (BH + GAP);
+    const s = svgEl("svg",{viewBox:`0 0 ${W} ${H}`, width:"100%", role:"img",
+      "aria-label": `${t.code} 各屆政黨席次組成`});
+    YS.forEach((yr, r) => {
+      const d = t.years[yr], total = d.seats, top = r * (BH + GAP);
+      const yl = svgEl("text",{x:0,y:top+BH/2+3.5,fill:"var(--ink3)","font-size":9.5,
+        "font-family":"IBM Plex Mono, monospace"}); yl.textContent = yr; s.append(yl);
+      let cx = LW;
+      PARTIES.forEach(([key, label, cv]) => {
+        const seats = d.party[key][0], cands = d.party[key][1];
+        if (!seats) return;
+        const w = seats / total * (W - LW);
+        const g = svgEl("g");
+        g.append(svgEl("rect",{x:cx,y:top,width:Math.max(w-2,1),height:BH,rx:2,fill:`var(${cv})`}));
+        if (w > 20){
+          const lb = svgEl("text",{x:cx+(w-2)/2,y:top+BH/2+3.5,"text-anchor":"middle",
+            "font-size":9.5,fill:"#fff","font-family":"IBM Plex Mono, monospace","font-weight":500});
+          lb.textContent = seats; g.append(lb);
+        }
+        bind(g, `${yr}　${t.code}\n${label}\n當選 ${seats} 席 / 共 ${total} 席\n候選人紀錄 ${cands} 筆`);
+        s.append(g); cx += w;
+      });
+    });
+    box.append(panel(t, s));
+  });
+}
+
+/* 03 性別：席次方格 */
+{
+  const box = document.getElementById("c-gender");
+  DATA.types.forEach(t => {
+    const wrapEl = document.createElement("div");
+    YS.forEach(yr => {
+      const d = t.years[yr];
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:5px";
+      const yl = document.createElement("span");
+      yl.className = "mono"; yl.style.cssText = "font-size:9.5px;color:var(--ink3);width:26px;flex:none";
+      yl.textContent = yr; row.append(yl);
+      const cells = document.createElement("div");
+      cells.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;flex:1";
+      if (d.seats > 40){
+        const bar = document.createElement("div");
+        bar.style.cssText = "height:11px;flex:1;background:transparent;border:1px solid var(--ink3);border-radius:2px;overflow:hidden";
+        const fill = document.createElement("div");
+        fill.style.cssText = `height:100%;width:${d.femaleSeats/d.seats*100}%;background:var(--accent);border-radius:2px`;
+        bar.append(fill); cells.append(bar);
+      } else {
+        for (let i = 0; i < d.seats; i++){
+          const c = document.createElement("i");
+          const female = i < d.femaleSeats;
+          // 未當選席次也必須看得出是「一個席次」，不能只是淡色而讀成沒有資料
+          c.style.cssText = "width:8px;height:11px;border-radius:1.5px;display:block;"
+            + (female ? "background:var(--accent);border:1px solid var(--accent)"
+                      : "background:transparent;border:1px solid var(--ink3)");
+          cells.append(c);
+        }
+      }
+      row.append(cells);
+      const n = document.createElement("span");
+      n.className = "mono";
+      n.style.cssText = "font-size:10px;color:var(--ink2);flex:none;font-variant-numeric:tabular-nums";
+      n.textContent = `${d.femaleSeats}/${d.seats}`;
+      row.append(n);
+      bind(row, `${yr}　${t.code} ${t.name}\n女性當選 ${d.femaleSeats} / ${d.seats} 席\n女性候選人紀錄 ${d.femaleCands} / ${d.cands} 筆`);
+      wrapEl.append(row);
+    });
+    const note = document.createElement("div");
+    note.className = "mono";
+    note.style.cssText = "font-size:9.5px;color:var(--ink3);margin-top:6px";
+    note.textContent = "候選人 " + YS.map(y => `${t.years[y].femaleCands}/${t.years[y].cands}`).join("  ");
+    wrapEl.append(note);
+    box.append(panel(t, wrapEl));
+  });
+}
+
+/* 婦女保障表 */
+{
+  const tb = document.getElementById("t-quota");
+  DATA.types.forEach(t => {
+    const v = YS.map(y => t.years[y].quota);
+    const tr = document.createElement("tr");
+    if (!t.indigenous) tr.className = "rr";
+    tr.innerHTML = `<td>${t.code} ${t.name}${t.indigenous?"":"（參考組）"}</td>`
+      + v.map(n => `<td${n?' class="hl"':''}>${n}</td>`).join("");
+    tb.append(tr);
+  });
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td style="color:var(--ink3)">T2、T3、D2 三屆皆為 0（已確認，非漏算）</td><td colspan="3"></td>`;
+  tb.append(tr);
+}
+
+/* 04 規模表 */
+{
+  const tbl = document.getElementById("t-scale");
+  tbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th><th>屆別</th>
+    <th>選舉人數</th><th>席次</th><th>候選人紀錄</th><th>選舉區</th>
+    <th>現任當選/參選</th><th>同額選區/席次</th></tr></thead>`;
+  const tb = document.createElement("tbody");
+  DATA.types.forEach(t => {
+    YS.forEach((yr, i) => {
+      const d = t.years[yr];
+      const tr = document.createElement("tr");
+      if (!t.indigenous) tr.className = "rr";
+      tr.innerHTML = `<td>${i===0 ? t.code + " " + t.name + (t.indigenous?"":"（參考組）") : ""}</td>`
+        + `<td>${yr}</td><td>${NF(d.electors)}</td><td>${d.seats}</td><td>${NF(d.cands)}</td>`
+        + `<td>${d.districts}</td>`
+        + `<td>${d.incCands ? d.incWon + "/" + d.incCands : "無現任"}</td>`
+        + `<td>${d.uncontestedDist}/${d.uncontestedSeats}</td>`;
+      tb.append(tr);
+    });
+  });
+  tbl.append(tb);
+}
+
+/* 附錄：每席比值 */
+{
+  const tbl = document.getElementById("t-perseat");
+  tbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th>
+    <th>2014</th><th>2018</th><th>2022</th></tr></thead>`;
+  const tb = document.createElement("tbody");
+  DATA.types.forEach(t => {
+    const tr = document.createElement("tr");
+    if (!t.indigenous) tr.className = "rr";
+    tr.innerHTML = `<td>${t.code} ${t.name}${t.indigenous?"":"（參考組）"}</td>`
+      + YS.map(y => `<td>${NF(t.years[y].perSeat)}</td>`).join("");
+    tb.append(tr);
+  });
+  tbl.append(tb);
+}
+</script>
