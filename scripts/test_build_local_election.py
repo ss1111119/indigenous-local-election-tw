@@ -43,45 +43,68 @@ from build_local_election import (  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "processed"
 
-# 2022 年六種選舉的實際數字。改動 parser 後這些若變了，必須是**刻意**的。
+# 2018 與 2022 兩屆、各六種選舉的實際數字。改動 parser 後這些若變了，必須是**刻意**的。
 EXPECTED = {
-    "rows": {"summary": 71734, "candidates": 1923, "votes": 477589},
+    "rows": {"summary": 138477, "candidates": 3922, "votes": 924000},
     "levels_summary": {
-        "檔別合計": 9, "直轄市縣市": 64, "選舉區": 215,
-        "鄉鎮市區": 1055, "村里": 21113, "投開票所": 49278,
+        "檔別合計": 18, "直轄市縣市": 128, "選舉區": 429,
+        "鄉鎮市區": 2106, "村里": 42259, "投開票所": 93537,
     },
     "levels_votes": {
-        "選舉區": 1677, "鄉鎮市區": 5595, "村里": 134950, "投開票所": 335367,
+        "選舉區": 3428, "鄉鎮市區": 11448, "村里": 272387, "投開票所": 636737,
     },
-    "candidates_by_type": {
-        "T2": 73, "T3": 80, "D2": 20, "R3": 92, "R2": 134, "T1": 1524,
+    "candidates_by_year_type": {
+        "2022-T2": 73, "2022-T3": 80, "2022-D2": 20,
+        "2022-R3": 92, "2022-R2": 134, "2022-T1": 1524,
+        "2018-T2": 84, "2018-T3": 98, "2018-D2": 19,
+        "2018-R3": 98, "2018-R2": 131, "2018-T1": 1569,
     },
-    # 每個選舉種類的全國數字（city + prv，若有）。
-    # ⚠️ 這些【不可跨種類相加】——D2 與 R3 是同一批選民。
+    # 每屆每種選舉的全國數字（city + prv，若有）。
+    # ⚠️ 這些【不可跨選舉種類相加】——D2 與 R3 是同一批選民。
     "national": {
-        "T2": {"選舉人數": 202477, "投票數": 106573, "候選人數": 73,
-               "當選人數": 34, "婦女保障當選人數": 0, "投票率": 52.63},
-        "T3": {"選舉人數": 216262, "投票數": 144164, "候選人數": 80,
-               "當選人數": 35, "婦女保障當選人數": 0, "投票率": 66.66},
-        "D2": {"選舉人數": 31807, "投票數": 23712, "候選人數": 20,
-               "當選人數": 6, "婦女保障當選人數": 0, "投票率": 74.55},
-        "R3": {"選舉人數": 31803, "投票數": 23712, "候選人數": 92,
-               "當選人數": 50, "婦女保障當選人數": 0, "投票率": 74.56},
-        # R2 是唯一有婦女保障當選的原住民選舉種類
-        "R2": {"選舉人數": 91627, "投票數": 55614, "候選人數": 134,
-               "當選人數": 72, "婦女保障當選人數": 2, "投票率": 60.7},
-        # T1 為對照組（區域議員），非原住民資料
-        "T1": {"選舉人數": 18710006, "投票數": 11445404, "候選人數": 1524,
-               "當選人數": 841, "婦女保障當選人數": 4, "投票率": 61.17},
+        "2018-D2": {"選舉人數": 30904, "投票數": 24862, "候選人數": 19,
+                "當選人數": 6, "婦女保障當選人數": 0, "投票率": 80.45},
+        "2018-R2": {"選舉人數": 90281, "投票數": 58870, "候選人數": 131,
+                "當選人數": 71, "婦女保障當選人數": 3, "投票率": 65.21},
+        "2018-R3": {"選舉人數": 30895, "投票數": 24856, "候選人數": 98,
+                "當選人數": 50, "婦女保障當選人數": 1, "投票率": 80.45},
+        "2018-T1": {"選舉人數": 18656541, "投票數": 12499109, "候選人數": 1569,
+                "當選人數": 843, "婦女保障當選人數": 4, "投票率": 67.0},
+        "2018-T2": {"選舉人數": 192460, "投票數": 115407, "候選人數": 84,
+                "當選人數": 34, "婦女保障當選人數": 0, "投票率": 59.96},
+        "2018-T3": {"選舉人數": 204127, "投票數": 149675, "候選人數": 98,
+                "當選人數": 35, "婦女保障當選人數": 0, "投票率": 73.32},
+        "2022-D2": {"選舉人數": 31807, "投票數": 23712, "候選人數": 20,
+                "當選人數": 6, "婦女保障當選人數": 0, "投票率": 74.55},
+        "2022-R2": {"選舉人數": 91627, "投票數": 55614, "候選人數": 134,
+                "當選人數": 72, "婦女保障當選人數": 2, "投票率": 60.7},
+        "2022-R3": {"選舉人數": 31803, "投票數": 23712, "候選人數": 92,
+                "當選人數": 50, "婦女保障當選人數": 0, "投票率": 74.56},
+        "2022-T1": {"選舉人數": 18710006, "投票數": 11445404, "候選人數": 1524,
+                "當選人數": 841, "婦女保障當選人數": 4, "投票率": 61.17},
+        "2022-T2": {"選舉人數": 202477, "投票數": 106573, "候選人數": 73,
+                "當選人數": 34, "婦女保障當選人數": 0, "投票率": 52.63},
+        "2022-T3": {"選舉人數": 216262, "投票數": 144164, "候選人數": 80,
+                "當選人數": 35, "婦女保障當選人數": 0, "投票率": 66.66},
     },
-    # 婦女保障當選共 6 席（R2 兩席、T1 四席）。這是 '!' 邏輯的真實資料覆蓋：
-    # 只數 '*' 會少算這 6 席，而且建置驗證會抓到（已用變異測試確認）。
-    "women_quota_total": 6,
-    # 全零列：只出現在 T2／T3，各約 38%。使用者若不排除，
-    # 「平均每投開票所多少選舉人」這類問題會低估一半。
-    "zero_rows": {"total": 17131, "T2": 8932, "T3": 8199},
+    # 版面：2022 為「男女合計」、2018 為「合計在前」。
+    # 兩者各自算術自洽，只能靠「男+女=合計」分辨；套錯會得到看似合理的錯誤席次。
+    "layout_by_year": {2022: "男女合計", 2018: "合計在前"},
+    # 婦女保障當選：2022 共 6 席、2018 共 8 席。這是 '!' 邏輯的真實資料覆蓋。
+    "women_quota": {
+        "2022-R2": 2, "2022-T1": 4,
+        "2018-R3": 1, "2018-R2": 3, "2018-T1": 4,
+    },
+    "women_quota_total": 14,
+    # 全零列：主要在 T2／T3（選舉人散布全縣，多數投開票所無此類選舉人）。
+    # ⚠️ 2018-R2 也有 1 列，所以不是 T2/T3 專屬。
+    "zero_rows": {
+        "total": 32025,
+        "2022-T2": 8932, "2022-T3": 8199,
+        "2018-T2": 7848, "2018-T3": 7045, "2018-R2": 1,
+    },
     # 投票率逐列精確驗證的列數（中選會用四捨五入，非銀行家捨入）
-    "turnout_rows_checked": 54603,
+    "turnout_rows_checked": 106452,
     "sha256": "84740535b1f4a9a8fec8ebfe8f7577889837b7639cd7f5e40ef8826c6ab2f69a",
 }
 
@@ -227,7 +250,7 @@ def load(name: str) -> list[dict]:
 
 
 def test_regression() -> None:
-    print("\n[迴歸] 2022 年六種選舉的實際輸出")
+    print("\n[迴歸] 2018 與 2022 兩屆、六種選舉的實際輸出")
     report_path = OUT / "validation-report.json"
     if not report_path.exists():
         print("  SKIP  data/processed/ 不存在，請先執行 build_local_election.py")
@@ -248,44 +271,52 @@ def test_regression() -> None:
             got[r["層級"]] = got.get(r["層級"], 0) + 1
         check(f"{name} 層級分布", got, EXPECTED[f"levels_{name}"])
 
-    by_type: dict[str, int] = {}
+    by_yt: dict[str, int] = {}
     for c in C:
-        by_type[c["選舉種類"]] = by_type.get(c["選舉種類"], 0) + 1
-    check("各選舉種類候選人數", by_type, EXPECTED["candidates_by_type"])
+        k = f"{c['年度']}-{c['選舉種類']}"
+        by_yt[k] = by_yt.get(k, 0) + 1
+    check("各屆別選舉種類候選人數", by_yt, EXPECTED["candidates_by_year_type"])
 
-    # 逐一選舉種類重算全國數字（city + prv 相加），不跨種類相加
-    for etype, want in EXPECTED["national"].items():
-        totals = [
-            r for r in S
-            if r["層級"] == "檔別合計" and r["選舉種類"] == etype
-        ]
+    # 逐屆逐種類重算全國數字（city + prv 相加），不跨種類、不跨屆相加
+    for key, want in EXPECTED["national"].items():
+        year, etype = key.split("-")
+        totals = [r for r in S if r["層級"] == "檔別合計"
+                  and r["選舉種類"] == etype and r["年度"] == year]
         e = sum(int(r["選舉人數"]) for r in totals)
         v = sum(int(r["投票數"]) for r in totals)
-        check(f"{etype} 全國選舉人數", e, want["選舉人數"])
-        check(f"{etype} 全國投票數", v, want["投票數"])
-        check(f"{etype} 全國投票率", round(100.0 * v / e, 2), want["投票率"])
-        cands = [c for c in C if c["選舉種類"] == etype]
-        check(f"{etype} 當選人數（含婦女保障）",
+        check(f"{key} 全國選舉人數", e, want["選舉人數"])
+        check(f"{key} 全國投票數", v, want["投票數"])
+        check(f"{key} 全國投票率", round(100.0 * v / e, 2), want["投票率"])
+        cands = [c for c in C
+                 if c["選舉種類"] == etype and c["年度"] == year]
+        check(f"{key} 當選人數（含婦女保障）",
               sum(1 for c in cands if c["當選"] == "Y"), want["當選人數"])
-        check(f"{etype} 婦女保障當選人數",
-              sum(1 for c in cands if c["當選註記"] == "!"),
-              want["婦女保障當選人數"])
 
-    # '!' 邏輯的真實資料覆蓋——2022 T2 單獨一種選舉時無法測到這條
+    # 版面：2022 與 2018 不同，靠自我驗證分辨。套錯會得到看似合理的錯誤席次。
+    for year, want in EXPECTED["layout_by_year"].items():
+        got_l = set(r["版面"] for r in S if r["年度"] == str(year))
+        check(f"{year} 版面", got_l, {want})
+
+    # 婦女保障：'!' 邏輯的真實資料覆蓋
+    wq: dict[str, int] = {}
+    for c in C:
+        if c["當選註記"] == "!":
+            k = f"{c['年度']}-{c['選舉種類']}"
+            wq[k] = wq.get(k, 0) + 1
+    check("婦女保障當選分布", wq, EXPECTED["women_quota"])
     check("婦女保障當選總數",
-          sum(1 for c in C if c["當選註記"] == "!"),
-          EXPECTED["women_quota_total"])
+          sum(wq.values()), EXPECTED["women_quota_total"])
 
-    # 全零列——T2／T3 特有，佔各該種類約 38%
+    # 全零列
     zero = [r for r in S if int(r["選舉人數"]) == 0
             and int(r["投票數"]) == 0 and int(r["人口數"]) == 0]
     check("全零列總數", len(zero), EXPECTED["zero_rows"]["total"])
     zt: dict[str, int] = {}
     for r in zero:
-        zt[r["選舉種類"]] = zt.get(r["選舉種類"], 0) + 1
-    check("全零列只出現在 T2/T3", set(zt), {"T2", "T3"})
-    for et in ("T2", "T3"):
-        check(f"{et} 全零列數", zt[et], EXPECTED["zero_rows"][et])
+        k = f"{r['年度']}-{r['選舉種類']}"
+        zt[k] = zt.get(k, 0) + 1
+    check("全零列分布", zt,
+          {k: v for k, v in EXPECTED["zero_rows"].items() if k != "total"})
     check("沒有『選舉人數 0 卻有票』的列",
           [r for r in zero if int(r["有效票"]) or int(r["無效票"])], [])
 
@@ -297,9 +328,9 @@ def test_regression() -> None:
         if e == 0 or not r["投票率"]:
             continue
         checked += 1
-        got = (Decimal(100 * int(r["投票數"])) / Decimal(e)).quantize(
+        got_t = (Decimal(100 * int(r["投票數"])) / Decimal(e)).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if got != Decimal(r["投票率"]):
+        if got_t != Decimal(r["投票率"]):
             mism += 1
     check("投票率可重算列數", checked, EXPECTED["turnout_rows_checked"])
     check("投票率不符列數（四捨五入）", mism, 0)
@@ -308,7 +339,6 @@ def test_regression() -> None:
     leaked = {"出生日期", "出生地", "學歷"} & set(C[0].keys())
     check("個資欄位未輸出", leaked, set())
 
-    # 當選註記只能是官方定義的四種語意
     check("當選註記值域",
           set(c["當選註記語意"] for c in C) <= {
               "當選", "未當選", "婦女保障當選", "因婦女保障被排擠未當選"},
@@ -316,8 +346,9 @@ def test_regression() -> None:
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
     check("報告來源 sha256", report["來源檔sha256"], EXPECTED["sha256"])
-    check("報告涵蓋選舉種類",
-          set(report["各選舉種類全國合計"]), set(EXPECTED["national"]))
+    check("報告涵蓋屆別選舉種類",
+          set(report["各屆別選舉種類全國合計"]), set(EXPECTED["national"]))
+
 
 
 def main() -> int:

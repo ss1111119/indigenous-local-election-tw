@@ -29,10 +29,6 @@ ROOT = Path(__file__).resolve().parent.parent
 ZIP_PATH = ROOT / "data" / "raw" / "cec-votedata.zip"
 OUT_DIR = ROOT / "data" / "processed"
 
-# 本次建置範圍。擴充屆別或選舉種類時改這裡。
-YEAR = 2022
-YEAR_FOLDER = "2022-111年地方公職人員選舉"
-
 # 選舉種類名稱一律採用壓縮檔內官方對照表 選舉種類代碼.xlsx 的原始字串，
 # 不自行改寫（包含半形括號）。四種原住民專屬：T2、T3、D2、R3；
 # R2 是平地原住民的鄉鎮市民代表；T1 為區域議員，作為對照組。
@@ -47,9 +43,51 @@ ELECTION_TYPES = {
 # 是否為原住民專屬選舉種類。T1 是對照組，不應被當成原住民資料引用。
 INDIGENOUS_TYPES = {"T2", "T3", "D2", "R3", "R2"}
 
-# 2022 年僅 C1/T1/T2/T3 有 city／prv 子資料夾，其餘選舉種類為扁平單一份。
-# 官方對照表在 C1 的備註欄即記有「city(縣市)、prv(直轄市)」。
-SPLIT_TYPES = {"C1", "T1", "T2", "T3"}
+# ---------------------------------------------------------------------------
+# 屆別設定
+#
+# 跨屆的編碼完全不同，不能用同一組假設處理。已實測確認的差異：
+#
+#                  2022                      2018
+#   資料夾         代碼 T2/city、T2/prv       中文名 縣市平原議員、直轄市平原議員
+#   欄位值         純值                      全部加引號，代碼前綴 ' （Excel 強制文字）
+#   合計列位置     第 1 列                   最後一列
+#   elprof 版面    男女合計                  合計在前
+#
+# 合計列位置的差異不影響解析——本程式以層級判定找出合計列，不取固定位置。
+# 版面差異由 detect_layout() 的自我驗證自動處理。
+#
+# ⚠️ T2/T3/D2/R3/R2/T1 這組代碼是【2022 年官方對照表】的代碼。
+#    2018 年的壓縮檔沒有代碼對照表，只有中文資料夾名；此處的對應是
+#    **本專案依名稱判定**的，不是官方宣告的跨屆對應關係。
+YEARS = {
+    2022: {
+        "folder": "2022-111年地方公職人員選舉",
+        "quoted": False,
+        "parts": {
+            "T2": {"city": "T2/city", "prv": "T2/prv"},
+            "T3": {"city": "T3/city", "prv": "T3/prv"},
+            "D2": {"單一": "D2"},
+            "R3": {"單一": "R3"},
+            "R2": {"單一": "R2"},
+            "T1": {"city": "T1/city", "prv": "T1/prv"},
+        },
+    },
+    2018: {
+        "folder": "2018-107年地方公職人員選舉",
+        "quoted": True,
+        "parts": {
+            "T2": {"city": "縣市平原議員", "prv": "直轄市平原議員"},
+            "T3": {"city": "縣市山原議員", "prv": "直轄市山原議員"},
+            "D2": {"單一": "直轄市區長"},
+            "R3": {"單一": "直轄市區民代表"},
+            "R2": {"單一": "縣市鄉鎮市民平原代表"},
+            "T1": {"city": "縣市區域議員", "prv": "直轄市區域議員"},
+        },
+    },
+}
+# 本次建置的屆別。
+BUILD_YEARS = [2022, 2018]
 
 # 官方格式文件 elcand／elctks 的當選註記
 WIN_MARKS = {
@@ -96,7 +134,8 @@ def zip_names(zf: zipfile.ZipFile) -> dict[str, str]:
 
 
 def read_csv(
-    zf: zipfile.ZipFile, names: dict[str, str], path: str, expect_cols: int
+    zf: zipfile.ZipFile, names: dict[str, str], path: str, expect_cols: int,
+    quoted: bool = False,
 ) -> list[list[str]]:
     """讀壓縮檔內一個 CSV。所有欄位一律保留為字串。
 
@@ -120,6 +159,11 @@ def read_csv(
             raise ValidationError(
                 f"{path} 第 {i + 1} 列有 {len(row)} 欄，預期恰為 {expect_cols} 欄"
             )
+        if quoted:
+            # 2018 年的檔案每個欄位都加引號，且代碼前綴一個撇號
+            # （Excel 用來強制當成文字的寫法，如 '10）。csv.reader 已處理引號，
+            # 撇號則要自己去掉，否則代碼會變成 "'10" 而對不上任何東西。
+            row = [c.lstrip("'").strip() for c in row]
         rows.append(row)
     if not rows:
         raise ValidationError(f"{path} 沒有任何資料列")
@@ -193,21 +237,20 @@ def build_area_names(base_rows: list[list[str]]) -> dict[tuple[str, ...], str]:
     return {tuple(r[:5]): r[5] for r in base_rows}
 
 
-def process_one(zf, names, etype: str, variant: str | None) -> dict:
-    """處理單一選舉種類的單一檔別（city／prv／扁平）。"""
-    sub = f"{etype}/{variant}" if variant else etype
-    prefix = f"votedata/votedata/voteData/{YEAR_FOLDER}/{sub}"
+def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
+    """處理單一屆別 × 單一選舉種類 × 單一檔別。"""
+    cfg = YEARS[year]
+    q = cfg["quoted"]
+    prefix = f"votedata/votedata/voteData/{cfg['folder']}/{sub}"
 
-    base = read_csv(zf, names, f"{prefix}/elbase.csv", COLS["elbase"])
-    cand = read_csv(zf, names, f"{prefix}/elcand.csv", COLS["elcand"])
-    paty = read_csv(zf, names, f"{prefix}/elpaty.csv", COLS["elpaty"])
-    prof = read_csv(zf, names, f"{prefix}/elprof.csv", COLS["elprof"])
-    ctks = read_csv(zf, names, f"{prefix}/elctks.csv", COLS["elctks"])
+    base = read_csv(zf, names, f"{prefix}/elbase.csv", COLS["elbase"], q)
+    cand = read_csv(zf, names, f"{prefix}/elcand.csv", COLS["elcand"], q)
+    paty = read_csv(zf, names, f"{prefix}/elpaty.csv", COLS["elpaty"], q)
+    prof = read_csv(zf, names, f"{prefix}/elprof.csv", COLS["elprof"], q)
+    ctks = read_csv(zf, names, f"{prefix}/elctks.csv", COLS["elctks"], q)
 
     area = build_area_names(base)
     parties = {r[0]: r[1] for r in paty}
-
-    label = variant or "單一"
 
     # ---- elprof：選舉概況 ----
     summary = []
@@ -220,11 +263,11 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
         valid, invalid, voted = n[6], n[7], n[8]
         if valid + invalid != voted:
             raise ValidationError(
-                f"{sub} 有效票+無效票≠投票數：{valid}+{invalid}≠{voted}（{r[:6]}）"
+                f"{year} {sub} 有效票+無效票≠投票數：{valid}+{invalid}≠{voted}（{r[:6]}）"
             )
         electors = n[9]
         row = {
-            "年度": YEAR,
+            "年度": year,
             "選舉種類": etype,
             "選舉種類名稱": ELECTION_TYPES[etype],
             "檔別": label,
@@ -240,11 +283,11 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
         summary.append(row)
         if level == "檔別合計":
             if file_total is not None:
-                raise ValidationError(f"{sub} elprof 出現多列檔別合計")
+                raise ValidationError(f"{year} {sub} elprof 出現多列檔別合計")
             file_total = row
 
     if file_total is None:
-        raise ValidationError(f"{sub} elprof 找不到檔別合計列（前 6 欄皆為 0）")
+        raise ValidationError(f"{year} {sub} elprof 找不到檔別合計列（前 6 欄皆為 0）")
 
     # ---- elcand：候選人 ----
     # 不輸出出生日期、出生地、學歷（個資最小化，見 docs/schema）。
@@ -253,11 +296,11 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
         mark = r[14]
         if mark not in WIN_MARKS:
             raise ValidationError(
-                f"{sub} elcand 出現未知的當選註記 {mark!r}。"
+                f"{year} {sub} elcand 出現未知的當選註記 {mark!r}。"
                 f"官方格式文件僅定義 '*'、' '、'!'、'-' 四種。"
             )
         candidates.append({
-            "年度": YEAR,
+            "年度": year,
             "選舉種類": etype,
             "選舉種類名稱": ELECTION_TYPES[etype],
             "檔別": label,
@@ -281,9 +324,9 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     for r in ctks:
         mark = r[9]
         if mark not in WIN_MARKS:
-            raise ValidationError(f"{sub} elctks 出現未知的當選註記 {mark!r}")
+            raise ValidationError(f"{year} {sub} elctks 出現未知的當選註記 {mark!r}")
         votes.append({
-            "年度": YEAR,
+            "年度": year,
             "選舉種類": etype,
             "選舉種類名稱": ELECTION_TYPES[etype],
             "檔別": label,
@@ -299,7 +342,7 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
 
     return {
         "summary": summary, "candidates": candidates, "votes": votes,
-        "file_total": file_total, "label": label, "etype": etype,
+        "file_total": file_total, "label": label, "etype": etype, "year": year,
     }
 
 
@@ -453,6 +496,7 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 )
 
         report.append({
+            "年度": p["year"],
             "選舉種類": p["etype"],
             "選舉種類名稱": ELECTION_TYPES[p["etype"]],
             "原住民專屬": p["etype"] in INDIGENOUS_TYPES,
@@ -474,10 +518,10 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
     # --- 8. city 與 prv 是互斥的行政區劃分——兩者的縣市代碼不得重疊 ---
     #     必須**按選舉種類分組**比對。不分組會拿 T2 的縣市去跟 T3 的比，
     #     那個比較沒有意義，而且會漏掉同一種類內真正的重疊。
-    by_type: dict[str, list[dict]] = {}
+    by_type: dict[tuple, list[dict]] = {}
     for p in parts:
-        by_type.setdefault(p["etype"], []).append(p)
-    for etype, group in by_type.items():
+        by_type.setdefault((p["year"], p["etype"]), []).append(p)
+    for (yr, etype), group in by_type.items():
         if len(group) < 2:
             continue
         # 全配對比較，不是只比前兩個。目前每組最多兩份（city／prv），
@@ -494,7 +538,7 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 overlap = sa & sb
                 if overlap:
                     raise ValidationError(
-                        f"{etype} 的 {a['label']} 與 {b['label']} 縣市代碼重疊："
+                        f"{yr} {etype} 的 {a['label']} 與 {b['label']} 縣市代碼重疊："
                         f"{sorted(overlap)}。兩者應為互斥的行政區劃分，"
                         f"相加才是該種類的全國數字。"
                     )
@@ -560,14 +604,14 @@ def main() -> None:
     with zipfile.ZipFile(ZIP_PATH) as zf:
         names = zip_names(zf)
         all_summary, all_cand, all_votes, parts = [], [], [], []
-        for etype in ELECTION_TYPES:
-            variants = ["city", "prv"] if etype in SPLIT_TYPES else [None]
-            for v in variants:
-                p = process_one(zf, names, etype, v)
-                parts.append(p)
-                all_summary += p["summary"]
-                all_cand += p["candidates"]
-                all_votes += p["votes"]
+        for year in BUILD_YEARS:
+            for etype, mapping in YEARS[year]["parts"].items():
+                for label, sub in mapping.items():
+                    p = process_one(zf, names, year, etype, label, sub)
+                    parts.append(p)
+                    all_summary += p["summary"]
+                    all_cand += p["candidates"]
+                    all_votes += p["votes"]
 
     report: list[dict] = []
     cross_validate(parts, report)
@@ -576,30 +620,34 @@ def main() -> None:
     # 同一個人可能同時是 D2 與 R3 的選舉人（已實測兩者是同一批選民），
     # 把各種類的選舉人數相加會嚴重重複計算。
     national: dict[str, dict] = {}
-    for etype in ELECTION_TYPES:
-        rows = [r for r in report if r["選舉種類"] == etype]
-        if not rows:
-            continue
-        n = {
-            "選舉種類名稱": ELECTION_TYPES[etype],
-            "原住民專屬": etype in INDIGENOUS_TYPES,
-            "檔別數": len(rows),
-            "選舉人數": sum(r["選舉人數"] for r in rows),
-            "投票數": sum(r["投票數"] for r in rows),
-            "候選人數": sum(r["候選人數"] for r in rows),
-            "當選人數": sum(r["當選人數"] for r in rows),
-            "婦女保障當選人數": sum(r["婦女保障當選人數"] for r in rows),
-        }
-        n["投票率_本專案計算"] = round(100.0 * n["投票數"] / n["選舉人數"], 2)
-        national[etype] = n
+    for year in BUILD_YEARS:
+        for etype in ELECTION_TYPES:
+            rows = [r for r in report
+                    if r["選舉種類"] == etype and r["年度"] == year]
+            if not rows:
+                continue
+            n = {
+                "年度": year,
+                "選舉種類": etype,
+                "選舉種類名稱": ELECTION_TYPES[etype],
+                "原住民專屬": etype in INDIGENOUS_TYPES,
+                "檔別數": len(rows),
+                "選舉人數": sum(r["選舉人數"] for r in rows),
+                "投票數": sum(r["投票數"] for r in rows),
+                "候選人數": sum(r["候選人數"] for r in rows),
+                "當選人數": sum(r["當選人數"] for r in rows),
+                "婦女保障當選人數": sum(r["婦女保障當選人數"] for r in rows),
+            }
+            n["投票率_本專案計算"] = round(100.0 * n["投票數"] / n["選舉人數"], 2)
+            national[f"{year}-{etype}"] = n
 
     report_json = json.dumps({
         "來源檔": ZIP_PATH.name,
         "來源檔sha256": digest,
-        "年度": YEAR,
+        "年度": year,
         "選舉種類": ELECTION_TYPES,
         "各檔別": report,
-        "各選舉種類全國合計": national,
+        "各屆別選舉種類全國合計": national,
         "全國合計說明": (
             "city 與 prv 為互斥行政區劃分，兩份 elprof 的首列各為該檔範圍小計，"
             "須相加才是該選舉種類的全國數字。全國投票率為本專案計算值，"
@@ -625,18 +673,20 @@ def main() -> None:
     })
 
     print(f"來源 sha256: {digest}")
-    for etype, n in national.items():
+    for key, n in national.items():
+        yr, etype = n["年度"], n["選舉種類"]
         mark = "原住民" if n["原住民專屬"] else "對照組"
-        for r in [r for r in report if r["選舉種類"] == etype]:
+        for r in [r for r in report
+                  if r["選舉種類"] == etype and r["年度"] == yr]:
             print(
-                f"  {etype} {r['檔別']:<5} 選舉人 {r['選舉人數']:>8,} "
-                f"投票 {r['投票數']:>8,} 投票率 {r['投票率_重算']:>5}% "
+                f"  {yr} {etype} {r['檔別']:<5} 選舉人 {r['選舉人數']:>9,} "
+                f"投票 {r['投票數']:>9,} 投票率 {r['投票率_重算']:>5}% "
                 f"候選 {r['候選人數']:>4} 當選 {r['當選人數']:>4} "
                 f"婦保 {r['婦女保障當選人數']:>2} 版面 {r['版面']}"
             )
         print(
-            f"  {etype} 全國  選舉人 {n['選舉人數']:>8,} "
-            f"投票 {n['投票數']:>8,} 投票率 {n['投票率_本專案計算']:>5}% "
+            f"  {yr} {etype} 全國  選舉人 {n['選舉人數']:>9,} "
+            f"投票 {n['投票數']:>9,} 投票率 {n['投票率_本專案計算']:>5}% "
             f"候選 {n['候選人數']:>4} 當選 {n['當選人數']:>4} "
             f"婦保 {n['婦女保障當選人數']:>2}  [{mark}] {n['選舉種類名稱']}"
         )
