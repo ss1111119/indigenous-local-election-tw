@@ -6,7 +6,7 @@
 1. **單元測試**——直接測 parser 的判斷邏輯（層級判定、版面偵測、CSV 讀取），
    用手寫的最小案例，不需要原始壓縮檔。這些一定會跑。
 
-2. **迴歸測試**——把目前 2022 T2 的實際輸出數字釘死。需要
+2. **迴歸測試**——把 2022 年六種選舉的實際輸出數字釘死。需要
    `data/processed/` 已存在（即已跑過建置）；不存在就跳過而非失敗，
    因為原始壓縮檔不入庫，clone 下來的人不一定有。
 
@@ -77,6 +77,11 @@ EXPECTED = {
     # 婦女保障當選共 6 席（R2 兩席、T1 四席）。這是 '!' 邏輯的真實資料覆蓋：
     # 只數 '*' 會少算這 6 席，而且建置驗證會抓到（已用變異測試確認）。
     "women_quota_total": 6,
+    # 全零列：只出現在 T2／T3，各約 38%。使用者若不排除，
+    # 「平均每投開票所多少選舉人」這類問題會低估一半。
+    "zero_rows": {"total": 17131, "T2": 8932, "T3": 8199},
+    # 投票率逐列精確驗證的列數（中選會用四捨五入，非銀行家捨入）
+    "turnout_rows_checked": 54603,
     "sha256": "84740535b1f4a9a8fec8ebfe8f7577889837b7639cd7f5e40ef8826c6ab2f69a",
 }
 
@@ -270,6 +275,34 @@ def test_regression() -> None:
     check("婦女保障當選總數",
           sum(1 for c in C if c["當選註記"] == "!"),
           EXPECTED["women_quota_total"])
+
+    # 全零列——T2／T3 特有，佔各該種類約 38%
+    zero = [r for r in S if int(r["選舉人數"]) == 0
+            and int(r["投票數"]) == 0 and int(r["人口數"]) == 0]
+    check("全零列總數", len(zero), EXPECTED["zero_rows"]["total"])
+    zt: dict[str, int] = {}
+    for r in zero:
+        zt[r["選舉種類"]] = zt.get(r["選舉種類"], 0) + 1
+    check("全零列只出現在 T2/T3", set(zt), {"T2", "T3"})
+    for et in ("T2", "T3"):
+        check(f"{et} 全零列數", zt[et], EXPECTED["zero_rows"][et])
+    check("沒有『選舉人數 0 卻有票』的列",
+          [r for r in zero if int(r["有效票"]) or int(r["無效票"])], [])
+
+    # 投票率：中選會用四捨五入，逐列精確相等
+    from decimal import Decimal, ROUND_HALF_UP
+    checked = mism = 0
+    for r in S:
+        e = int(r["選舉人數"])
+        if e == 0 or not r["投票率"]:
+            continue
+        checked += 1
+        got = (Decimal(100 * int(r["投票數"])) / Decimal(e)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if got != Decimal(r["投票率"]):
+            mism += 1
+    check("投票率可重算列數", checked, EXPECTED["turnout_rows_checked"])
+    check("投票率不符列數（四捨五入）", mism, 0)
 
     # 個資最小化：這三欄不得出現
     leaked = {"出生日期", "出生地", "學歷"} & set(C[0].keys())

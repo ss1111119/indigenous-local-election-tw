@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """從中選會 votedata.zip 建立原住民族地方選舉長表。
 
-MVP 範圍：2022（民國 111 年）T2 議員（平地原住民）選舉，city 與 prv 兩份檔案。
+範圍：2022（民國 111 年）地方公職人員選舉六種選舉種類——
+T2/T3/D2/R3/R2（原住民專屬）＋ T1 議員(區域)（對照組）。
 
 欄位語意一律以壓縮檔內的官方格式文件 voteData/選舉資料庫格式.odt 為準，
 不從既有腳本反推、不從資料猜。已知踩過的坑見 README「已查證的事實」。
@@ -21,6 +22,7 @@ import hashlib
 import io
 import json
 import zipfile
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -340,6 +342,16 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                     f"{label} 投票數 {s['投票數']} > 選舉人數 {s['選舉人數']}"
                     f"（{area_key(s)}）"
                 )
+            # 選舉人數為 0 的列必須整列為 0。這類「全零列」是合法的：
+            # T2／T3 的選舉人散布在全縣，多數投開票所沒有平地／山地原住民選舉人，
+            # 這些單位仍會出現在檔案裡但數字全為 0（各佔該種類約 38% 的列）。
+            # 但「選舉人數 0 卻有票」代表資料異常，必須攔下——
+            # 若不檢查，上面那條「投票數 ≤ 選舉人數」會因為 0 而整條跳過。
+            if s["選舉人數"] == 0 and (s["投票數"] or s["有效票"] or s["無效票"]):
+                raise ValidationError(
+                    f"{label} 選舉人數為 0 卻有票數（{area_key(s)}）："
+                    f"有效{s['有效票']} 無效{s['無效票']} 投票{s['投票數']}"
+                )
 
         # --- 3. 候選人複合鍵唯一（行政區 + 號次）---
         seen = set()
@@ -362,13 +374,43 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 f"（只數 '*' 而漏掉 '!' 婦女保障是最常見原因）"
             )
 
-        # --- 5. 投票率能不能從投票數／選舉人數重算出來 ---
-        recomputed = round(100.0 * ft["投票數"] / ft["選舉人數"], 2)
-        stated = round(float(ft["投票率"]), 2)
-        if abs(recomputed - stated) > 0.01:
-            raise ValidationError(
-                f"{label} 投票率不符：重算={recomputed}、檔案={stated}"
+        # --- 5. 投票率重算：**逐列**且**精確相等** ---
+        #     中選會用四捨五入（ROUND_HALF_UP），不是 Python round() 的銀行家捨入。
+        #     實測 54,603 個可重算的列，用四捨五入全部精確吻合、零不符；
+        #     用銀行家捨入則有 47 列差 0.01（如 17/32 = 53.125 → 53.13 vs 53.12）。
+        #     因為慣例已確認，這裡不設容差——設容差會讓真正的錯誤藏在容差裡。
+        turnout_checked = 0
+        for s in p["summary"]:
+            if s["選舉人數"] == 0 or not s["投票率"]:
+                continue
+            got = (Decimal(100 * s["投票數"]) / Decimal(s["選舉人數"])).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
             )
+            if got != Decimal(s["投票率"]):
+                raise ValidationError(
+                    f"{label} 投票率不符（{area_key(s)}）："
+                    f"重算={got}、檔案={s['投票率']}"
+                )
+            turnout_checked += 1
+        recomputed = float(
+            (Decimal(100 * ft["投票數"]) / Decimal(ft["選舉人數"])).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        )
+
+        # --- 5b. votes 的得票數不得為負，且（單位＋號次）必須唯一 ---
+        #      得票數為負若與另一筆正數互相抵銷，逐單位加總仍會通過；
+        #      重複列則會被靜默加總兩次。兩者目前皆無資料觸發，但沒檢查就是沒檢查。
+        seen_vote_keys = set()
+        for v in p["votes"]:
+            if v["得票數"] < 0:
+                raise ValidationError(
+                    f"{label} 得票數為負：{v['得票數']}（{area_key(v)} 號次 {v['號次']}）"
+                )
+            vk = (*area_key(v), v["號次"])
+            if vk in seen_vote_keys:
+                raise ValidationError(f"{label} elctks 出現重複的（單位＋號次）：{vk}")
+            seen_vote_keys.add(vk)
 
         # --- 6. 逐一行政單位：候選人得票加總 = 該單位有效票 ---
         #     這取代了原本只比對總和的版本。總和相等無法排除互相抵銷的錯位，
@@ -424,6 +466,7 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             "投票數": ft["投票數"],
             "投票率_檔案": ft["投票率"],
             "投票率_重算": recomputed,
+            "投票率逐列驗證數": turnout_checked,
             "逐一單位對帳數": len(votes_by_area),
             "版面": ft["版面"],
         })
