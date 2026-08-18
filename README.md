@@ -211,6 +211,7 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 | `data/processed/cec-local-election-candidates-long.csv` | 1,923 | 候選人：政黨、性別、年齡、現任、當選註記（**不含出生日期、出生地、學歷**） |
 | `data/processed/cec-local-election-votes-long.csv.gz` | 477,589 | 候選人得票，最細到投開票所 |
 | `data/processed/validation-report.json` | — | 驗證結果與來源檔 SHA-256 |
+| `data/processed/cec-moi-crosswalk.csv` | 8,103 | 中選會↔內政部行政區代碼對照（`python scripts/build_crosswalk.py`）|
 
 **目前範圍：2022 年（民國 111 年）六種選舉種類。**
 
@@ -228,7 +229,18 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 ⚠️ **不同選舉種類之間不可相加**——D2 與 R3 已實測為同一批選民
 （投票數皆 23,712），相加會重複計算。T1 是對照組，不是原住民資料。
 
-欄位說明與六個必讀陷阱見 [`docs/schema/cec-local-election.md`](docs/schema/cec-local-election.md)。
+欄位說明與七個必讀陷阱見 [`docs/schema/cec-local-election.md`](docs/schema/cec-local-election.md)。
+
+### 能不能 join 到內政部的圖資與人口統計？能，但要用代碼
+
+實測 2022 年資料：**鄉鎮市區 368/368 完全對上（100%）**、村里 7,688/7,735（99.39%）。
+對應規則為 `CEC 省市+縣市+鄉鎮市區 = MOI TOWNCODE`，村里再接「村里碼去掉第 1 碼」。
+
+⚠️ **但不能用名稱 join**：中選會與內政部的名稱都含 Unicode 私用區字元
+（Big5 遺留，如 `U+E02D` 即「廍」，多數字型無字形）。本專案輸出中有 8 個 PUA 碼位、
+影響 35 個行政區與 2 個候選人姓名。已驗到原始位元組層級——是來源如此，不是解碼錯誤。
+
+對照表與完整說明見 [`docs/schema/cec-moi-crosswalk.md`](docs/schema/cec-moi-crosswalk.md)。
 
 ⚠️ **T2／T3 有將近四成的列是「全零列」**（選舉人數、投票數、人口數皆為 0）。
 平地／山地原住民選舉人散布在全縣每個投開票所，多數投開票所沒有這類選舉人。
