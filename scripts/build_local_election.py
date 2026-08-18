@@ -253,6 +253,29 @@ def build_area_names(base_rows: list[list[str]]) -> dict[tuple[str, ...], str]:
     return {tuple(r[:5]): r[5] for r in base_rows}
 
 
+class NameLookup:
+    """行政區名稱查詢，並統計查不到的次數。
+
+    ⚠️ 不可靜默回傳空字串。實測 2014 年 D2（直轄市區長）的 elbase 全部 48 列
+    選舉區欄都是 '00'，但 elprof 有 90 列是 '01'——**來源自身不一致**，
+    查名稱必然落空。若直接用 dict.get(key, "")，這 110 列會安靜地失去名稱，
+    而且沒有任何跡象。統計數字會寫進 validation-report.json。
+    """
+
+    def __init__(self, mapping: dict) -> None:
+        self.mapping = mapping
+        self.missing = 0
+        self.missing_keys: set = set()
+
+    def get(self, key: tuple) -> str:
+        name = self.mapping.get(key)
+        if name is None:
+            self.missing += 1
+            self.missing_keys.add(key)
+            return ""
+        return name
+
+
 def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
     """處理單一屆別 × 單一選舉種類 × 單一檔別。"""
     cfg = YEARS[year]
@@ -265,7 +288,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
     prof = read_csv(zf, names, f"{prefix}/elprof.csv", COLS["elprof"], q)
     ctks = read_csv(zf, names, f"{prefix}/elctks.csv", COLS["elctks"], q)
 
-    area = build_area_names(base)
+    area = NameLookup(build_area_names(base))
     parties = {r[0]: r[1] for r in paty}
 
     # ---- elprof：選舉概況 ----
@@ -290,7 +313,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "層級": level,
             "省市": r[0], "縣市": r[1], "選舉區": r[2],
             "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
-            "行政區名稱": area.get(tuple(r[:5]), ""),
+            "行政區名稱": area.get(tuple(r[:5])),
             "有效票": valid, "無效票": invalid, "投票數": voted,
             "選舉人數": electors, "人口數": n[10],
             "候選人數": n_cand, "當選人數": n_seat,
@@ -322,7 +345,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "檔別": label,
             "省市": r[0], "縣市": r[1], "選舉區": r[2],
             "鄉鎮市區": r[3], "村里": r[4],
-            "行政區名稱": area.get(tuple(r[:5]), ""),
+            "行政區名稱": area.get(tuple(r[:5])),
             "號次": r[5],
             "姓名": r[6],
             "政黨代號": r[7],
@@ -349,7 +372,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "層級": admin_level(r),
             "省市": r[0], "縣市": r[1], "選舉區": r[2],
             "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
-            "行政區名稱": area.get(tuple(r[:5]), ""),
+            "行政區名稱": area.get(tuple(r[:5])),
             "號次": r[6],
             "得票數": int(r[7]),
             "得票率": r[8],
@@ -359,6 +382,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
     return {
         "summary": summary, "candidates": candidates, "votes": votes,
         "file_total": file_total, "label": label, "etype": etype, "year": year,
+        "name_missing": area.missing, "name_missing_keys": len(area.missing_keys),
     }
 
 
@@ -497,6 +521,37 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 f"不等於該單位有效票，例如 {k}：得票加總 {got} vs 有效票 {want}"
             )
 
+        # --- 6b. 候選人與得票的雙向參照完整性 ---
+        #      候選人的行政區粒度隨選舉種類而異：T2／T3／T1 記在選舉區層級
+        #      （鄉鎮市區為 0），D2／R3／R2 記在鄉鎮市區層級——因為那些選舉
+        #      本身就以鄉鎮市／區為單位。粒度**由資料推導**，不寫死種類。
+        uses_town = any(not is_blank(c["鄉鎮市區"]) for c in p["candidates"])
+
+        def cand_key(row: dict) -> tuple:
+            base = (row["省市"], row["縣市"], row["選舉區"], row["號次"])
+            return base + ((row["鄉鎮市區"],) if uses_town else ())
+
+        cand_keys = {cand_key(c) for c in p["candidates"]}
+        if len(cand_keys) != len(p["candidates"]):
+            raise ValidationError(
+                f"{label} 候選人鍵不唯一：{len(p['candidates'])} 列但只有 "
+                f"{len(cand_keys)} 個相異鍵"
+            )
+        vote_keys = {cand_key(v) for v in p["votes"]}
+        orphan_votes = vote_keys - cand_keys
+        if orphan_votes:
+            raise ValidationError(
+                f"{label} 有 {len(orphan_votes)} 個得票鍵在 elcand 中不存在，"
+                f"例如 {sorted(orphan_votes)[:3]}"
+            )
+        silent_cands = cand_keys - vote_keys
+        if silent_cands:
+            raise ValidationError(
+                f"{label} 有 {len(silent_cands)} 位候選人完全沒有得票列，"
+                f"例如 {sorted(silent_cands)[:3]}。"
+                f"（當選註記一致性檢查會靜默跳過這種候選人）"
+            )
+
         # --- 7. elcand 與 elctks 的當選註記一致 ---
         ctks_mark = {}
         for v in p["votes"]:
@@ -529,6 +584,8 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             "投票率逐列驗證數": turnout_checked,
             "逐一單位對帳數": len(votes_by_area),
             "版面": ft["版面"],
+            "行政區名稱查無": p["name_missing"],
+            "行政區名稱查無_相異代碼數": p["name_missing_keys"],
         })
 
     # --- 8. city 與 prv 是互斥的行政區劃分——兩者的縣市代碼不得重疊 ---
@@ -654,13 +711,19 @@ def main() -> None:
                 "當選人數": sum(r["當選人數"] for r in rows),
                 "婦女保障當選人數": sum(r["婦女保障當選人數"] for r in rows),
             }
-            n["投票率_本專案計算"] = round(100.0 * n["投票數"] / n["選舉人數"], 2)
+            # 與逐列驗證用同一套捨入規則（中選會是四捨五入，不是銀行家捨入）。
+            # 兩處用不同規則，目前巧合相同，但換屆別就不保證。
+            n["投票率_本專案計算"] = float(
+                (Decimal(100 * n["投票數"]) / Decimal(n["選舉人數"])).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+            )
             national[f"{year}-{etype}"] = n
 
     report_json = json.dumps({
         "來源檔": ZIP_PATH.name,
         "來源檔sha256": digest,
-        "年度": year,
+        "涵蓋屆別": BUILD_YEARS,
         "選舉種類": ELECTION_TYPES,
         "各檔別": report,
         "各屆別選舉種類全國合計": national,

@@ -12,7 +12,7 @@
 
 用法：
     python scripts/test_build_local_election.py
-    pytest scripts/test_build_local_election.py     # 兩者皆可
+    pytest scripts/test_build_local_election.py     # 兩者皆可（已驗證 pytest 會失敗）
 """
 
 from __future__ import annotations
@@ -111,6 +111,26 @@ failures: list[str] = []
 skipped: list[str] = []
 
 
+def reports(fn):
+    """讓測試函式在有 check() 失敗時真的丟出 AssertionError。
+
+    ⚠️ 這個包裝是必要的，不是裝飾。原本每個 test_* 只把失敗記進全域
+    `failures`，函式本身正常返回——**在 pytest 下會被判定為通過**。
+    實測：故意改壞一個預期值後，`pytest` 報 7 passed / exit 0，
+    直接執行卻正確 exit 1。而 docstring 當時還寫著「兩者皆可」。
+
+    測試數量再多，若失敗不會讓 runner 失敗，數量就沒有意義。
+    """
+    def wrapper():
+        start = len(failures)
+        fn()
+        new = failures[start:]
+        assert not new, f"{fn.__name__} 有 {len(new)} 項失敗：{new}"
+    wrapper.__name__ = fn.__name__
+    wrapper.__doc__ = fn.__doc__
+    return wrapper
+
+
 def check(name: str, got, want) -> None:
     if got == want:
         print(f"  PASS  {name}")
@@ -135,6 +155,7 @@ def check_raises(name: str, fn) -> None:
 
 # ---------------------------------------------------------------- 單元測試
 
+@reports
 def test_is_blank() -> None:
     print("\n[單元] is_blank——補零位數跨檔不一致，'0' 與 '0000' 都代表彙總")
     check("空字串", is_blank(""), True)
@@ -145,6 +166,7 @@ def test_is_blank() -> None:
     check("'A001' 不是彙總（跨村里投開票所）", is_blank("A001"), False)
 
 
+@reports
 def test_admin_level() -> None:
     print("\n[單元] admin_level——彙總列與明細列混在同一檔，判錯就會重複加總")
     cases = [
@@ -164,6 +186,7 @@ def test_admin_level() -> None:
         check(f"{','.join(codes)}", admin_level(codes), want)
 
 
+@reports
 def test_detect_layout() -> None:
     print("\n[單元] detect_layout——套錯版面會得到看似合理的錯誤席次且不報錯")
     # 2022 實際版面：候選男,候選女,候選合計,當選男,當選女,當選合計
@@ -184,6 +207,7 @@ def test_detect_layout() -> None:
     )
 
 
+@reports
 def test_win_marks() -> None:
     """當選註記的分類邏輯。
 
@@ -203,6 +227,7 @@ def test_win_marks() -> None:
     check("'-' 的語意", WIN_MARKS["-"], "因婦女保障被排擠未當選")
 
 
+@reports
 def test_read_csv() -> None:
     print("\n[單元] read_csv——欄數逐列嚴格檢查，且用 csv.reader 而非 split")
     buf = io.BytesIO()
@@ -227,6 +252,7 @@ def test_read_csv() -> None:
           ["1", "含,逗號的黨名"])
 
 
+@reports
 def test_render_csv_deterministic() -> None:
     print("\n[單元] render_csv——gzip 需可重現（mtime 固定、標頭不含檔名）")
     rows = [{"a": 1, "b": "甲"}, {"a": 2, "b": "乙"}]
@@ -248,6 +274,7 @@ def load(name: str) -> list[dict]:
         return list(csv.DictReader(fh))
 
 
+@reports
 def test_regression() -> None:
     print("\n[迴歸] 2018 與 2022 兩屆、六種選舉的實際輸出")
     report_path = OUT / "validation-report.json"
@@ -351,13 +378,15 @@ def test_regression() -> None:
 
 
 def main() -> int:
-    test_is_blank()
-    test_admin_level()
-    test_detect_layout()
-    test_win_marks()
-    test_read_csv()
-    test_render_csv_deterministic()
-    test_regression()
+    # 逐一執行；@reports 會在該組有失敗時丟 AssertionError，
+    # 這裡吞掉以便跑完全部並一次列出所有失敗（pytest 則會逐組報失敗）。
+    for fn in (test_is_blank, test_admin_level, test_detect_layout,
+               test_win_marks, test_read_csv, test_render_csv_deterministic,
+               test_regression):
+        try:
+            fn()
+        except AssertionError:
+            pass
 
     print("\n" + "=" * 60)
     if failures:
