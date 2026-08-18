@@ -49,6 +49,16 @@ ELECTED_MARKS = {"*", "!"}
 
 GENDER = {"1": "男", "2": "女"}
 
+# 各檔的欄數（依官方格式文件 voteData/選舉資料庫格式.odt）。
+# 逐列嚴格檢查——只驗「至少幾欄」會讓多出來的欄位靜默通過。
+COLS = {
+    "elbase": 6,
+    "elcand": 16,
+    "elpaty": 2,
+    "elprof": 20,
+    "elctks": 10,
+}
+
 
 class ValidationError(Exception):
     """自我驗證未通過。中止而不是套用預設值。"""
@@ -70,20 +80,34 @@ def zip_names(zf: zipfile.ZipFile) -> dict[str, str]:
     return out
 
 
-def read_csv(zf: zipfile.ZipFile, names: dict[str, str], path: str) -> list[list[str]]:
+def read_csv(
+    zf: zipfile.ZipFile, names: dict[str, str], path: str, expect_cols: int
+) -> list[list[str]]:
     """讀壓縮檔內一個 CSV。所有欄位一律保留為字串。
 
     行政區代碼絕不可轉成數字：官方格式文件說明跨村里投開票所的村里代碼
     首碼為英文（如 A001），且補零形式（'0' 與 '0000'）本身帶有層級語意。
+
+    用 csv.reader 而非 line.split(",")：官方格式文件雖然要求「檔案內容
+    請勿使用逗點符號」，但那是對資料提供端的要求，不是對讀取端的保證。
+    實測 2022 年各檔目前無引號、欄數一致，但這個假設不該寫死在程式裡。
+
+    欄數逐列檢查：只驗「至少幾欄」會讓多出來的欄位靜默通過。
     """
     if path not in names:
         raise ValidationError(f"壓縮檔內找不到 {path}")
     data = zf.read(names[path]).decode("utf-8", errors="strict")
     rows = []
-    for line in data.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        if line.strip() == "":
+    for i, row in enumerate(csv.reader(io.StringIO(data, newline=""))):
+        if not row or all(cell.strip() == "" for cell in row):
             continue
-        rows.append(line.split(","))
+        if len(row) != expect_cols:
+            raise ValidationError(
+                f"{path} 第 {i + 1} 列有 {len(row)} 欄，預期恰為 {expect_cols} 欄"
+            )
+        rows.append(row)
+    if not rows:
+        raise ValidationError(f"{path} 沒有任何資料列")
     return rows
 
 
@@ -126,11 +150,22 @@ def detect_layout(n: list[int]) -> tuple[str, int, int]:
 
     兩種皆不通過即中止：依錯誤版面解讀會得到看起來合理但完全錯誤的席次，
     而且不會報錯。
+
+    ⚠️ 兩種**同時**通過也必須中止。例如 idx11-16 全為 0 時兩式皆成立，
+    若靜默採用第一種，就是把「無法判斷」當成「已判斷」。
+    2022 年實測 71,734 列無一模稜兩可，但這不保證其他屆別也是如此。
     """
     a, b, c, d, e, f = n[11], n[12], n[13], n[14], n[15], n[16]
-    if a + b == c and d + e == f:
+    male_female = (a + b == c and d + e == f)
+    total_first = (c + d == a and e + f == b)
+    if male_female and total_first:
+        raise ValidationError(
+            f"elprof idx11-16 兩種版面同時通過自我驗證，無法判斷："
+            f"{a},{b},{c},{d},{e},{f}。須人工確認後指定版面。"
+        )
+    if male_female:
         return "男女合計", c, f
-    if c + d == a and e + f == b:
+    if total_first:
         return "合計在前", a, b
     raise ValidationError(
         f"elprof idx11-16 兩種版面皆未通過「男+女=合計」自我驗證："
@@ -140,7 +175,7 @@ def detect_layout(n: list[int]) -> tuple[str, int, int]:
 
 def build_area_names(base_rows: list[list[str]]) -> dict[tuple[str, ...], str]:
     """elbase 的行政區代碼→名稱對照。鍵為 5 碼 tuple。"""
-    return {tuple(r[:5]): r[5] for r in base_rows if len(r) >= 6}
+    return {tuple(r[:5]): r[5] for r in base_rows}
 
 
 def process_one(zf, names, etype: str, variant: str | None) -> dict:
@@ -148,14 +183,14 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     sub = f"{etype}/{variant}" if variant else etype
     prefix = f"votedata/votedata/voteData/{YEAR_FOLDER}/{sub}"
 
-    base = read_csv(zf, names, f"{prefix}/elbase.csv")
-    cand = read_csv(zf, names, f"{prefix}/elcand.csv")
-    paty = read_csv(zf, names, f"{prefix}/elpaty.csv")
-    prof = read_csv(zf, names, f"{prefix}/elprof.csv")
-    ctks = read_csv(zf, names, f"{prefix}/elctks.csv")
+    base = read_csv(zf, names, f"{prefix}/elbase.csv", COLS["elbase"])
+    cand = read_csv(zf, names, f"{prefix}/elcand.csv", COLS["elcand"])
+    paty = read_csv(zf, names, f"{prefix}/elpaty.csv", COLS["elpaty"])
+    prof = read_csv(zf, names, f"{prefix}/elprof.csv", COLS["elprof"])
+    ctks = read_csv(zf, names, f"{prefix}/elctks.csv", COLS["elctks"])
 
     area = build_area_names(base)
-    parties = {r[0]: r[1] for r in paty if len(r) >= 2}
+    parties = {r[0]: r[1] for r in paty}
 
     label = variant or "單一"
 
@@ -163,8 +198,6 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     summary = []
     file_total = None
     for r in prof:
-        if len(r) < 20:
-            raise ValidationError(f"{sub} elprof 有 {len(r)} 欄，預期 20 欄")
         n = {i: int(r[i]) for i in range(6, 17)}
         level = admin_level(r)
         layout, n_cand, n_seat = detect_layout(n)
@@ -202,8 +235,6 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     # 不輸出出生日期、出生地、學歷（個資最小化，見 docs/schema）。
     candidates = []
     for r in cand:
-        if len(r) < 15:
-            raise ValidationError(f"{sub} elcand 有 {len(r)} 欄，預期至少 15 欄")
         mark = r[14]
         if mark not in WIN_MARKS:
             raise ValidationError(
@@ -233,9 +264,7 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     # ---- elctks：候選人得票 ----
     votes = []
     for r in ctks:
-        if len(r) < 9:
-            raise ValidationError(f"{sub} elctks 有 {len(r)} 欄，預期至少 9 欄")
-        mark = r[9] if len(r) > 9 else ""
+        mark = r[9]
         if mark not in WIN_MARKS:
             raise ValidationError(f"{sub} elctks 出現未知的當選註記 {mark!r}")
         votes.append({
@@ -259,13 +288,55 @@ def process_one(zf, names, etype: str, variant: str | None) -> dict:
     }
 
 
+AREA_KEYS = ("省市", "縣市", "選舉區", "鄉鎮市區", "村里", "投開票所")
+
+
+def area_key(row: dict, with_station: bool = True) -> tuple:
+    keys = AREA_KEYS if with_station else AREA_KEYS[:5]
+    return tuple(row[k] for k in keys)
+
+
 def cross_validate(parts: list[dict], report: list[dict]) -> None:
-    """交叉驗證。任何一項不通過即中止。"""
+    """交叉驗證。任何一項不通過即中止。
+
+    設計原則：**驗到最細的粒度**。只驗總和的檢查會放過互相抵銷的錯誤——
+    某候選人少 10 票、另一個多 10 票，總和照樣通過。
+    """
     for p in parts:
         ft = p["file_total"]
         label = p["label"]
 
-        # 1. elprof 的候選人數／當選人數 對得上 elcand 的實際列數？
+        # --- 1. elprof 的行政單位鍵必須唯一 ---
+        prof_by_area: dict[tuple, dict] = {}
+        for s in p["summary"]:
+            k = area_key(s)
+            if k in prof_by_area:
+                raise ValidationError(
+                    f"{label} elprof 行政單位鍵重複：{k}。"
+                    f"重複列會讓後續所有加總驗證失去意義。"
+                )
+            prof_by_area[k] = s
+
+        # --- 2. 數值合理性 ---
+        for s in p["summary"]:
+            for col in ("有效票", "無效票", "投票數", "選舉人數", "人口數"):
+                if s[col] < 0:
+                    raise ValidationError(f"{label} {col} 為負數：{s[col]}（{area_key(s)}）")
+            if s["選舉人數"] and s["投票數"] > s["選舉人數"]:
+                raise ValidationError(
+                    f"{label} 投票數 {s['投票數']} > 選舉人數 {s['選舉人數']}"
+                    f"（{area_key(s)}）"
+                )
+
+        # --- 3. 候選人複合鍵唯一（行政區 + 號次）---
+        seen = set()
+        for c in p["candidates"]:
+            k = (*area_key(c, with_station=False), c["號次"])
+            if k in seen:
+                raise ValidationError(f"{label} 候選人複合鍵重複：{k}")
+            seen.add(k)
+
+        # --- 4. elprof 的候選人數／當選人數 對得上 elcand 的實際列數 ---
         n_cand = len(p["candidates"])
         n_win = sum(1 for c in p["candidates"] if c["當選"] == "Y")
         if n_cand != ft["候選人數"]:
@@ -278,7 +349,7 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 f"（只數 '*' 而漏掉 '!' 婦女保障是最常見原因）"
             )
 
-        # 2. 投票率能不能從投票數／選舉人數重算出來？
+        # --- 5. 投票率能不能從投票數／選舉人數重算出來 ---
         recomputed = round(100.0 * ft["投票數"] / ft["選舉人數"], 2)
         stated = round(float(ft["投票率"]), 2)
         if abs(recomputed - stated) > 0.01:
@@ -286,20 +357,45 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 f"{label} 投票率不符：重算={recomputed}、檔案={stated}"
             )
 
-        # 3. elctks 各選舉區的得票加總，是否等於該區明細列的有效票？
-        #    這是「彙總列混在明細列」陷阱的直接測試：
-        #    若誤把彙總列一起加總，數字會暴增數倍。
-        station_sum = sum(
-            v["得票數"] for v in p["votes"] if v["層級"] == "投開票所"
-        )
-        valid_detail = sum(
-            s["有效票"] for s in p["summary"] if s["層級"] == "投開票所"
-        )
-        if station_sum != valid_detail:
+        # --- 6. 逐一行政單位：候選人得票加總 = 該單位有效票 ---
+        #     這取代了原本只比對總和的版本。總和相等無法排除互相抵銷的錯位，
+        #     逐一單位比對才能抓到「A 少 10 票、B 多 10 票」這類錯誤。
+        #     同時涵蓋「彙總列混進明細加總」——因為每一層各自對帳。
+        votes_by_area: dict[tuple, int] = {}
+        for v in p["votes"]:
+            votes_by_area[area_key(v)] = votes_by_area.get(area_key(v), 0) + v["得票數"]
+
+        orphans = [k for k in votes_by_area if k not in prof_by_area]
+        if orphans:
             raise ValidationError(
-                f"{label} 投開票所層級得票加總={station_sum}，"
-                f"但 elprof 同層級有效票加總={valid_detail}"
+                f"{label} elctks 有 {len(orphans)} 個行政單位不存在於 elprof，"
+                f"例如 {orphans[:3]}。參照完整性破損。"
             )
+        mismatch = [
+            (k, votes_by_area[k], prof_by_area[k]["有效票"])
+            for k in votes_by_area
+            if votes_by_area[k] != prof_by_area[k]["有效票"]
+        ]
+        if mismatch:
+            k, got, want = mismatch[0]
+            raise ValidationError(
+                f"{label} 有 {len(mismatch)} 個行政單位的候選人得票加總"
+                f"不等於該單位有效票，例如 {k}：得票加總 {got} vs 有效票 {want}"
+            )
+
+        # --- 7. elcand 與 elctks 的當選註記一致 ---
+        ctks_mark = {}
+        for v in p["votes"]:
+            k = (*area_key(v, with_station=False), v["號次"])
+            ctks_mark.setdefault(k, set()).add(v["當選註記"])
+        for c in p["candidates"]:
+            k = (*area_key(c, with_station=False), c["號次"])
+            marks = ctks_mark.get(k)
+            if marks and marks != {c["當選註記"]}:
+                raise ValidationError(
+                    f"{label} 候選人 {k} 的當選註記不一致："
+                    f"elcand={c['當選註記']!r}、elctks={sorted(marks)}"
+                )
 
         report.append({
             "檔別": label,
@@ -309,11 +405,11 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             "投票數": ft["投票數"],
             "投票率_檔案": ft["投票率"],
             "投票率_重算": recomputed,
-            "投開票所層級得票加總": station_sum,
+            "逐一單位對帳數": len(votes_by_area),
             "版面": ft["版面"],
         })
 
-    # 4. city 與 prv 是互斥的行政區劃分——兩者的縣市代碼不得重疊。
+    # --- 8. city 與 prv 是互斥的行政區劃分——兩者的縣市代碼不得重疊 ---
     if len(parts) > 1:
         sets = []
         for p in parts:
@@ -329,15 +425,14 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             )
 
 
-def write_csv(path: Path, rows: list[dict], gzip_it: bool = False) -> None:
-    """寫出長表。大檔以 gzip 壓縮，沿用相鄰專案的慣例。
+def render_csv(rows: list[dict], name: str, gzip_it: bool = False) -> bytes:
+    """把長表算成位元組。不落地——落地由 commit_outputs() 統一處理。
 
     gzip 標頭預設會寫入當下時間，導致每次建置的位元組都不同。
     這裡固定 mtime=0，讓相同輸入產生相同輸出（可重現、git diff 乾淨）。
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
-        raise ValidationError(f"{path.name} 沒有任何資料列")
+        raise ValidationError(f"{name} 沒有任何資料列")
 
     buf = io.StringIO(newline="")
     w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
@@ -345,12 +440,38 @@ def write_csv(path: Path, rows: list[dict], gzip_it: bool = False) -> None:
     w.writerows(rows)
     payload = buf.getvalue().encode("utf-8-sig")
 
-    if gzip_it:
-        with io.open(path, "wb") as fh:
-            with gzip.GzipFile(fileobj=fh, mode="wb", mtime=0) as gz:
-                gz.write(payload)
-    else:
-        path.write_bytes(payload)
+    if not gzip_it:
+        return payload
+    raw = io.BytesIO()
+    with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
+        gz.write(payload)
+    return raw.getvalue()
+
+
+def commit_outputs(out_dir: Path, files: dict[str, bytes]) -> None:
+    """原子性地替換整組輸出。
+
+    先全部寫成 .tmp，全部成功後才逐一改名。任何一步失敗就清掉暫存檔，
+    原有的輸出保持不動——避免留下新舊混雜的半套結果。
+
+    改名本身在同一個檔案系統上是原子操作，但「整組」仍非交易性：
+    若在改名途中斷電，可能只有部分檔案更新。這已比先前的逐檔覆寫安全得多，
+    要再進一步就需要輸出目錄整個換版（out/v1 → out/current 符號連結），
+    以目前的規模不值得。
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tmps: list[tuple[Path, Path]] = []
+    try:
+        for name, payload in files.items():
+            tmp = out_dir / (name + ".tmp")
+            tmp.write_bytes(payload)
+            tmps.append((tmp, out_dir / name))
+    except Exception:
+        for tmp, _ in tmps:
+            tmp.unlink(missing_ok=True)
+        raise
+    for tmp, final in tmps:
+        tmp.replace(final)
 
 
 def main() -> None:
@@ -376,10 +497,6 @@ def main() -> None:
     report: list[dict] = []
     cross_validate(parts, report)
 
-    write_csv(OUT_DIR / "cec-local-election-summary-long.csv.gz", all_summary, gzip_it=True)
-    write_csv(OUT_DIR / "cec-local-election-candidates-long.csv", all_cand)
-    write_csv(OUT_DIR / "cec-local-election-votes-long.csv.gz", all_votes, gzip_it=True)
-
     national = {
         "選舉人數": sum(r["選舉人數"] for r in report),
         "投票數": sum(r["投票數"] for r in report),
@@ -390,26 +507,34 @@ def main() -> None:
         100.0 * national["投票數"] / national["選舉人數"], 2
     )
 
-    (OUT_DIR / "validation-report.json").write_text(
-        json.dumps({
-            "來源檔": ZIP_PATH.name,
-            "來源檔sha256": digest,
-            "年度": YEAR,
-            "選舉種類": ELECTION_TYPES,
-            "各檔別": report,
-            "全國合計": national,
-            "全國合計說明": (
-                "city 與 prv 為互斥行政區劃分，兩份 elprof 的首列各為該檔範圍小計，"
-                "須相加才是全國數字。全國投票率為本專案計算值，檔案中不存在此數。"
-            ),
-            "列數": {
-                "summary": len(all_summary),
-                "candidates": len(all_cand),
-                "votes": len(all_votes),
-            },
-        }, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    report_json = json.dumps({
+        "來源檔": ZIP_PATH.name,
+        "來源檔sha256": digest,
+        "年度": YEAR,
+        "選舉種類": ELECTION_TYPES,
+        "各檔別": report,
+        "全國合計": national,
+        "全國合計說明": (
+            "city 與 prv 為互斥行政區劃分，兩份 elprof 的首列各為該檔範圍小計，"
+            "須相加才是全國數字。全國投票率為本專案計算值，檔案中不存在此數。"
+        ),
+        "列數": {
+            "summary": len(all_summary),
+            "candidates": len(all_cand),
+            "votes": len(all_votes),
+        },
+    }, ensure_ascii=False, indent=2)
+
+    # 全部算完、全部驗過，才一次落地。
+    commit_outputs(OUT_DIR, {
+        "cec-local-election-summary-long.csv.gz":
+            render_csv(all_summary, "summary", gzip_it=True),
+        "cec-local-election-candidates-long.csv":
+            render_csv(all_cand, "candidates"),
+        "cec-local-election-votes-long.csv.gz":
+            render_csv(all_votes, "votes", gzip_it=True),
+        "validation-report.json": report_json.encode("utf-8"),
+    })
 
     print(f"來源 sha256: {digest}")
     for r in report:
