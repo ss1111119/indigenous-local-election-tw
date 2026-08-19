@@ -89,6 +89,10 @@ tbody tr:hover{background:var(--rule2)}
 svg{display:block;overflow:visible}
 .foot{font-size:12.5px;color:var(--ink3);margin-top:34px;line-height:1.75}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.nav{display:flex;gap:14px;margin-top:20px;font-size:13.5px}
+.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px}
+.nav a:hover{border-bottom-color:var(--accent)}
+.nav a[aria-current]{color:var(--ink);border-bottom-color:var(--ink)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 
@@ -103,6 +107,7 @@ svg{display:block;overflow:visible}
     <span>雜湊　84740535…</span>
     <span>授權　政府資料開放授權條款第 1 版</span>
   </div>
+  <nav class="nav"><a href="#" aria-current="page">概況</a><a href="https://claude.ai/code/artifact/c07f0903-2043-42cd-b5a9-d8400a7cda9f">名錄：逐選舉區的候選人與當選人 →</a></nav>
 </header>
 
 <section>
