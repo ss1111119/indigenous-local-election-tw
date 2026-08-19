@@ -2,6 +2,8 @@
 
 臺灣原住民族**地方選舉**資料的整理專案。
 
+📊 **線上瀏覽**：<https://ss1111119.github.io/indigenous-local-election-tw/>
+
 ## 這是什麼
 
 中選會選舉資料庫裡，地方公職人員選舉有十種選舉種類，其中**四種是原住民專屬**：
@@ -314,9 +316,12 @@ R2 68→71→72、T1 841→843→841。
   所有候選人與當選人，含政黨、現任與婦女保障標記。支援搜尋與
   網址雜湊（`#2018/D2`）可直接連到特定檢視。
 
-兩份都放在 `docs/`，是為了讓 GitHub Pages 可以直接由 `main/docs` 發布
-（Pages 只支援根目錄或 `/docs`，不支援其他資料夾）。`docs/.nojekyll`
-用來關掉 Jekyll 處理。⚠️ Pages **尚未啟用**。
+**線上版**：<https://ss1111119.github.io/indigenous-local-election-tw/>
+（名錄在 [`/roster.html`](https://ss1111119.github.io/indigenous-local-election-tw/roster.html)，
+支援網址雜湊如 `roster.html#2009-2010/T3`）
+
+兩份都放在 `docs/`，因為 GitHub Pages 只支援根目錄或 `/docs`，不支援其他資料夾；
+由 `main/docs` 發布，`docs/.nojekyll` 關掉 Jekyll 處理。
 
 該文件經兩輪外部覆核後改寫，主要修正：政黨呈現格式對所有政黨統一
 （原本無黨籍給比例、國民黨給席次、民進黨給提名／當選，讀起來有針對性）；
