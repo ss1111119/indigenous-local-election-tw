@@ -61,9 +61,9 @@ INDIGENOUS_TYPES = {"T2", "T3", "D2", "R3", "R2"}
 #    2018 年的壓縮檔沒有代碼對照表，只有中文資料夾名；此處的對應是
 #    **本專案依名稱判定**的，不是官方宣告的跨屆對應關係。
 YEARS = {
-    2022: {
-        "folder": "2022-111年地方公職人員選舉",
+    "2022": {
         "quoted": False,
+        "folder": "2022-111年地方公職人員選舉",
         "parts": {
             "T2": {"city": "T2/city", "prv": "T2/prv"},
             "T3": {"city": "T3/city", "prv": "T3/prv"},
@@ -73,7 +73,7 @@ YEARS = {
             "T1": {"city": "T1/city", "prv": "T1/prv"},
         },
     },
-    2018: {
+    "2018": {
         "folder": "2018-107年地方公職人員選舉",
         "quoted": True,
         "parts": {
@@ -89,7 +89,7 @@ YEARS = {
     # 合計列在末列、版面為合計在前）。實測確認，非假定。
     # ⚠️ 2014 是直轄市原住民區成立後的第一次選舉（地方制度法 2014 修正），
     #    D2／R3 在更早的屆別並不存在。
-    2014: {
+    "2014": {
         "folder": "2014-103年地方公職人員選舉",
         "quoted": True,
         "parts": {
@@ -101,9 +101,36 @@ YEARS = {
             "T1": {"city": "縣市區域議員", "prv": "直轄市區域議員"},
         },
     },
+    # ⚠️ 2009 與 2010 是【同一輪任期、分兩次投票】：2014 年九合一整併之前，
+    #    縣市議員與直轄市議員的選舉不同天。兩批當選人的任期都到 2014 年底，
+    #    2014 起才合併為同一次選舉。
+    #    【這是本專案的建模判斷，不是來源直接給的分屆方式】——來源只有
+    #    兩個各自獨立的資料夾。檔別名稱保留來源資料夾上的投票日期。
+    #
+    # ⚠️ 這一屆【只有 T2／T3／T1】：
+    #    - D2／R3 當時不存在（直轄市原住民區依 2014 年修正的地方制度法設立）
+    #    - R2 無法取得：2010鄉鎮市民代表 是全國所有鄉鎮市民代表的合併檔，
+    #      elbase 中沒有任何可辨識平地原住民席次的名稱，無法分離
+    #
+    # ⚠️ 行政區代碼是【完全不同的編碼】，與 2014 起的不可互通也不可比對：
+    #      2009 宜蘭縣 03,002　桃園縣 03,003　金門縣 04,001
+    #      2010 臺北市 01,000　新北市 02,000　臺中市 03,000
+    #      2014+ 宜蘭縣 10,002　臺北市 63,000（內政部戶役政代碼）
+    #    故本屆【不納入 cec-moi-crosswalk】，跨屆比對行政區時必須排除。
+    "2009-2010": {
+        "quoted": True,
+        "parts": {
+            "T2": {"縣市 2009-12-05": "20091205-縣市長縣市議員及鄉鎮長/平地議員",
+                   "五都 2010-11-27": "20101127-五都市長議員及里長/平地議員"},
+            "T3": {"縣市 2009-12-05": "20091205-縣市長縣市議員及鄉鎮長/山地議員",
+                   "五都 2010-11-27": "20101127-五都市長議員及里長/山地議員"},
+            "T1": {"縣市 2009-12-05": "20091205-縣市長縣市議員及鄉鎮長/區域議員",
+                   "五都 2010-11-27": "20101127-五都市長議員及里長/區域議員"},
+        },
+    },
 }
 # 本次建置的屆別。
-BUILD_YEARS = [2022, 2018, 2014]
+BUILD_YEARS = ["2022", "2018", "2014", "2009-2010"]
 
 # 官方格式文件 elcand／elctks 的當選註記
 WIN_MARKS = {
@@ -117,6 +144,41 @@ WIN_MARKS = {
 ELECTED_MARKS = {"*", "!"}
 
 GENDER = {"1": "男", "2": "女"}
+
+# ---------------------------------------------------------------------------
+# 已知的來源資料異常
+#
+# 這裡【不是】用來放寬驗證，而是把「已查明的來源錯誤」具名記錄下來，
+# 並且要求它必須通過【補償性檢查】才放行：
+#   1. 不符的單位必須【恰好】等於此處列出的集合——多一個少一個都中止
+#   2. 各單位的差額【必須互相抵銷為 0】——代表只是內部錯置，總量無誤
+# 兩者任一不成立即中止。這樣新的錯誤不可能藏在既有的例外裡。
+KNOWN_TURNOUT_ANOMALIES = {
+    # 投票率：全部 18 萬餘個可重算的列中，只有這一列與四捨五入不符。
+    # 原因是浮點數表示：577/800 的精確值是 72.125（進位臨界），但中選會
+    # 先算比值再乘 100，而 0.72125 的雙精度值為 0.7212499999999999467…，
+    # 落在臨界之下，故得 72.12。本專案以精確十進位計算，得 72.13。
+    # 【原樣保留來源數字，不自行更正】。
+    ("2009-2010", "T1", "五都 2010-11-27"): {
+        ("04", "000", "03", "007", "0133", "194"),
+    },
+}
+
+KNOWN_VOTE_SUM_ANOMALIES = {
+    ("2009-2010", "T1", "縣市 2009-12-05"): {
+        "units": {
+            ("03", "004", "01", "001", "0009", "0"),   # 新竹縣 新崙里
+            ("03", "004", "01", "001", "0011", "0"),   # 新竹縣 竹仁里
+        },
+        "reason": (
+            "中選會 2009 年區域議員 elctks 的村里層級彙總，把 3,106 票"
+            "記到相鄰的里：新崙里少 3,106（3,014 vs 有效票 6,120）、"
+            "竹仁里多 3,106（4,078 vs 972）。兩里合計 7,092 與 elprof 相符，"
+            "鄉鎮市區與選舉區層級皆零不符——錯置僅發生在村里層級。"
+            "本專案【原樣保留】來源數字，不自行更正。"
+        ),
+    },
+}
 
 # 各檔的欄數（依官方格式文件 voteData/選舉資料庫格式.odt）。
 # 逐列嚴格檢查——只驗「至少幾欄」會讓多出來的欄位靜默通過。
@@ -280,7 +342,10 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
     """處理單一屆別 × 單一選舉種類 × 單一檔別。"""
     cfg = YEARS[year]
     q = cfg["quoted"]
-    prefix = f"votedata/votedata/voteData/{cfg['folder']}/{sub}"
+    # 有 folder 的屆別，parts 給的是資料夾內的相對路徑；
+    # 沒有 folder 的（如 2009-2010 分兩次投票），parts 直接給完整子路徑。
+    rel = f"{cfg['folder']}/{sub}" if cfg.get("folder") else sub
+    prefix = f"votedata/votedata/voteData/{rel}"
 
     base = read_csv(zf, names, f"{prefix}/elbase.csv", COLS["elbase"], q)
     cand = read_csv(zf, names, f"{prefix}/elcand.csv", COLS["elcand"], q)
@@ -394,7 +459,8 @@ def area_key(row: dict, with_station: bool = True) -> tuple:
     return tuple(row[k] for k in keys)
 
 
-def cross_validate(parts: list[dict], report: list[dict]) -> None:
+def cross_validate(parts: list[dict], report: list[dict],
+                   anomalies: list[dict], turnout_anomalies: list[dict]) -> None:
     """交叉驗證。任何一項不通過即中止。
 
     設計原則：**驗到最細的粒度**。只驗總和的檢查會放過互相抵銷的錯誤——
@@ -402,7 +468,12 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
     """
     for p in parts:
         ft = p["file_total"]
-        label = p["label"]
+        # 錯誤訊息一定要能定位到「哪一屆、哪一種選舉、哪一個檔別」——
+        # 只印檔別會讓人查錯檔案（本專案已因此查錯過一次）。
+        # ⚠️ 這是【錯誤訊息用】的標籤，不可寫進輸出欄位，否則會與
+        #    年度／選舉種類欄重複。輸出一律用 p["label"]。
+        label = f'{p["year"]} {p["etype"]} {p["label"]}'
+    
 
         # --- 1. elprof 的行政單位鍵必須唯一 ---
         prof_by_area: dict[tuple, dict] = {}
@@ -470,10 +541,29 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
                 Decimal("0.01"), rounding=ROUND_HALF_UP
             )
             if got != Decimal(s["投票率"]):
-                raise ValidationError(
-                    f"{label} 投票率不符（{area_key(s)}）："
-                    f"重算={got}、檔案={s['投票率']}"
+                allow = KNOWN_TURNOUT_ANOMALIES.get(
+                    (p["year"], p["etype"], p["label"]), set()
                 )
+                exact = Decimal(100 * s["投票數"]) / Decimal(s["選舉人數"])
+                # 補償性檢查：必須是已記錄的單位、差額恰為 0.01，
+                # 且精確值的第三位小數恰為 5（真正的進位臨界）。
+                is_tie = (exact * 1000).to_integral_value() == exact * 1000 and                     str(exact).endswith("5")
+                if (area_key(s) in allow
+                        and abs(got - Decimal(s["投票率"])) == Decimal("0.01")
+                        and is_tie):
+                    turnout_anomalies.append({
+                        "屆別": p["year"], "選舉種類": p["etype"], "檔別": p["label"],
+                        "單位": list(area_key(s)),
+                        "投票數": s["投票數"], "選舉人數": s["選舉人數"],
+                        "精確值": str(exact), "本專案四捨五入": str(got),
+                        "檔案值": s["投票率"],
+                        "說明": "進位臨界，中選會以浮點數先算比值再乘 100，落在臨界之下",
+                    })
+                else:
+                    raise ValidationError(
+                        f"{label} 投票率不符（{area_key(s)}）："
+                        f"重算={got}、檔案={s['投票率']}"
+                    )
             turnout_checked += 1
         recomputed = float(
             (Decimal(100 * ft["投票數"]) / Decimal(ft["選舉人數"])).quantize(
@@ -515,11 +605,32 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             if votes_by_area[k] != prof_by_area[k]["有效票"]
         ]
         if mismatch:
-            k, got, want = mismatch[0]
-            raise ValidationError(
-                f"{label} 有 {len(mismatch)} 個行政單位的候選人得票加總"
-                f"不等於該單位有效票，例如 {k}：得票加總 {got} vs 有效票 {want}"
+            known = KNOWN_VOTE_SUM_ANOMALIES.get(
+                (p["year"], p["etype"], p["label"])
             )
+            got_units = {k for k, _, _ in mismatch}
+            net = sum(g - w for _, g, w in mismatch)
+            if known and got_units == known["units"] and net == 0:
+                # 已具名記錄且通過補償性檢查：差額互相抵銷、單位集合完全吻合
+                anomalies.append({
+                    "屆別": p["year"], "選舉種類": p["etype"], "檔別": p["label"],
+                    "不符單位數": len(mismatch), "差額合計": net,
+                    "說明": known["reason"],
+                })
+            else:
+                k, got, want = mismatch[0]
+                extra = ""
+                if known:
+                    extra = (
+                        f"（此檔別有已知來源異常，但本次不符的單位集合或差額"
+                        f"與記錄不同：預期 {len(known['units'])} 個單位、差額合計 0，"
+                        f"實得 {len(mismatch)} 個單位、差額合計 {net}）"
+                    )
+                raise ValidationError(
+                    f"{label} 有 {len(mismatch)} 個行政單位的候選人得票加總"
+                    f"不等於該單位有效票，例如 {k}：得票加總 {got} vs 有效票 {want}"
+                    f"{extra}"
+                )
 
         # --- 6b. 候選人與得票的雙向參照完整性 ---
         #      候選人的行政區粒度隨選舉種類而異：T2／T3／T1 記在選舉區層級
@@ -571,7 +682,7 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             "選舉種類": p["etype"],
             "選舉種類名稱": ELECTION_TYPES[p["etype"]],
             "原住民專屬": p["etype"] in INDIGENOUS_TYPES,
-            "檔別": label,
+            "檔別": p["label"],
             "候選人數": n_cand,
             "當選人數": n_win,
             "婦女保障當選人數": sum(
@@ -584,6 +695,12 @@ def cross_validate(parts: list[dict], report: list[dict]) -> None:
             "投票率逐列驗證數": turnout_checked,
             "逐一單位對帳數": len(votes_by_area),
             "版面": ft["版面"],
+            # 註記分布一律寫進報告。本專案曾宣稱「資料中未出現 '-'」而未實際清點，
+            # 擴充屆別後才發現 2014／2018 本來就有。分布攤開就無法再靜默漂移。
+            "當選註記分布": {
+                m: sum(1 for c in p["candidates"] if c["當選註記"] == m.strip())
+                for m in sorted({c["當選註記"] or " " for c in p["candidates"]})
+            },
             "行政區名稱查無": p["name_missing"],
             "行政區名稱查無_相異代碼數": p["name_missing_keys"],
         })
@@ -687,7 +804,9 @@ def main() -> None:
                     all_votes += p["votes"]
 
     report: list[dict] = []
-    cross_validate(parts, report)
+    anomalies: list[dict] = []
+    turnout_anomalies: list[dict] = []
+    cross_validate(parts, report, anomalies, turnout_anomalies)
 
     # 全國數字必須**按選舉種類**加總。跨種類相加沒有意義：
     # 同一個人可能同時是 D2 與 R3 的選舉人（已實測兩者是同一批選民），
@@ -725,6 +844,8 @@ def main() -> None:
         "來源檔sha256": digest,
         "涵蓋屆別": BUILD_YEARS,
         "選舉種類": ELECTION_TYPES,
+        "已知來源異常_得票加總": anomalies,
+        "已知來源異常_投票率": turnout_anomalies,
         "各檔別": report,
         "各屆別選舉種類全國合計": national,
         "全國合計說明": (
