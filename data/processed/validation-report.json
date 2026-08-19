@@ -15,6 +15,38 @@
     "R2": "鄉(鎮、市)民代表(平原)選舉",
     "T1": "議員(區域)選舉"
   },
+  "欄位oracle摘要": {
+    "summary": {
+      "欄位數": 21,
+      "有算術oracle": 7,
+      "語意層分布": {
+        "external-dataset": 2,
+        "official-doc": 14,
+        "official-table": 2,
+        "project-defined": 3
+      }
+    },
+    "candidates": {
+      "欄位數": 20,
+      "有算術oracle": 3,
+      "語意層分布": {
+        "external-dataset": 2,
+        "official-doc": 12,
+        "official-table": 3,
+        "project-defined": 3
+      }
+    },
+    "votes": {
+      "欄位數": 16,
+      "有算術oracle": 4,
+      "語意層分布": {
+        "external-dataset": 2,
+        "official-doc": 10,
+        "official-table": 2,
+        "project-defined": 2
+      }
+    }
+  },
   "已知來源異常_得票加總": [
     {
       "屆別": "2009-2010",

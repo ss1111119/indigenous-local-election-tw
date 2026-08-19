@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from oracles import MANIFEST, SEMANTIC_LEVELS, check_manifest  # noqa: E402
 from build_local_election import (  # noqa: E402
     COLS,
     ELECTED_MARKS,
@@ -266,6 +267,26 @@ def test_render_csv_deterministic() -> None:
     check_raises("空資料即中止", lambda: render_csv([], "x"))
 
 
+@reports
+def test_oracles() -> None:
+    """每個輸出欄位都必須宣告 oracle，且語意層的值必須合法。
+
+    這組測試守的是「manifest 不腐爛」：新增欄位而未宣告、或把
+    project-inferred 偷改成 official-doc，都會在這裡被擋下。
+    """
+    print("\n[單元] 欄位 oracle 宣告")
+    check("三張表都有宣告", set(MANIFEST), {"summary", "candidates", "votes"})
+    for t, fields in MANIFEST.items():
+        bad = [c for c, d in fields.items() if d["semantic"] not in SEMANTIC_LEVELS]
+        check(f"{t} 語意層值域合法", bad, [])
+        missing = [c for c, d in fields.items()
+                   if not d.get("structure") or "provenance" not in d]
+        check(f"{t} 每欄都有 structure 與 provenance", missing, [])
+    # 沒有算術 oracle 的欄位數——這個數字本身是專案的已知弱點，釘死它
+    n = sum(1 for f in MANIFEST.values() for d in f.values() if not d["arithmetic"])
+    check("沒有算術 oracle 的欄位數", n, 43)
+
+
 # ---------------------------------------------------------------- 迴歸測試
 
 def load(name: str) -> list[dict]:
@@ -410,7 +431,7 @@ def main() -> int:
     # 這裡吞掉以便跑完全部並一次列出所有失敗（pytest 則會逐組報失敗）。
     for fn in (test_is_blank, test_admin_level, test_detect_layout,
                test_win_marks, test_read_csv, test_render_csv_deterministic,
-               test_regression):
+               test_oracles, test_regression):
         try:
             fn()
         except AssertionError:

@@ -25,6 +25,10 @@ import zipfile
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from oracles import MANIFEST, check_manifest, render_markdown  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 ZIP_PATH = ROOT / "data" / "raw" / "cec-votedata.zip"
 OUT_DIR = ROOT / "data" / "processed"
@@ -844,6 +848,16 @@ def main() -> None:
         "來源檔sha256": digest,
         "涵蓋屆別": BUILD_YEARS,
         "選舉種類": ELECTION_TYPES,
+        "欄位oracle摘要": {
+            t: {
+                "欄位數": len(d),
+                "有算術oracle": sum(1 for v in d.values() if v["arithmetic"]),
+                "語意層分布": {
+                    lv: sum(1 for v in d.values() if v["semantic"] == lv)
+                    for lv in sorted({v["semantic"] for v in d.values()})
+                },
+            } for t, d in MANIFEST.items()
+        },
         "已知來源異常_得票加總": anomalies,
         "已知來源異常_投票率": turnout_anomalies,
         "各檔別": report,
@@ -861,6 +875,18 @@ def main() -> None:
         },
     }, ensure_ascii=False, indent=2)
 
+    # 每個輸出欄位都必須宣告 oracle。新增欄位而未宣告就會被擋下——
+    # 這是 manifest 不腐爛的唯一保證。
+    problems = check_manifest({
+        "summary": list(all_summary[0].keys()),
+        "candidates": list(all_cand[0].keys()),
+        "votes": list(all_votes[0].keys()),
+    })
+    if problems:
+        raise ValidationError(
+            "欄位 oracle 宣告不完整：\n  " + "\n  ".join(problems)
+        )
+
     # 全部算完、全部驗過，才一次落地。
     commit_outputs(OUT_DIR, {
         "cec-local-election-summary-long.csv.gz":
@@ -871,6 +897,11 @@ def main() -> None:
             render_csv(all_votes, "votes", gzip_it=True),
         "validation-report.json": report_json.encode("utf-8"),
     })
+
+    # oracle 文件由 manifest 生成，手寫會脫節
+    (ROOT / "docs" / "schema" / "oracles.md").write_text(
+        render_markdown(), encoding="utf-8"
+    )
 
     print(f"來源 sha256: {digest}")
     for key, n in national.items():
