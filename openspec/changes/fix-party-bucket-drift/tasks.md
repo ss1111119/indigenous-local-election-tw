@@ -19,8 +19,18 @@
 
 - [ ] 4.1 把無黨籍改為中性深色、橘色不再指派給任何桶，落實設計決策「無黨籍改用中性深色，橘色不再指派給任何桶」。門檻與驗證形式服從既有能力 `site-chart-accessibility`（Categorical Colors Are Measured Against Each Other、Color Verification Is Recorded, Not Asserted），本任務不另訂標準。
 
-  ⚠️ **必須先量「無黨籍（中性深色）↔ 其他（灰）」這一個配對。** 改色後這兩個桶會是相鄰的中性色、只靠亮度區分，是整套配色裡最容易糊掉的組合，**不可目測**。工具為 dataviz skill 的 `scripts/validate_palette.js`。
+  ⚠️ **必須先量「無黨籍（中性深色）↔ 其他（灰）」這一個配對。** 改色後這兩個桶是兩個中性色、只靠亮度區分，是整套配色裡最容易糊掉的組合，**不可目測**。
 
-  驗證方式：以該工具量出四個桶所有相鄰配對在明、暗兩個主題下的 ΔE，斷言正常視覺 ΔE ≥ 15、protan 與 deutan 模擬 ΔE ≥ 8；未達門檻即重新調色，不得放行。中性配對的實測值必須逐一列出，不可只寫「通過」。
-- [ ] 4.2 把 4.1 所用的工具名稱、模擬的色覺障礙類型、ΔE 門檻與實際量到的值（含中性配對）寫進專案說明文件，取代現有那句無法查核的「配色以 CVD 驗證器檢過」。驗證方式：以指令搜尋該句，確認已被含有工具、類型、門檻與實測值的敘述取代。
+  ⚠️ **這個配對在系列順序上並不相鄰**，順序是 國民黨 → 無黨籍 → 民進黨 → 其他，無黨籍與其他是第 2 與第 4 位。**只跑預設的相鄰檢查會完全跳過它**，必須加 `--all-pairs`。
+
+  工具為 in-repo 的 `scripts/palette_metrics.py`：
+
+      python scripts/palette_metrics.py "#3987e5,<新的中性深色>,#1da77a,#6A7178" --labels 國民黨,無黨籍,民進黨,其他 --all-pairs
+
+  驗證方式：明、暗兩個主題各跑一次 `--all-pairs`，斷言全部配對在正常視覺 ΔE ≥ 15、protan 與 deutan 模擬 ΔE ≥ 8（工具會自行判定並以非零退出碼表示未過）；未達門檻即重新調色，不得放行。無黨籍↔其他 這一組的實測值必須逐一列出，不可只寫「通過」。另須跑 `scripts/test_site_invariants.py` 的 `test_series_palette_separation`。
+- [ ] 4.2 把 4.1 所用的工具名稱、模擬的色覺障礙類型、ΔE 門檻與實際量到的值（含無黨籍↔其他 這一組）寫進專案說明文件，取代現有那句無法查核的「配色以 CVD 驗證器檢過」。
+
+  ⚠️ 類型只能寫 **protan／deutan**，**不可寫 tritan**——in-repo 工具未實作 tritan（Viénot 單平面與 Machado 矩陣都與外部驗證器對不上，差 4~18）。專案 spec 的 CVD 門檻本來也只涵蓋 protan／deutan。若要宣稱 tritan，必須另以外部工具量測並標明來源。
+
+  驗證方式：以指令搜尋該句，確認已被含有工具、類型、門檻與實測值的敘述取代，且全文不出現未經量測的 tritan 宣稱。
 - [ ] 4.3 落實設計決策「兩份主 spec 的 Purpose 一併補上」：把兩份主 spec 的 `## Purpose` 由歸檔工具留下的 `TBD - created by archiving change ...` 佔位文字改寫為實質內容。驗證方式：以指令搜尋 `openspec/specs/` 下的 `TBD - created by archiving`，確認 `site-data-generation` 與 `legacy-source-quirks` 兩份不再命中。

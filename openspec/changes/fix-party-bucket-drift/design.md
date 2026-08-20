@@ -70,8 +70,12 @@
 
   因此本變更原本自帶的 `Colour Is Not The Only Encoding` requirement **已刪除**——它與上述三項完全重複，而那份 spec 的版本有可量測門檻，我的只有散文。
 
-- ⚠️ **本變更引入一個那份 spec 尚未量過的配對。** 把無黨籍從橘色改成中性深色之後，「無黨籍」與「其他」（灰）會成為**兩個相鄰的中性色，只靠亮度區分**——這是整套配色裡最容易糊掉的組合，**必須實測 ΔE，不可目測**。工具為 dataviz skill 的 `scripts/validate_palette.js`。
-- ⚠️ **那份 spec 有一列會因本變更而過時。** `site-chart-accessibility` 的候選色表註明「orange — no — already used by 無黨籍及未經政黨推薦 in this palette」。本變更把橘色從無黨籍手上釋放出來後，該理由不再成立（橘色變成無人使用，但仍不應指派給非親民黨的桶——這一點由該 spec 的慣用色條款本身涵蓋）。這一列需要在該能力那邊更新，不在本變更範圍內。
+- ⚠️ **本變更引入一個那份 spec 尚未量過的配對。** 把無黨籍從橘色改成中性深色之後，「無黨籍」與「其他」（灰）會成為**兩個中性色，只靠亮度區分**——這是整套配色裡最容易糊掉的組合，**必須實測 ΔE，不可目測**。
+- ⚠️ **而那個配對在系列順序上並不相鄰。** 順序是 國民黨 → 無黨籍 → 民進黨 → 其他，無黨籍與其他是第 2 與第 4 位。`site-chart-accessibility` 的門檻是對「相鄰配對」下的，**只跑相鄰檢查會完全跳過這一組**，必須以 `--all-pairs` 量全部配對。
+- **量測工具為 in-repo 的 `scripts/palette_metrics.py`。** 它列出每個配對的常人／protan／deutan ΔE 並自行判定門檻，未過即非零退出。校準對照外部驗證器：常人差 ≤ 0.04、protan 差 0.01、deutan 差 0.03（做法為 Machado 2009 severity 1.0 矩陣套用在**線性** RGB；套在 gamma 空間會差 0.6~1.2）。
+- ⚠️ **`palette_metrics.py` 未實作 tritan。** Viénot 單平面與 Machado 矩陣都與外部驗證器對不上（差 4~18）。因此記錄時只能宣稱 protan／deutan；`site-chart-accessibility` 的門檻本來也只涵蓋這兩種。
+- 色差另有 `scripts/test_site_invariants.py` 的 `test_series_palette_separation` 在守。在它加入之前，色差沒有任何測試涵蓋（只守文字對比），把某個系列改成與鄰接系列糊在一起不會被發現。
+- ⚠️ **改色途中會有一段測試是紅的。** 改了系列色但還沒重算 `--lab2` 墨色時，`test_in_mark_label_contrast` 會失敗。那是預期的中間狀態，不是新的缺陷——但**不可停在那裡**。
 - 橘色空著不指派。這是刻意的：與其把它給一個不擁有它的類別，不如不用。
 
 ### 5. 不新增第五桶
@@ -108,6 +112,21 @@
   - 執行後以指令讀出兩個 HTML 的常數，斷言五個舊屆的無黨籍候選人數分別為 14、44、50、42、1。
   - 配色的對比與色覺障礙驗證記錄下工具名稱、模擬類型與門檻三項。
 - **Scope boundaries:** 見本節開頭的 In scope／Out of scope。
+
+## 歸檔順序（跨 change 的約束）
+
+⚠️ **本變更（`fix-party-bucket-drift`）必須在 `site-accessibility-baseline` 之前歸檔。**
+
+兩者都會寫入 `site-chart-accessibility` 與 `site-data-generation` 兩份主 spec，
+**歸檔順序決定最後的 spec 長相**。本變更 11/11 完成後先歸檔，
+`site-accessibility-baseline` 後歸檔。
+
+相關的耦合已處理：
+- 本變更原本自帶的 `Colour Is Not The Only Encoding` 已刪除，改為服從
+  `site-chart-accessibility`，因此兩邊不會在同一條 requirement 上打對臺。
+- 該能力候選色表裡「橘色已被無黨籍佔用」那個拒絕理由已由對方改成
+  「橘色是親民黨慣用色，不論當下有無其他桶在用都不得指派」——
+  本變更釋放橘色後該理由仍然成立。
 
 ## Risks / Trade-offs
 
