@@ -32,6 +32,20 @@ Where a chart encodes identity by color, every adjacent pair in the series order
 | 無黨籍及未經政黨推薦 (orange) | weakly | avoid |
 | 其他各政黨 (gray) | no — an aggregate bucket | yes, this is where the fix goes |
 
+#### Scenario: A conventional color is borrowed by a bucket it does not belong to
+- **WHEN** a series is an aggregate or residual bucket rather than the entity whose color is conventional
+- **THEN** it SHALL NOT be given that entity's conventional color, so that an "other parties" bucket is never rendered in a party's own blue, green, or orange, however convenient the separation would be
+
+##### Example: allowed and forbidden assignments for the residual bucket
+
+| Candidate color for 其他各政黨 | Allowed | Why |
+| --- | --- | --- |
+| gray `#ADB3B9` | yes | no party claims it |
+| a fourth hue, e.g. purple | yes | not conventional for any party here |
+| green | no | reads as 民主進步黨 |
+| blue | no | reads as 中國國民黨 |
+| orange | no | already used by 無黨籍及未經政黨推薦 in this palette |
+
 
 ### Requirement: Labels Drawn Inside A Mark Meet 4.5:1 Against That Mark
 Text placed inside a colored mark SHALL reach at least 4.5:1 against the fill it sits on, in both themes. The ink SHALL be chosen per series from its own fill, not applied uniformly across series.
@@ -146,3 +160,29 @@ Each published page SHALL declare its character encoding, document language, and
 | absent | ~980px, then scaled to fit | text far below readable size |
 | `width=device-width, initial-scale=1` | 390px | panels reflow, text at intended size |
 
+### Requirement: Color Verification Is Recorded, Not Asserted
+Any claim that a palette is readable SHALL be recorded with the tool used, the color-vision-deficiency types simulated, the threshold applied, and the measured values. A bare statement that a palette was "checked" SHALL NOT satisfy this requirement.
+
+#### Scenario: A palette or ink is changed
+- **WHEN** a series fill or a label ink is added or re-stepped
+- **THEN** the record SHALL name the tool, the simulated deficiency types, the threshold, and the resulting numbers for every pair or combination affected, so a later reader can tell a measurement from an opinion
+
+##### Example: the record this change carries
+
+| Field | Value |
+| --- | --- |
+| tool | `dataviz` skill's `scripts/validate_palette.js` (OKLab ΔE ×100) for separation; WCAG relative-luminance contrast for inks |
+| CVD types simulated | protan, deutan, tritan |
+| thresholds | ΔE 15 normal vision / ΔE 8 CVD for adjacent pairs; 4.5:1 for text inside a mark |
+| measured | separation 16.9 (light) / 16.6 (dark), CVD 9.0 / 9.7; eight ink-on-fill combinations 4.58–8.41 |
+
+#### Scenario: Only a claim is offered
+- **WHEN** a change states that colors were verified but names no tool, no simulation, and no numbers
+- **THEN** the claim SHALL be treated as unverified, because "checked" is not reproducible
+
+##### Example: what does and does not count as a record
+
+| Statement | Counts |
+| --- | --- |
+| "配色已檢查，色盲下可辨識" | no — no tool, no type, no number |
+| "validate_palette.js，protan/deutan/tritan，門檻 ΔE 8，實測 9.0／9.7" | yes |

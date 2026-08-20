@@ -11,6 +11,9 @@ Each task description MUST state:
 - [x] 1.1 量出既有配色的實際問題，落實 Categorical Colors Are Measured Against Each Other 的「量測」一端：以 OKLab ΔE×100 與色盲模擬計算兩個主題下相鄰系列的距離。驗證方式：民進黨綠↔其他灰在淺色為常人 14.5／色盲 5.5、暗色 12.9／4.5，皆低於門檻（15／8），數字為執行驗證器所得而非估計。
 - [x] 1.2 依設計決策「語意色不動，動的是「其他」桶與文字」只調整語意無約束的系列，落實 Categorical Colors Are Measured Against Each Other 的「慣例色不動」一端：淺色 `--s4` `#9BA0A5`→`#ADB3B9`、暗色 `--s4` `#7C838A`→`#6A7178`、暗色 `--s3` `#199e70`→`#1da77a`。驗證方式：重跑驗證器，兩個主題的常人 ΔE 為 16.9／16.6、色盲 9.0／9.7，且四個政黨色相未改變（`git diff` 中 `--s1`／`--s2` 淺色值不變）。
 
+- [x] 1.3 依設計決策「顏色可及性只放一個 capability」，把 `fix-party-bucket-drift` 提出的「慣用色不外借」吸收進本 capability：實現 Categorical Colors Are Measured Against Each Other 中「彙總桶不得取用某政黨的慣用色」一節。驗證方式：內容複核——「其他各政黨」在兩個主題皆為中性灰（`#ADB3B9`／`#6A7178`），未取用藍、綠、橘任一。
+- [x] 1.4 落實 Color Verification Is Recorded, Not Asserted：把工具、模擬的色盲類型、門檻與實測值寫進 design.md 與本檔，而非只聲稱「已檢查」。驗證方式：design.md 決策 3 列出八組墨色對比實測值；spec 的 Example 表列出工具（`validate_palette.js`、WCAG 相對亮度）、protan／deutan／tritan、門檻 ΔE 15／8 與 4.5:1、以及實測 16.9／16.6、9.0／9.7、4.58–8.41。
+
 ## 2. 段內文字
 
 - [x] 2.1 依設計決策「每系列一個墨色變數」新增 `--lab1`~`--lab4`，並讓 `PARTIES` 每項同時帶填色與墨色變數名，實現 Labels Drawn Inside A Mark Meet 4.5:1 Against That Mark。驗證方式：八個「系列×主題」組合的 WCAG 對比全部 ≥4.5（4.76／5.56／6.32／8.41／4.89／4.58／5.82／4.95）。

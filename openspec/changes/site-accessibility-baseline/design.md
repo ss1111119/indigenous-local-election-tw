@@ -77,3 +77,16 @@
 同理，配色與墨色的決定若只寫在本文件，下一個人看到四個只用於一處的 CSS 變數，很可能當成冗餘而移除，然後白字回來、對比掉回 2.12:1，且**沒有任何測試會失敗**。所以對比下限也進測試。
 
 **跑會寫檔的指令前先看 `git status` 有沒有自己不認識的改動**——這一條沒辦法用測試守，只能寫在這裡。
+
+### 8. 顏色可及性只放一個 capability
+
+`fix-party-bucket-drift` 在 `site-data-generation` 下也加了一條 `Colour Is Not The Only Encoding`，與本 change 的 `Color-Encoded Data Has A Tabular Equivalent` 是同一件事的不同切面。兩個 change 若各自歸檔，`openspec/specs/` 會出現「顏色可及性一半在資料產生能力、一半在圖表可及性能力」，下一個人無從判斷該遵守哪一條。
+
+分工定為：**顏色編碼與可及性一律歸 `site-chart-accessibility`**；`site-data-generation` 只負責「由長表產生內嵌常數」這件事本身。理由是後者的 Purpose 與其餘 requirement 全是產生流程，顏色不在其範圍。
+
+該 change 提出的兩點比本 change 原本的寫法嚴格，已吸收進 `site-chart-accessibility`：
+
+1. **慣用色不外借**——本 change 原本只寫「慣例色不要動」，沒有禁止把政黨色**指派給不是該政黨的桶**。少了這條，「把其他桶改成綠色以拉開與灰的距離」在形式上是合規的，而那顯然錯。
+2. **驗證須留紀錄**（工具、模擬的色盲類型、門檻、實測值）——本 change 的 design 有這些數字，但 spec 沒要求下一個人也提供。
+
+因此請 `fix-party-bucket-drift` 從它的 `site-data-generation` delta 移除 `Colour Is Not The Only Encoding`；內容已在此保留，未遺失。**本 change 不去修改另一個進行中 change 的檔案**——那正是本輪 `--write` 事故的同一類錯誤。
