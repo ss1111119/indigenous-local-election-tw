@@ -32,13 +32,13 @@
       }
     },
     "candidates": {
-      "欄位數": 28,
+      "欄位數": 29,
       "有算術oracle": 5,
       "語意層分布": {
         "external-dataset": 2,
         "official-doc": 12,
         "official-table": 3,
-        "project-defined": 11
+        "project-defined": 12
       }
     },
     "votes": {

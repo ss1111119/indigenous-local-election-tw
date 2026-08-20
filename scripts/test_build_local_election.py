@@ -56,6 +56,8 @@ from build_local_election import (  # noqa: E402
     YEARS,
     WIN_MARKS,
     ValidationError,
+    check_age_sentinel,
+    valid_age,
     ZIP_PATH,
     admin_level,
     cross_validate,
@@ -526,7 +528,8 @@ def test_population_applicability() -> None:
 _PRE = "votedata/votedata/voteData/t/"
 
 
-def _synthetic_zip(pop_total: str, pop_county: str, pop_town: str):
+def _synthetic_zip(pop_total: str, pop_county: str, pop_town: str,
+                   age: str = "45"):
     """造一份最小的合成來源檔，形式仿 1994-2006（無引號、合計列在首列）。
 
     elprof 的 idx11-16 用「合計在前」版面：候選合計 3、當選合計 1、
@@ -551,8 +554,8 @@ def _synthetic_zip(pop_total: str, pop_county: str, pop_town: str):
             prof(["01", "007", "01", "010", "0000", "0 "], pop_town),
         ]) + "\n")
         zf.writestr(_PRE + "elcand.csv",
-                    "01,007,01,000,0000,1,測試候選人,999,1,0700101,45,"
-                    "臺東縣,大學,N,*,0\n")
+                    "01,007,01,000,0000,1,測試候選人,999,1,0700101," + age
+                    + ",臺東縣,大學,N,*,0\n")
         zf.writestr(_PRE + "elctks.csv",
                     "01,007,01,010,0000,0 ,1 ,80,100.00 ,*\n")
         zf.writestr(_PRE + "elpaty.csv", "999,無黨籍及未經政黨推薦\n")
@@ -1008,6 +1011,107 @@ def test_custom_type_terms() -> None:
 
 
 @reports
+def test_valid_age() -> None:
+    """`年齡_有效`：有記載放值、未記載留空；判準具名到屆別。
+
+    ⚠️ **這一組必須用合成資料。** 真實資料正好滿足前提——五個舊屆整批是 99、
+    新四屆從未出現 99、全資料的 0 出現 0 次——所以兩條中止**永遠不會觸發**，
+    而「99 一律當未記載」這種改壞在真實資料上也看不出差別。
+    這正是它們最容易被無聲拿掉的原因。
+
+    語意來自壓縮檔內的官方格式文件：
+    「年齡 Num(3) (部分選舉未必有資料，可能 0 或 99)」。
+    """
+    print("\n[單元] 年齡_有效——0 與 99 的處置不對稱")
+    print("       0 不可能是真實年齡 → 任何屆別都留空")
+    check("1998 的 0", valid_age("1998", "0"), "")
+    check("2022 的 0", valid_age("2022", "0"), "")
+
+    print("\n       99 落在合法年齡值域內 → 只在具名的五屆留空")
+    for term in ("1994", "1998", "2002", "2005", "2006"):
+        check(f"{term} 的 99", valid_age(term, "99"), "")
+    # 若判準寫成無條件，將來真有 99 歲候選人時他的年齡會被默默吃掉
+    check("2022 的 99 原樣保留", valid_age("2022", "99"), "99")
+    check("2014 的 99 原樣保留", valid_age("2014", "99"), "99")
+
+    print("\n       其餘一律原樣")
+    check("1998 的 52", valid_age("1998", "52"), "52")
+    check("2022 的 45", valid_age("2022", "45"), "45")
+
+    print("\n       兩條前提斷言：不成立即中止")
+    base = [{"年度": "1998", "年齡": "99"}, {"年度": "2022", "年齡": "45"}]
+    check_age_sentinel(base)
+    check("前提成立時不中止", True, True)
+    # 格式文件把 0 與 99 並列，所以舊屆出現 0 不是異常，不得誤中止
+    check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
+    check("列入清單的屆別出現 0 → 不中止", True, True)
+
+    def with_row(term, raw):
+        return lambda: check_age_sentinel(base + [{"年度": term, "年齡": raw}])
+
+    check_raises("列入清單的屆別出現非無資料值 → 中止", with_row("1998", "52"))
+    check_raises("清單外的屆別出現 99 → 中止", with_row("2022", "99"))
+
+    for term, raw in (("1998", "52"), ("2022", "99")):
+        try:
+            with_row(term, raw)()
+            check(f"{term} 應中止", "沒有中止", "中止")
+        except ValidationError as exc:
+            check(f"{term} 的中止訊息指出屆別", term in str(exc), True)
+
+
+@reports
+def test_age_valid_column_in_output() -> None:
+    """`年齡_有效` 這個規則**有被套用到列組裝**，不只是函式本身正確。
+
+    ⚠️ 這一條是變異測試逼出來的，而且逼了兩次：
+
+    1. 原本只測 `valid_age()`。把列組裝處改成 `"年齡_有效": r[10]`
+       （直接抄原值）時，函式沒被動過所以測試照樣通過——
+       **測了規則，沒測規則有沒有被套用。**
+    2. 第一次補救是去讀**已建好的**長表。那也抓不到：變異改的是原始碼，
+       不會重建長表，讀成品的測試對原始碼變異一律無感。
+       這與本檔其他十項「驗證被拿掉」型變異漏網是同一個結構問題。
+
+    所以這裡實際跑一次 `process_one`——合成來源、真的走過列組裝。
+    """
+    print("\n[單元] process_one 的 年齡_有效——實際跑列組裝，不是讀成品")
+
+    def one(year: str, age: str) -> dict:
+        zf = _synthetic_zip("1000", "1000", "1000", age=age)
+        # 與 test_process_one_legacy_decimals 同一套處置：合成檔沒有 folder 那層，
+        # 且區域檔指向合成的那一份。用 try/finally 確保不污染其他測試。
+        real_year = YEARS[year]
+        real_regional = COUNTY_CROSSWALK_YEARS.get(year)
+        YEARS[year] = {"quoted": False, "parts": {}}
+        COUNTY_CROSSWALK_YEARS[year] = "r"
+        try:
+            p = process_one(zf, zip_names(zf), year, "T3", "city", "t")
+        finally:
+            YEARS[year] = real_year
+            if real_regional is None:
+                COUNTY_CROSSWALK_YEARS.pop(year, None)
+            else:
+                COUNTY_CROSSWALK_YEARS[year] = real_regional
+        return p["candidates"][0]
+
+    print("       舊屆的 99 → 年齡 保留 99、年齡_有效 留空")
+    c = one("2002", "99")
+    check("2002 的 年齡", c["年齡"], "99")
+    check("2002 的 年齡_有效", c["年齡_有效"], "")
+
+    print("\n       舊屆的真實年齡 → 兩欄相同")
+    c = one("2002", "45")
+    check("2002 的 年齡", c["年齡"], "45")
+    check("2002 的 年齡_有效", c["年齡_有效"], "45")
+
+    print("\n       0 在任何屆別都留空")
+    c = one("2002", "0")
+    check("2002 的 0 → 年齡_有效 留空", c["年齡_有效"], "")
+    check("2002 的 0 → 年齡 保留 0", c["年齡"], "0")
+
+
+@reports
 def test_oracles() -> None:
     """每個輸出欄位都必須宣告 oracle，且語意層的值必須合法。
 
@@ -1025,7 +1129,8 @@ def test_oracles() -> None:
     # 沒有算術 oracle 的欄位數——這個數字本身是專案的已知弱點，釘死它
     n = sum(1 for f in MANIFEST.values() for d in f.values() if not d["arithmetic"])
     # 新增可比性標記 4 欄 × 3 張表 = 12 欄，全部沒有算術 oracle（43 → 55）
-    check("沒有算術 oracle 的欄位數", n, 60)
+    # candidates 新增 `年齡_有效`（衍生欄位，無算術 oracle）：60 → 61
+    check("沒有算術 oracle 的欄位數", n, 61)
 
 
 # ---------------------------------------------------------------- 迴歸測試
@@ -1199,6 +1304,7 @@ def main() -> int:
                test_elected_authoritative_aborts,
                test_county_crosswalk, test_legacy_terms,
                test_custom_type_terms,
+               test_valid_age, test_age_valid_column_in_output,
                test_oracles, test_regression):
         try:
             fn()

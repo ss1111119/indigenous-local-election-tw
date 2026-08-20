@@ -62,7 +62,7 @@ REQUIRED_COLUMNS = {
     CANDIDATES_FILE: (
         "年度", "選舉種類", "檔別",
         "省市", "縣市", "選舉區", "鄉鎮市區", "行政區名稱",
-        "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",
+        "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡_有效", "現任",
         "當選註記", "elected_authoritative",
         "admin_code_system",
     ),
@@ -104,9 +104,6 @@ def load_long_tables(data_dir: Path = DATA_DIR) -> tuple[list[dict], list[dict]]
                               REQUIRED_COLUMNS[SUMMARY_FILE])
     cands = read_long_table(data_dir / CANDIDATES_FILE,
                             REQUIRED_COLUMNS[CANDIDATES_FILE])
-    # 讀完立即檢查，不等到算完才失敗——後者會產生半套結果，
-    # 而且錯誤訊息會離真正的原因很遠。
-    check_age_sentinel(cands)
     return summary, cands
 
 
@@ -182,83 +179,11 @@ PARTY_BUCKETS = ("中國國民黨", "無黨籍及未經政黨推薦", "民主進
 OTHER_BUCKET = "其他"
 
 
-# 年齡欄的「未記載」哨兵值。
-#
-# ⚠️ **實測**：1994／1998／2002／2005／2006 五屆共 483 位候選人的 `年齡` 欄
-#    【整批】是 "99"，相異值只有一個；2009-2010 以後四屆從未出現 "99"，
-#    實際範圍 23–89 歲。所以那五屆的 99 是「未記載」，不是年齡。
-#
-# ⚠️ **具名到屆別，不是「99 一律當未記載」。** 99 落在合法年齡值域內。
-#    寫成無條件規則的話，將來真有 99 歲候選人時他的年齡會被默默吃掉——
-#    那是用一個缺陷換另一個缺陷。
-#
-# ✔ **這是來源明定的，不是推論。** 壓縮檔內的官方格式文件
-#    `votedata/voteData/選舉資料庫格式.odt` 對 elcand.csv 的年齡欄寫著：
-#        年齡 Num(3) (部分選舉未必有資料，可能 0 或 99)
-#    另有修訂註記「年齡欄位若無資料須填 0」。實測分布與這份文件一致。
-#
-# ⚠️ **`0` 與 `99` 的處置不對稱，因為它們的歧義程度不同：**
-#    `0` 不可能是真實年齡，在任何屆別都是無資料——而且前端模板的
-#    `年齡 ? ... : ""` 對 0 本來就會略過，不需要額外程式碼。
-#    `99` 落在合法年齡值域內，所以必須具名到屆別，否則將來真有 99 歲候選人
-#    時他的年齡會被默默吃掉。實測：本資料集的 `0` 出現 0 次、最小年齡 23。
-AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})
-AGE_UNRECORDED_VALUE = "99"
-# 格式文件明列的兩個無資料值。列入 AGE_UNRECORDED_TERMS 的屆別，
-# 年齡欄只允許出現這兩個值——出現第三個值代表該屆其實有真實年齡。
-AGE_ALWAYS_NO_DATA = frozenset({"0"})
-AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
-
-
-def check_age_sentinel(cands: list[dict]) -> None:
-    """守住 AGE_UNRECORDED_TERMS 的兩個前提。任一不成立即中止。
-
-    具名清單是依「實測整批為 99」建立的。那個前提若不再成立，清單就是錯的，
-    而錯的方向是**安靜的**——多出一個真實年齡會被當成未記載而消失，
-    或新屆的 99 會被當成真年齡顯示。
-    """
-    by_term: dict[str, set[str]] = {}
-    for c in cands:
-        by_term.setdefault(c["年度"], set()).add(c["年齡"])
-    for term, ages in sorted(by_term.items()):
-        if term in AGE_UNRECORDED_TERMS:
-            extra = ages - AGE_NO_DATA_VALUES
-            if extra:
-                raise SiteDataError(
-                    f"{term} 屆被列為「年齡未記載」，但它的年齡欄出現了 "
-                    f"{sorted(extra)}。列入的前提是整批為格式文件所列的無資料值 "
-                    f"{sorted(AGE_NO_DATA_VALUES)}，該前提已不成立——"
-                    f"若逕行套用，這些真實年齡會被當成未記載而消失。"
-                    f"請重新判斷 AGE_UNRECORDED_TERMS。"
-                )
-        elif AGE_UNRECORDED_VALUE in ages:
-            raise SiteDataError(
-                f"{term} 屆不在「年齡未記載」清單中，但它的年齡欄出現了 "
-                f"{AGE_UNRECORDED_VALUE}。這可能是哨兵值的用法擴散到新屆，"
-                f"也可能真的有 {AGE_UNRECORDED_VALUE} 歲的候選人——"
-                f"兩者無法自動分辨，不猜。"
-            )
-
-
-def display_age(row: dict) -> int | None:
-    """名錄要顯示的年齡。未記載回傳 `None`（常數裡是 `null`）。
-
-    ⚠️ 長表**不動**，`年齡` 欄在資料集裡維持來源的 99。這裡只在呈現端轉換。
-
-    ⚠️ **未記載用 `None` 而不是 `0`。** 前端的 `年齡 ? ... : ""` 對兩者都會略過，
-       所以顯示結果相同——但 `0` 本身就是格式文件明列的無資料值之一，
-       拿它當「我映射過去的 99」會讓同一個 0 有兩種來歷。
-       日後有人在常數裡看到 0、回頭比對來源發現是 99，會合理地懷疑
-       產生器把 99 讀成了 0。`null` 沒有這個歧義。
-    """
-    raw = row["年齡"]
-    # `0` 不可能是真實年齡 → 任何屆別都是無資料，不需要具名。
-    if raw in AGE_ALWAYS_NO_DATA:
-        return None
-    # `99` 落在合法年齡值域內 → 只在具名的屆別視為無資料。
-    if raw == AGE_UNRECORDED_VALUE and row["年度"] in AGE_UNRECORDED_TERMS:
-        return None
-    return int(raw)
+# ⚠️ 年齡的「未記載」判準【不在這裡】。它已移到長表建置端，長表因此帶有
+#    衍生欄位 `年齡_有效`（有記載放值、未記載留空），本檔直接讀取那一欄。
+#    同一個規則若在兩處各有一份實作，其中一份必然漂移——這個專案已經因此
+#    出過兩個 bug（名錄的 MAIN 手寫一份、政黨分桶只認一種名稱）。
+#    守住具名清單前提的兩條斷言也隨判準一起移到建置端，不是刪掉。
 
 
 def party_bucket(row: dict) -> str:
@@ -550,7 +475,7 @@ def build_roster_data(summary: list[dict], cands: list[dict],
             c["姓名"],
             p_index[c["政黨名稱"]],
             1 if c["性別"] == "女" else 0,
-            display_age(c),
+            int(c["年齡_有效"]) if c["年齡_有效"] else None,
             1 if c["現任"] == "Y" else 0,
             site_mark(c),
         ])

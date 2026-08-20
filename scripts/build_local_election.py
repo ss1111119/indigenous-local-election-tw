@@ -219,6 +219,70 @@ ELECTED_MARKS = {"*", "!"}
 
 GENDER = {"1": "男", "2": "女"}
 
+# ---- 年齡的無資料值 ----
+#
+# 壓縮檔內的官方格式文件 votedata/voteData/選舉資料庫格式.odt 對 elcand.csv
+# 的年齡欄寫著：「年齡 Num(3) (部分選舉未必有資料，可能 0 或 99)」，
+# 另有修訂註記「年齡欄位若無資料須填 0」。
+#
+# ⚠️ **兩個無資料值的處置不對稱，因為歧義程度不同：**
+#    `0` 不可能是真實年齡 → 任何屆別都是無資料，不需要具名。
+#    `99` 落在合法年齡值域內 → 只在具名的屆別是無資料，否則將來真有 99 歲
+#    候選人時他的年齡會被默默吃掉。
+#
+# 實測：1994／1998／2002／2005／2006 五屆共 483 位候選人的年齡欄整批是 99；
+# 2009-2010 以後四屆從未出現 99（範圍 23–89）；全資料的 0 出現 0 次。
+AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})
+AGE_UNRECORDED_VALUE = "99"
+AGE_ALWAYS_NO_DATA = frozenset({"0"})
+AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
+
+
+def valid_age(year: str, raw: str) -> str:
+    """`年齡_有效`：有記載放值、未記載留空。
+
+    ⚠️ **`年齡` 欄不受影響**，維持來源原值（含 99）。本欄是衍生欄位，
+       與 `縣市_正規化`／`鄉鎮市區_正規化` 同一個慣例：空字串代表「不可用」。
+
+    ⚠️ 「有效」指的是「有記載因而可用於計算」，**不是**「這個年齡正確」。
+       來源記載的年齡本身正確與否，本專案未查證也無從查證。
+    """
+    if raw in AGE_ALWAYS_NO_DATA:
+        return ""
+    if raw == AGE_UNRECORDED_VALUE and year in AGE_UNRECORDED_TERMS:
+        return ""
+    return raw
+
+
+def check_age_sentinel(cands: list[dict]) -> None:
+    """守住 AGE_UNRECORDED_TERMS 的兩個前提。任一不成立即中止。
+
+    具名清單是依「實測整批為無資料值」建立的。那個前提若不再成立，
+    清單就是錯的，而錯的方向是**安靜的**——多出一個真實年齡會被當成
+    未記載而消失，或新屆的 99 會被當成真年齡放進 `年齡_有效`。
+    """
+    by_term: dict[str, set[str]] = {}
+    for c in cands:
+        by_term.setdefault(c["年度"], set()).add(c["年齡"])
+    for term, ages in sorted(by_term.items()):
+        if term in AGE_UNRECORDED_TERMS:
+            extra = ages - AGE_NO_DATA_VALUES
+            if extra:
+                raise ValidationError(
+                    f"{term} 屆被列為「年齡未記載」，但年齡欄出現了 "
+                    f"{sorted(extra)}。列入的前提是整批為格式文件所列的無資料值 "
+                    f"{sorted(AGE_NO_DATA_VALUES)}，該前提已不成立——"
+                    f"若逕行套用，這些真實年齡會被當成未記載而從 `年齡_有效` 消失。"
+                    f"請重新判斷 AGE_UNRECORDED_TERMS。"
+                )
+        elif AGE_UNRECORDED_VALUE in ages:
+            raise ValidationError(
+                f"{term} 屆不在「年齡未記載」清單中，但年齡欄出現了 "
+                f"{AGE_UNRECORDED_VALUE}。這可能是哨兵值的用法擴散到新屆，"
+                f"也可能真的有 {AGE_UNRECORDED_VALUE} 歲的候選人——"
+                f"兩者無法自動分辨，不猜。"
+            )
+
 # ---------------------------------------------------------------------------
 # 已知的來源資料異常
 #
@@ -903,6 +967,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "政黨名稱": parties.get(r[7], ""),
             "性別": GENDER.get(r[8], r[8]),
             "年齡": r[10],
+            "年齡_有效": valid_age(year, r[10]),
             "現任": r[13],
             "當選註記": mark.strip(),
             "當選註記語意": WIN_MARKS[mark],
@@ -1805,6 +1870,7 @@ def main() -> None:
     elector_anomalies: list[dict] = []
     cross_validate(parts, report, anomalies, turnout_anomalies,
                    elected_mark_anomalies, elector_anomalies)
+    check_age_sentinel(all_cand)
 
     # 全國數字必須**按選舉種類**加總。跨種類相加沒有意義：
     # 同一個人可能同時是 D2 與 R3 的選舉人（已實測兩者是同一批選民），

@@ -429,7 +429,21 @@ CANDIDATES = {
                note="official-doc 明定 1:男 2:女；本專案已解讀為中文"),
     "年齡": dict(provenance="official", structure="official-doc",
                arithmetic=None, semantic="official-doc",
-               note="official-doc 說明可能為 0 或 99（無資料）"),
+               note="official-doc 說明可能為 0 或 99（無資料）。"
+                    "**原樣保留，含無資料值**——要聚合請用 `年齡_有效`"),
+    "年齡_有效": dict(
+        provenance="project", structure="有記載為原值，未記載留空",
+        arithmetic=None, semantic="project-defined",
+        note="⚠️ **空字串代表「來源未記載」，不是資料缺漏。**"
+             "official-doc 明列兩個無資料值，本專案的處置不對稱："
+             "`0` 不可能是真實年齡，任何屆別都留空；"
+             "`99` 落在合法年齡值域內，只在具名的 1994／1998／2002／2005／2006 "
+             "五屆留空（實測那五屆共 483 位候選人整批是 99，"
+             "2009-2010 以後四屆從未出現 99、範圍 23–89，全資料的 0 出現 0 次）。"
+             "若把 99 寫成無條件規則，將來真有 99 歲候選人時會吃掉真值。"
+             "⚠️ 「有效」指的是**有記載因而可用於計算**，"
+             "**不是**「這個年齡正確」——來源記載的年齡本身正確與否，"
+             "本專案未查證也無從查證。"),
     "現任": dict(provenance="official", structure="official-doc",
                arithmetic=None, semantic="official-doc",
                note="official-doc 明定 Y:現任 N:非現任。非本專案判定"),

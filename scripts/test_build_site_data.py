@@ -566,64 +566,36 @@ def test_party_code_and_name_hygiene() -> None:
           {k: sorted(v) for k, v in by_int.items() if len(v) > 1}, {})
 
 
-# ------------------------------------------ 六b、年齡的未記載哨兵值（合成）
+# -------------------------------- 六b、年齡直接取自長表的 `年齡_有效`（合成）
 
 @reports
-def test_age_sentinel() -> None:
-    """舊屆的 `99` 是未記載，不是年齡；而且判準必須具名到屆別。
+def test_age_read_from_derived_column() -> None:
+    """站台**讀取** `年齡_有效`，不自行推導未記載的判準。
 
-    ⚠️ **兩條中止在真實資料上永遠不會觸發**——真實資料正好滿足前提
-    （五個舊屆整批 99、新四屆從未出現 99），所以只能用合成資料驅動。
-    這正是它們最容易被無聲拿掉的原因。
+    ⚠️ 判準（哪些屆別的 99 算未記載）與守住它的兩條斷言都在長表建置端，
+    見 scripts/build_local_election.py 的 valid_age 與 check_age_sentinel，
+    測試在 scripts/test_build_local_election.py。
+
+    同一個規則若在兩處各有一份實作，其中一份必然漂移——這個專案已經因此
+    出過兩個 bug（名錄的 MAIN 手寫一份、政黨分桶只認一種名稱）。所以這裡
+    要守的不是判準本身，而是「站台沒有第二份判準」。
     """
-    print("\n[合成] 年齡 99 在舊屆是未記載哨兵，在新屆是合法年齡")
+    print("\n[合成] 名錄的年齡取自長表的 `年齡_有效`，站台不重算判準")
 
-    def age(term: str, raw: str) -> int:
-        return build_site_data.display_age({"年度": term, "年齡": raw})
+    def roster_age(valid: str):
+        cands = [dict(c, **{"年齡_有效": valid}) for c in _mixed_cands()]
+        d = build_roster_data(_mixed_summary(), cands)
+        return d["rows"][_TERM][_TYPE][0][2][0][4]
 
-    print("       舊屆的 99 → None（常數裡是 null，前端因此省略「歲」）")
-    for term in ("1994", "1998", "2002", "2005", "2006"):
-        check(f"{term} 的 99", age(term, "99"), None)
+    check("有值時原樣帶入", roster_age("45"), 45)
+    check("留空時為 None（常數裡是 null）", roster_age(""), None)
 
-    print("\n       新屆的年齡原樣保留，包含 99 本身")
-    check("2022 的 45", age("2022", "45"), 45)
-    check("2014 的 23", age("2014", "23"), 23)
-    # ⚠️ 這一條是「具名到屆別」的核心：若判準寫成無條件「99 一律當未記載」，
-    #    將來真有 99 歲候選人時他的年齡會被默默吃掉。
-    check("2022 的 99 仍是 99（不得被當成未記載）", age("2022", "99"), 99)
-    check("舊屆的非 99 原樣保留", age("1998", "52"), 52)
-
-    print("\n       兩條前提斷言：不成立即中止")
-    base = [{"年度": "1998", "年齡": "99"}, {"年度": "2022", "年齡": "45"}]
-    build_site_data.check_age_sentinel(base)   # 前提成立時不得拋出
-    check("前提成立時不中止", True, True)
-
-    def with_row(term: str, raw: str):
-        return lambda: build_site_data.check_age_sentinel(
-            base + [{"年度": term, "年齡": raw}])
-
-    check_raises("列入清單的屆別出現非 99 → 中止", with_row("1998", "52"))
-    check_raises("清單外的屆別出現 99 → 中止", with_row("2022", "99"))
-
-    # ⚠️ 格式文件把 `0` 與 `99` 並列為無資料值，所以舊屆出現 0 **不是**異常，
-    #    不得誤中止。本資料集目前 0 出現 0 次，所以這條只能用合成資料守——
-    #    把無資料值集合縮成只有 99 的變異，就是靠這一條抓到的。
-    build_site_data.check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
-    check("列入清單的屆別出現格式文件明列的 0 → 不中止", True, True)
-    check("0 在任何屆別都視為未記載（不可能是真實年齡）",
-          (age("1998", "0"), age("2022", "0")), (None, None))
-    # ⚠️ 未記載用 None 而不是 0：0 本身也是格式文件明列的無資料值，
-    #    拿它當「映射過去的 99」會讓同一個 0 有兩種來歷。
-    check("未記載是 None 而非 0（兩者在前端同樣略過，但語意不同）",
-          age("1998", "99") is None, True)
-
-    # 失敗訊息必須指得出是哪一屆，否則要重跑一次才知道去看哪裡
-    for term, raw in (("1998", "52"), ("2022", "99")):
-        try:
-            with_row(term, raw)()
-            check(f"{term} 應中止", "沒有中止", "中止")
-        except SiteDataError as exc:
-            check(f"{term} 的中止訊息指出屆別", term in str(exc), True)
+    print("\n       站台原始碼不得再出現自己的哨兵判準實作")
+    src = SRC.read_text(encoding="utf-8")
+    for token in ("AGE_UNRECORDED_TERMS", "AGE_ALWAYS_NO_DATA",
+                  "AGE_UNRECORDED_VALUE", "def display_age",
+                  "def check_age_sentinel"):
+        check(f"未出現 {token}", token in src, False)
 
 
 # ---------------------------------------------- 七、名錄的 MAIN 由對照表投影
@@ -727,7 +699,7 @@ def main() -> int:
                test_missing_column_aborts_at_header,
                test_party_bucket_key_semantics,
                test_party_code_and_name_hygiene,
-               test_age_sentinel,
+               test_age_read_from_derived_column,
                test_roster_main_projection,
                test_independent_bucket_non_empty_every_term):
         try:

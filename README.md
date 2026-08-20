@@ -225,7 +225,7 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 | 檔 | 列數 | 內容 |
 | --- | ---: | --- |
 | `data/processed/cec-local-election-summary-long.csv.gz` | 267,876 | 各行政層級的有效票／無效票／投票數／選舉人數／人口數／候選當選人數／投票率 |
-| `data/processed/cec-local-election-candidates-long.csv` | 7,818 | 候選人：政黨、性別、年齡、現任、當選註記與**當選權威值**（**不含出生日期、出生地、學歷**） |
+| `data/processed/cec-local-election-candidates-long.csv` | 7,818 | 候選人：政黨、性別、年齡、現任、當選註記與**當選權威值**（29 欄，**不含出生日期、出生地、學歷**）。⚠️ 要聚合年齡請用 `年齡_有效` 而非 `年齡`——後者原樣保留來源的無資料值 `99` |
 | `data/processed/cec-local-election-votes-long.csv.gz` | 1,751,190 | 候選人得票，最細到投開票所 |
 | `data/processed/validation-report.json` | — | 驗證結果與來源檔 SHA-256 |
 | `data/processed/cec-moi-crosswalk.csv` | 8,344 | 中選會↔內政部行政區代碼對照（`python scripts/build_crosswalk.py`）|
