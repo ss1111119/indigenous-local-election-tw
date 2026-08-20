@@ -1,4 +1,4 @@
-<title>原住民族地方選舉四屆</title>
+<title>原住民族地方選舉九屆</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
@@ -98,8 +98,8 @@ svg{display:block;overflow:visible}
 
 <div class="wrap">
 <header>
-  <p class="eyebrow">中選會選舉資料庫 · 2009-2010 / 2014 / 2018 / 2022</p>
-  <h1>六種原住民族相關<br>地方選舉四屆概況</h1>
+  <p class="eyebrow">中選會選舉資料庫 · 1994 / 1998 / 2002 / 2005 / 2006 / 2009-2010 / 2014 / 2018 / 2022</p>
+  <h1>原住民族相關<br>地方選舉九屆概況</h1>
   <p class="lede">以數字呈現為主，另說明比較限制與不可由本資料推出的結論。<strong>不解釋成因。</strong>
     每個數字都可從專案的三張長表重新算出。</p>
   <div class="meta">
@@ -123,32 +123,42 @@ svg{display:block;overflow:visible}
       縣市議員（2009-12-05）與直轄市議員（2010-11-27）的選舉不同天。
       這是<strong>本專案的建模判斷</strong>，不是來源直接給的分屆方式。</p>
     <p>該屆<strong>只有 T2／T3／T1</strong>：D2／R3 當時不存在；R2 因 2010 年的鄉鎮市民代表
-      為全國合併檔、無法分離平地原住民席次而未納入。圖表中以 <strong>×</strong> 標示。</p>
+      為全國合併檔、無法分離平地原住民席次而未納入。
+      <strong>該屆沒有的選舉種類一律標示為不存在，不以 0 填補</strong>——
+      折線圖留空、表格寫「無此選舉」或「—」。</p>
     <p>⚠️ <strong>該屆的行政區代碼是完全不同的編碼</strong>，與 2014 起的不可互通
       （2009 宜蘭縣 <code>03,002</code>、2010 臺北市 <code>01,000</code>，而 2014+ 是
       <code>10,002</code>／<code>63,000</code>）。跨屆比對行政區時必須排除。</p>
-    <p><strong>未涵蓋</strong>：原住民族地區的鄉鎮市長與鄉鎮市民代表（區域席次）、村里長、縣市長，
-      以及 <strong>2009 年以前的所有屆別</strong>——資料存在且可回溯至 1994，但尚未納入。
-      <strong>這是四屆資料，不是完整歷史序列。</strong></p>
+    <p><strong>未涵蓋</strong>：原住民族地區的鄉鎮市長與鄉鎮市民代表（區域席次）、村里長、縣市長。</p>
+    <p>⚠️ <strong>1994 沒有縣市議員資料</strong>——壓縮檔內只有台灣省議員與直轄市議員。
+      該選舉是否舉行過本專案未查證，只能說 zip 裡沒有。所以 1994 的原住民席次只有 6 席、
+      1998 是 55 席，<strong>兩者不可畫成同一條折線</strong>——會被讀成參政權在 1998 爆炸性擴張。</p>
+    <p>⚠️ <strong>1994 台灣省議員與各屆直轄市「原住民」合併類別不進任何跨屆圖表</strong>，
+      在最後一節單獨呈現。省議會 1998 年精省後廢除；合併類別未分平地／山地，
+      與 T2／T3 的粒度不同。</p>
   </div>
 </section>
 
 <section>
   <div class="sh"><span class="sn">01</span><h2>投票率</h2></div>
-  <div class="col"><p>加入 2009-2010 後，序列變成四個時間點。
-    <strong>T2 與 T3 從 2009-2010 一路上升到 2018</strong>（分別 +3.08／+1.00 與 +4.98／+0.56 個百分點），
+  <div class="col"><p>縣市議員（T2／T3）的序列自 1998 年起連續，共七個時間點；
+    D2／R3／R2 三種 2014 年才成立，只有三個時間點。以下的敘述只涵蓋
+    <strong>2009-2010 以後</strong>——更早的屆別本次首度納入，尚未逐段比對。</p>
+    <p><strong>T2 與 T3 從 2009-2010 一路上升到 2018</strong>（分別 +3.08／+1.00 與 +4.98／+0.56 個百分點），
     <strong>2018→2022 才全部下降</strong>，六種幅度 4.51 至 7.33。
     參考組 T1 則是三段都下降，但前兩段各僅 0.86 與 0.69，最後一段降 5.83。</p></div>
   <figure>
     <div class="grid" id="c-turnout"></div>
     <figcaption>各面板共用 45–85% 的縱軸，故高低可直接比較。
-      <strong>×</strong> 表示該屆沒有這種選舉——D2／R3 的直轄市原住民區依 2014 年修正的
+      <strong>只標首尾兩點的數值</strong>——七個資料點擠在同一個小面板裡，逐點標會疊在一起；
+      中間各點請看下方表格或滑過資料點。
+      <strong>沒有資料點的屆別表示該屆沒有這種選舉</strong>，不是 0——D2／R3 的直轄市原住民區依 2014 年修正的
       地方制度法設立，R2 則因 2010 年的鄉鎮市民代表為全國合併檔而無法分離平地原住民席次。
       算法為投票數 ÷ 選舉人數；分兩份檔案者為相加後重算的<strong>本專案計算值</strong>。</figcaption>
   </figure>
   <div class="limit">
     <p class="lt">本資料不足以支持</p>
-    <p>「投票率持續下滑」——四個時間點顯示，T2／T3 在 2022 之前是<strong>上升</strong>的，
+    <p>「投票率持續下滑」——2009-2010 以後的四個時間點顯示，T2／T3 在 2022 之前是<strong>上升</strong>的，
       下降集中在最後一屆。<br>
       「原住民投票意願下降」——參考組 T1 同期亦下降 5.83 個百分點。<br>
       任何成因。</p>
@@ -193,7 +203,7 @@ svg{display:block;overflow:visible}
       不是抽樣估計，但不足以支撐任何關於原因或一般規律的推論。</p>
   </div>
   <div class="tw"><table><thead><tr>
-    <th style="text-align:left">婦女保障當選（原始檔註記 <code>!</code>）</th><th>2009-2010</th><th>2014</th><th>2018</th><th>2022</th>
+    <th style="text-align:left">婦女保障當選（原始檔註記 <code>!</code>）</th>
   </tr></thead><tbody id="t-quota"></tbody></table></div>
   <div class="limit">
     <p class="lt">容易漏算</p>
@@ -232,15 +242,56 @@ svg{display:block;overflow:visible}
   <div class="tw"><table id="t-perseat"></table></div>
 </section>
 
+<section>
+  <div class="sh"><span class="sn">另計</span><h2>不進跨屆折線的兩種職位</h2></div>
+  <div class="col">
+    <p>上面所有圖表都<strong>不含</strong>這一節的資料。它們是本專案自訂的選舉種類代碼
+      （官方對照表只涵蓋 2022 年，這兩類職位在其中不存在），代碼刻意含連字號以示區別。</p>
+    <p><strong>臺灣省議員（<code>T-PRV2</code>／<code>T-PRV3</code>）</strong>——
+      省議會於 1998 年精省後<strong>廢除</strong>，與現行縣市議員是不同的職位，不可相加。
+      1994 年的「平原」與「平原2」是<strong>兩個選舉區</strong>，不是重複檔（候選人完全不同）。
+      該檔的 <code>elbase</code> 只有「臺灣省」一列，來源沒有選舉區的名稱。</p>
+    <p><strong>直轄市議員「原住民」合併類別（<code>T-COMBO</code>）</strong>——
+      1994／1998／2002／2006 各 2 席（臺北市、高雄市各 1）。
+      <strong>未分平地／山地</strong>：來源的 <code>elbase</code> 沒有選舉區層級、
+      <code>elcand</code> 的選舉區欄全是 <code>00</code>，<strong>沒有任何欄位可以拆分</strong>。
+      T2 與 T3 互斥，而這個類別是兩者的聯集，所以它<strong>兩者都不是</strong>。</p>
+  </div>
+  <div class="limit">
+    <p class="lt">為什麼不畫成折線</p>
+    <p>1994 年的原住民席次只有 <strong>6 席</strong>（省議員 4＋直轄市合併 2），1998 年是
+      <strong>55 席</strong>。把兩者接成一條線會被讀成<strong>參政權在 1998 年爆炸性擴張</strong>——
+      實際只是壓縮檔內<strong>沒有 1994 年的縣市議員資料</strong>。
+      該選舉是否舉行過本專案未查證，只能說 zip 裡沒有。</p>
+  </div>
+  <div class="tw"><table id="t-custom"></table></div>
+</section>
+
 <p class="foot">重現：<code>python scripts/build_local_election.py</code> 產生三張長表，
-  <code>python scripts/test_build_local_election.py</code> 跑 155 項測試。
-  建置時執行 18 項自我驗證，任何一項不通過即中止。</p>
+  <code>python scripts/test_build_local_election.py</code> 跑 339 項測試。
+  建置時執行結構、數值、跨檔對帳三層自我驗證（跨檔對帳 14 項），
+  任何一項不通過即中止。站台的資料常數由
+  <code>python scripts/build_site_data.py</code> 產生，不手動維護。</p>
 </div>
 <div id="tip"></div>
 
 <script>
-const DATA = {"types":[{"code":"T2","name":"議員(平地原住民)","indigenous":true,"years":{"2009-2010":{"electors":160576,"votes":89731,"turnout":55.88,"seats":31,"cands":69,"districts":19,"party":{"中國國民黨":[22,41],"無黨籍及未經政黨推薦":[6,22],"民主進步黨":[2,3],"其他":[1,3]},"femaleSeats":8,"femaleCands":18,"quota":1,"displaced":1,"incCands":18,"incWon":12,"uncontestedDist":3,"uncontestedSeats":4,"perSeat":5180},"2014":{"electors":179268,"votes":105688,"turnout":58.96,"seats":33,"cands":77,"districts":21,"party":{"中國國民黨":[22,40],"無黨籍及未經政黨推薦":[7,27],"民主進步黨":[2,4],"其他":[2,6]},"femaleSeats":12,"femaleCands":25,"quota":0,"displaced":0,"incCands":25,"incWon":19,"uncontestedDist":4,"uncontestedSeats":5,"perSeat":5432},"2018":{"electors":192460,"votes":115407,"turnout":59.96,"seats":34,"cands":84,"districts":22,"party":{"中國國民黨":[22,34],"無黨籍及未經政黨推薦":[11,35],"民主進步黨":[1,7],"其他":[0,8]},"femaleSeats":13,"femaleCands":28,"quota":0,"displaced":0,"incCands":25,"incWon":16,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5661},"2022":{"electors":202477,"votes":106573,"turnout":52.63,"seats":34,"cands":73,"districts":22,"party":{"中國國民黨":[18,28],"無黨籍及未經政黨推薦":[14,32],"民主進步黨":[2,8],"其他":[0,5]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":33,"incWon":28,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5955}}},{"code":"T3","name":"議員(山地原住民)","indigenous":true,"years":{"2009-2010":{"electors":170513,"votes":115572,"turnout":67.78,"seats":32,"cands":79,"districts":32,"party":{"中國國民黨":[26,51],"無黨籍及未經政黨推薦":[6,24],"民主進步黨":[0,2],"其他":[0,2]},"femaleSeats":6,"femaleCands":15,"quota":0,"displaced":0,"incCands":19,"incWon":13,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5329},"2014":{"electors":189042,"votes":137544,"turnout":72.76,"seats":33,"cands":79,"districts":32,"party":{"中國國民黨":[20,42],"無黨籍及未經政黨推薦":[12,30],"民主進步黨":[0,3],"其他":[1,4]},"femaleSeats":9,"femaleCands":20,"quota":0,"displaced":0,"incCands":22,"incWon":15,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":5729},"2018":{"electors":204127,"votes":149675,"turnout":73.32,"seats":35,"cands":98,"districts":33,"party":{"中國國民黨":[15,34],"無黨籍及未經政黨推薦":[18,54],"民主進步黨":[0,3],"其他":[2,7]},"femaleSeats":12,"femaleCands":24,"quota":0,"displaced":0,"incCands":25,"incWon":15,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5832},"2022":{"electors":216262,"votes":144164,"turnout":66.66,"seats":35,"cands":80,"districts":33,"party":{"中國國民黨":[18,25],"無黨籍及未經政黨推薦":[16,48],"民主進步黨":[0,4],"其他":[1,3]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":28,"incWon":21,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":6179}}},{"code":"D2","name":"直轄市原住民區長","indigenous":true,"years":{"2009-2010":null,"2014":{"electors":28850,"votes":23348,"turnout":80.93,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[3,8],"無黨籍及未經政黨推薦":[2,10],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":0,"femaleCands":1,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4808},"2018":{"electors":30904,"votes":24862,"turnout":80.45,"seats":6,"cands":19,"districts":6,"party":{"中國國民黨":[3,4],"無黨籍及未經政黨推薦":[3,15],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":0,"femaleCands":2,"quota":0,"displaced":0,"incCands":5,"incWon":3,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5151},"2022":{"electors":31807,"votes":23712,"turnout":74.55,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[5,15],"民主進步黨":[0,2],"其他":[0,1]},"femaleSeats":0,"femaleCands":0,"quota":0,"displaced":0,"incCands":4,"incWon":3,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5301}}},{"code":"R3","name":"直轄市原住民區民代表","indigenous":true,"years":{"2009-2010":null,"2014":{"electors":28842,"votes":23346,"turnout":80.94,"seats":50,"cands":94,"districts":16,"party":{"中國國民黨":[17,30],"無黨籍及未經政黨推薦":[33,64],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":12,"femaleCands":21,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":577},"2018":{"electors":30895,"votes":24856,"turnout":80.45,"seats":50,"cands":98,"districts":16,"party":{"中國國民黨":[12,15],"無黨籍及未經政黨推薦":[38,83],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":11,"femaleCands":18,"quota":1,"displaced":1,"incCands":39,"incWon":27,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":618},"2022":{"electors":31803,"votes":23712,"turnout":74.56,"seats":50,"cands":92,"districts":16,"party":{"中國國民黨":[5,7],"無黨籍及未經政黨推薦":[45,84],"民主進步黨":[0,0],"其他":[0,1]},"femaleSeats":11,"femaleCands":19,"quota":0,"displaced":0,"incCands":43,"incWon":33,"uncontestedDist":2,"uncontestedSeats":4,"perSeat":636}}},{"code":"R2","name":"鄉(鎮、市)民代表(平原)","indigenous":true,"years":{"2009-2010":null,"2014":{"electors":88079,"votes":55604,"turnout":63.13,"seats":68,"cands":118,"districts":24,"party":{"中國國民黨":[44,66],"無黨籍及未經政黨推薦":[23,50],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":16,"femaleCands":31,"quota":3,"displaced":3,"incCands":50,"incWon":36,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":1295},"2018":{"electors":90281,"votes":58870,"turnout":65.21,"seats":71,"cands":131,"districts":25,"party":{"中國國民黨":[30,45],"無黨籍及未經政黨推薦":[41,81],"民主進步黨":[0,2],"其他":[0,3]},"femaleSeats":18,"femaleCands":30,"quota":3,"displaced":3,"incCands":52,"incWon":40,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":1272},"2022":{"electors":91627,"votes":55614,"turnout":60.7,"seats":72,"cands":134,"districts":27,"party":{"中國國民黨":[23,33],"無黨籍及未經政黨推薦":[47,95],"民主進步黨":[2,5],"其他":[0,1]},"femaleSeats":23,"femaleCands":42,"quota":2,"displaced":0,"incCands":57,"incWon":45,"uncontestedDist":1,"uncontestedSeats":2,"perSeat":1273}}},{"code":"T1","name":"議員(區域)","indigenous":false,"years":{"2009-2010":{"electors":17335124,"votes":11883466,"turnout":68.55,"seats":843,"cands":1433,"districts":162,"party":{"中國國民黨":[371,551],"無黨籍及未經政黨推薦":[203,521],"民主進步黨":[256,302],"其他":[13,59]},"femaleSeats":255,"femaleCands":396,"quota":15,"displaced":15,"incCands":466,"incWon":396,"uncontestedDist":6,"uncontestedSeats":9,"perSeat":20564},"2014":{"electors":18084841,"votes":12241793,"turnout":67.69,"seats":841,"cands":1444,"districts":164,"party":{"中國國民黨":[344,472],"無黨籍及未經政黨推薦":[184,471],"民主進步黨":[289,363],"其他":[24,138]},"femaleSeats":257,"femaleCands":409,"quota":9,"displaced":9,"incCands":646,"incWon":542,"uncontestedDist":9,"uncontestedSeats":19,"perSeat":21504},"2018":{"electors":18656541,"votes":12499109,"turnout":67.0,"seats":843,"cands":1569,"districts":159,"party":{"中國國民黨":[357,422],"無黨籍及未經政黨推薦":[205,600],"民主進步黨":[237,397],"其他":[44,150]},"femaleSeats":282,"femaleCands":480,"quota":4,"displaced":4,"incCands":639,"incWon":528,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":22131},"2022":{"electors":18710006,"votes":11445404,"turnout":61.17,"seats":841,"cands":1524,"districts":160,"party":{"中國國民黨":[331,404],"無黨籍及未經政黨推薦":[197,533],"民主進步黨":[275,368],"其他":[38,219]},"femaleSeats":314,"femaleCands":485,"quota":4,"displaced":0,"incCands":684,"incWon":600,"uncontestedDist":6,"uncontestedSeats":10,"perSeat":22247}}}],"years":["2009-2010","2014","2018","2022"],"note2009":"2009-2010 是同一輪任期分兩次投票（縣市 2009-12-05、直轄市 2010-11-27）"};
+const DATA = {"types":[{"code":"T2","name":"議員(平地原住民)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":{"electors":106061,"votes":57609,"turnout":54.32,"seats":23,"cands":69,"districts":14,"party":{"中國國民黨":[23,51],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,3],"其他":[0,15]},"femaleSeats":3,"femaleCands":9,"quota":0,"displaced":0,"incCands":17,"incWon":12,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4611},"2002":{"electors":118940,"votes":60706,"turnout":51.04,"seats":26,"cands":67,"districts":16,"party":{"中國國民黨":[17,33],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[1,3],"其他":[8,31]},"femaleSeats":5,"femaleCands":7,"quota":0,"displaced":0,"incCands":20,"incWon":13,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4575},"2005":{"electors":133766,"votes":72501,"turnout":54.2,"seats":27,"cands":65,"districts":17,"party":{"中國國民黨":[16,32],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,3],"其他":[11,30]},"femaleSeats":6,"femaleCands":12,"quota":0,"displaced":0,"incCands":25,"incWon":19,"uncontestedDist":3,"uncontestedSeats":4,"perSeat":4954},"2006":null,"2009-2010":{"electors":160576,"votes":89731,"turnout":55.88,"seats":31,"cands":69,"districts":19,"party":{"中國國民黨":[22,41],"無黨籍及未經政黨推薦":[6,22],"民主進步黨":[2,3],"其他":[1,3]},"femaleSeats":8,"femaleCands":18,"quota":1,"displaced":1,"incCands":18,"incWon":12,"uncontestedDist":3,"uncontestedSeats":4,"perSeat":5180},"2014":{"electors":179268,"votes":105688,"turnout":58.96,"seats":33,"cands":77,"districts":21,"party":{"中國國民黨":[22,40],"無黨籍及未經政黨推薦":[7,27],"民主進步黨":[2,4],"其他":[2,6]},"femaleSeats":12,"femaleCands":25,"quota":0,"displaced":0,"incCands":25,"incWon":19,"uncontestedDist":4,"uncontestedSeats":5,"perSeat":5432},"2018":{"electors":192460,"votes":115407,"turnout":59.96,"seats":34,"cands":84,"districts":22,"party":{"中國國民黨":[22,34],"無黨籍及未經政黨推薦":[11,35],"民主進步黨":[1,7],"其他":[0,8]},"femaleSeats":13,"femaleCands":28,"quota":0,"displaced":0,"incCands":25,"incWon":16,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5661},"2022":{"electors":202477,"votes":106573,"turnout":52.63,"seats":34,"cands":73,"districts":22,"party":{"中國國民黨":[18,28],"無黨籍及未經政黨推薦":[14,32],"民主進步黨":[2,8],"其他":[0,5]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":33,"incWon":28,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5955}}},{"code":"T3","name":"議員(山地原住民)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":{"electors":121727,"votes":86261,"turnout":70.86,"seats":30,"cands":80,"districts":30,"party":{"中國國民黨":[26,51],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,3],"其他":[4,26]},"femaleSeats":5,"femaleCands":15,"quota":0,"displaced":0,"incCands":17,"incWon":11,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":4058},"2002":{"electors":133338,"votes":91031,"turnout":68.27,"seats":30,"cands":85,"districts":30,"party":{"中國國民黨":[22,44],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,0],"其他":[8,41]},"femaleSeats":5,"femaleCands":15,"quota":0,"displaced":0,"incCands":14,"incWon":9,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":4445},"2005":{"electors":147145,"votes":101690,"turnout":69.11,"seats":30,"cands":66,"districts":30,"party":{"中國國民黨":[20,39],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[10,26]},"femaleSeats":4,"femaleCands":9,"quota":0,"displaced":0,"incCands":15,"incWon":12,"uncontestedDist":7,"uncontestedSeats":7,"perSeat":4905},"2006":null,"2009-2010":{"electors":170513,"votes":115572,"turnout":67.78,"seats":32,"cands":79,"districts":32,"party":{"中國國民黨":[26,51],"無黨籍及未經政黨推薦":[6,24],"民主進步黨":[0,2],"其他":[0,2]},"femaleSeats":6,"femaleCands":15,"quota":0,"displaced":0,"incCands":19,"incWon":13,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5329},"2014":{"electors":189042,"votes":137544,"turnout":72.76,"seats":33,"cands":79,"districts":32,"party":{"中國國民黨":[20,42],"無黨籍及未經政黨推薦":[12,30],"民主進步黨":[0,3],"其他":[1,4]},"femaleSeats":9,"femaleCands":20,"quota":0,"displaced":0,"incCands":22,"incWon":15,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":5729},"2018":{"electors":204127,"votes":149675,"turnout":73.32,"seats":35,"cands":98,"districts":33,"party":{"中國國民黨":[15,34],"無黨籍及未經政黨推薦":[18,54],"民主進步黨":[0,3],"其他":[2,7]},"femaleSeats":12,"femaleCands":24,"quota":0,"displaced":0,"incCands":25,"incWon":15,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5832},"2022":{"electors":216262,"votes":144164,"turnout":66.66,"seats":35,"cands":80,"districts":33,"party":{"中國國民黨":[18,25],"無黨籍及未經政黨推薦":[16,48],"民主進步黨":[0,4],"其他":[1,3]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":28,"incWon":21,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":6179}}},{"code":"D2","name":"直轄市原住民區長","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":28850,"votes":23348,"turnout":80.93,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[3,8],"無黨籍及未經政黨推薦":[2,10],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":0,"femaleCands":1,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4808},"2018":{"electors":30904,"votes":24862,"turnout":80.45,"seats":6,"cands":19,"districts":6,"party":{"中國國民黨":[3,4],"無黨籍及未經政黨推薦":[3,15],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":0,"femaleCands":2,"quota":0,"displaced":0,"incCands":5,"incWon":3,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5151},"2022":{"electors":31807,"votes":23712,"turnout":74.55,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[5,15],"民主進步黨":[0,2],"其他":[0,1]},"femaleSeats":0,"femaleCands":0,"quota":0,"displaced":0,"incCands":4,"incWon":3,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5301}}},{"code":"R3","name":"直轄市原住民區民代表","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":28842,"votes":23346,"turnout":80.94,"seats":50,"cands":94,"districts":16,"party":{"中國國民黨":[17,30],"無黨籍及未經政黨推薦":[33,64],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":12,"femaleCands":21,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":577},"2018":{"electors":30895,"votes":24856,"turnout":80.45,"seats":50,"cands":98,"districts":16,"party":{"中國國民黨":[12,15],"無黨籍及未經政黨推薦":[38,83],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":11,"femaleCands":18,"quota":1,"displaced":1,"incCands":39,"incWon":27,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":618},"2022":{"electors":31803,"votes":23712,"turnout":74.56,"seats":50,"cands":92,"districts":16,"party":{"中國國民黨":[5,7],"無黨籍及未經政黨推薦":[45,84],"民主進步黨":[0,0],"其他":[0,1]},"femaleSeats":11,"femaleCands":19,"quota":0,"displaced":0,"incCands":43,"incWon":33,"uncontestedDist":2,"uncontestedSeats":4,"perSeat":636}}},{"code":"R2","name":"鄉(鎮、市)民代表(平原)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":88079,"votes":55604,"turnout":63.13,"seats":68,"cands":118,"districts":24,"party":{"中國國民黨":[44,66],"無黨籍及未經政黨推薦":[23,50],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":16,"femaleCands":31,"quota":3,"displaced":3,"incCands":50,"incWon":36,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":1295},"2018":{"electors":90281,"votes":58870,"turnout":65.21,"seats":71,"cands":131,"districts":25,"party":{"中國國民黨":[30,45],"無黨籍及未經政黨推薦":[41,81],"民主進步黨":[0,2],"其他":[0,3]},"femaleSeats":18,"femaleCands":30,"quota":3,"displaced":3,"incCands":52,"incWon":40,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":1272},"2022":{"electors":91627,"votes":55614,"turnout":60.7,"seats":72,"cands":134,"districts":27,"party":{"中國國民黨":[23,33],"無黨籍及未經政黨推薦":[47,95],"民主進步黨":[2,5],"其他":[0,1]},"femaleSeats":23,"femaleCands":42,"quota":2,"displaced":0,"incCands":57,"incWon":45,"uncontestedDist":1,"uncontestedSeats":2,"perSeat":1273}}},{"code":"T1","name":"議員(區域)","indigenous":false,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":{"electors":17335124,"votes":11883466,"turnout":68.55,"seats":843,"cands":1433,"districts":162,"party":{"中國國民黨":[371,551],"無黨籍及未經政黨推薦":[203,521],"民主進步黨":[256,302],"其他":[13,59]},"femaleSeats":255,"femaleCands":396,"quota":15,"displaced":15,"incCands":466,"incWon":396,"uncontestedDist":6,"uncontestedSeats":9,"perSeat":20564},"2014":{"electors":18084841,"votes":12241793,"turnout":67.69,"seats":841,"cands":1444,"districts":164,"party":{"中國國民黨":[344,472],"無黨籍及未經政黨推薦":[184,471],"民主進步黨":[289,363],"其他":[24,138]},"femaleSeats":257,"femaleCands":409,"quota":9,"displaced":9,"incCands":646,"incWon":542,"uncontestedDist":9,"uncontestedSeats":19,"perSeat":21504},"2018":{"electors":18656541,"votes":12499109,"turnout":67.0,"seats":843,"cands":1569,"districts":159,"party":{"中國國民黨":[357,422],"無黨籍及未經政黨推薦":[205,600],"民主進步黨":[237,397],"其他":[44,150]},"femaleSeats":282,"femaleCands":480,"quota":4,"displaced":4,"incCands":639,"incWon":528,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":22131},"2022":{"electors":18710006,"votes":11445404,"turnout":61.17,"seats":841,"cands":1524,"districts":160,"party":{"中國國民黨":[331,404],"無黨籍及未經政黨推薦":[197,533],"民主進步黨":[275,368],"其他":[38,219]},"femaleSeats":314,"femaleCands":485,"quota":4,"displaced":0,"incCands":684,"incWon":600,"uncontestedDist":6,"uncontestedSeats":10,"perSeat":22247}}},{"code":"T-COMBO","name":"直轄市議員(原住民，未分平地／山地)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":5965,"votes":4115,"turnout":68.99,"seats":2,"cands":13,"districts":2,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[1,10]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":2983},"1998":{"electors":8146,"votes":6049,"turnout":74.26,"seats":2,"cands":10,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[0,7]},"femaleSeats":0,"femaleCands":2,"quota":0,"displaced":0,"incCands":3,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4073},"2002":{"electors":11417,"votes":7263,"turnout":63.62,"seats":2,"cands":12,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,2],"其他":[0,8]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5709},"2005":null,"2006":{"electors":13758,"votes":7210,"turnout":52.41,"seats":2,"cands":6,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[0,3]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":6879},"2009-2010":null,"2014":null,"2018":null,"2022":null}},{"code":"T-PRV3","name":"臺灣省議員(山地原住民)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":116398,"votes":73619,"turnout":63.25,"seats":2,"cands":5,"districts":1,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[0,2]},"femaleSeats":0,"femaleCands":1,"quota":0,"displaced":0,"incCands":2,"incWon":2,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":58199},"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":null,"2018":null,"2022":null}},{"code":"T-PRV2","name":"臺灣省議員(平地原住民)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":102156,"votes":54616,"turnout":53.46,"seats":2,"cands":5,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,0],"民主進步黨":[0,1],"其他":[0,2]},"femaleSeats":0,"femaleCands":0,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":51078},"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":null,"2018":null,"2022":null}}],"years":["1994","1998","2002","2005","2006","2009-2010","2014","2018","2022"],"note2009":"2009-2010 是同一輪任期分兩次投票（縣市 2009-12-05、直轄市 2010-11-27）"};
 const YS = DATA.years;
+
+/* 主序列＝可以畫進跨屆折線的選舉種類。
+   ⚠️ 三個本專案自訂的代碼（T-PRV2／T-PRV3 台灣省議員、T-COMBO 直轄市合併
+   原住民類別）一律【不進】任何跨屆圖表：1994 只有 6 席、1998 有 55 席，
+   畫成同一條線會被讀成參政權在 1998 爆炸性擴張，實際只是壓縮檔內沒有
+   1994 的縣市議員資料。它們在最後一節單獨呈現。
+   判斷依據是長表的 is_main_sequence 欄，不在此重新判定。 */
+const MAIN = DATA.types.filter(t => t.mainSequence);
+const CUSTOM = DATA.types.filter(t => !t.mainSequence);
+
+/* 屆別的短標籤：九屆的 X 軸放不下「2009-2010」這種完整字串
+   （viewBox 寬 168、九個刻度約 15px 一格）。完整屆別在 tooltip 與
+   「涵蓋什麼」一節都有。 */
+const YLAB = v => v.slice(2, 4);
 const PARTIES = [
   ["中國國民黨","中國國民黨","--s1"],
   ["無黨籍及未經政黨推薦","999 無黨籍及未經政黨推薦","--s2"],
@@ -281,7 +332,7 @@ function panel(t, extra){
 /* 範圍表 */
 {
   const tb = document.getElementById("t-scope");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     const tr = document.createElement("tr");
     if (!t.indigenous) tr.className = "rr";
     tr.innerHTML = `<td class="mono">${t.code}</td><td>${t.name}選舉</td>`
@@ -297,7 +348,7 @@ function panel(t, extra){
   const x = i => P.l + i * (W - P.l - P.r) / (YS.length - 1);
   const y = v => P.t + (HI - v) * (H - P.t - P.b) / (HI - LO);
   const box = document.getElementById("c-turnout");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     // 該種類有資料的屆別；沒有的屆別【留空不畫】，不填 0 假裝有資料
     const ys = YS.filter(v => t.years[v]);
     const xi = i => P.l + YS.indexOf(ys[i]) * (W - P.l - P.r) / (YS.length - 1);
@@ -322,16 +373,22 @@ function panel(t, extra){
       const hit = svgEl("circle",{cx:p[0],cy:p[1],r:14,fill:"transparent"});
       bind(hit, `${ys[i]}　${t.code} ${t.name}\n投票率 ${d.turnout}%\n選舉人 ${NF(d.electors)}\n投票數 ${NF(d.votes)}`);
       s.append(hit);
+      // ⚠️ 只標首尾兩點。九屆之後每個面板最多七個資料點擠在 168px 寬，
+      //    逐點標數字會疊成一團（實測 T2 會變成「56.354.2 55.9…」）。
+      //    中間各點的數值在 tooltip 與下方表格都讀得到。
+      if (i !== 0 && i !== pts.length - 1) return;
       const lb = svgEl("text",{x:p[0],y:p[1]-9,fill:"var(--ink2)","font-size":9.5,
-        "text-anchor": i===0?"start":(i===pts.length-1?"end":"middle"),
+        "text-anchor": i===0?"start":"end",
         "font-family":"IBM Plex Mono, monospace"});
       lb.textContent = d.turnout.toFixed(1); s.append(lb);
     });
     YS.forEach((v,i) => {
       const lb = svgEl("text",{x:x(i),y:H-4,fill:"var(--ink3)","font-size":8.5,
-        "text-anchor": i===0?"start":(i===2?"end":"middle"),
+        // ⚠️ 末端錨點原本寫死 i===2（三屆時代的殘留），四屆起就錯位了。
+        //    改用 YS.length-1，屆別數再變也不會錯。
+        "text-anchor": i===0?"start":(i===YS.length-1?"end":"middle"),
         "font-family":"IBM Plex Mono, monospace"});
-      lb.textContent = v; s.append(lb);
+      lb.textContent = YLAB(v); s.append(lb);
     });
     box.append(panel(t, s));
   });
@@ -348,7 +405,7 @@ function panel(t, extra){
   });
   const W = 172, BH = 17, GAP = 9, LW = 26;
   const box = document.getElementById("c-party");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     const H = YS.filter(v => t.years[v]).length * (BH + GAP);
     const s = svgEl("svg",{viewBox:`0 0 ${W} ${H}`, width:"100%", role:"img",
       "aria-label": `${t.code} 各屆政黨席次組成`});
@@ -380,7 +437,7 @@ function panel(t, extra){
 /* 03 性別：席次方格 */
 {
   const box = document.getElementById("c-gender");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     const wrapEl = document.createElement("div");
     YS.filter(v => t.years[v]).forEach(yr => {
       const d = t.years[yr];
@@ -429,8 +486,14 @@ function panel(t, extra){
 
 /* 婦女保障表 */
 {
+  // 表頭由 YS 產生。⚠️ 原本寫死四個年份，資料集擴充後表頭與資料欄數不符。
+  const qh = document.querySelector("#t-quota").previousElementSibling
+    .querySelector("tr");
+  YS.forEach(y => {
+    const th = document.createElement("th"); th.textContent = y; qh.append(th);
+  });
   const tb = document.getElementById("t-quota");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     const tr = document.createElement("tr");
     if (!t.indigenous) tr.className = "rr";
     tr.innerHTML = `<td>${t.code} ${t.name}${t.indigenous?"":"（參考組）"}</td>`
@@ -440,7 +503,8 @@ function panel(t, extra){
     tb.append(tr);
   });
   const tr = document.createElement("tr");
-  tr.innerHTML = `<td style="color:var(--ink3)">T3、D2 四屆皆為 0（已確認，非漏算）</td><td colspan="4"></td>`;
+  tr.innerHTML = `<td style="color:var(--ink3)">T3、D2 各屆皆為 0（已確認，非漏算）</td>`
+    + `<td colspan="${YS.length}"></td>`;
   tb.append(tr);
 }
 
@@ -451,7 +515,7 @@ function panel(t, extra){
     <th>選舉人數</th><th>席次</th><th>候選人紀錄</th><th>選舉區</th>
     <th>現任當選/參選</th><th>同額選區/席次</th></tr></thead>`;
   const tb = document.createElement("tbody");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     YS.filter(v => t.years[v]).forEach((yr, i) => {
       const d = t.years[yr];
       const tr = document.createElement("tr");
@@ -470,10 +534,11 @@ function panel(t, extra){
 /* 附錄：每席比值 */
 {
   const tbl = document.getElementById("t-perseat");
-  tbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th>
-    <th>2009-2010</th><th>2014</th><th>2018</th><th>2022</th></tr></thead>`;
+  // 表頭由 YS 產生——寫死屆別會在資料集擴充時與資料欄數不符
+  tbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th>`
+    + YS.map(y => `<th>${y}</th>`).join("") + `</tr></thead>`;
   const tb = document.createElement("tbody");
-  DATA.types.forEach(t => {
+  MAIN.forEach(t => {
     const tr = document.createElement("tr");
     if (!t.indigenous) tr.className = "rr";
     tr.innerHTML = `<td>${t.code} ${t.name}${t.indigenous?"":"（參考組）"}</td>`
@@ -481,6 +546,32 @@ function panel(t, extra){
           ? `<td>${NF(t.years[y].perSeat)}</td>`
           : `<td style="color:var(--ink3)">—</td>`).join("");
     tb.append(tr);
+  });
+  tbl.append(tb);
+}
+
+/* 另計：不進跨屆折線的自訂選舉種類。
+   ⚠️ 這一節【只用 CUSTOM】，而上面每一個圖表與表格【只用 MAIN】——
+   兩邊互斥且合起來等於 DATA.types，所以不會有選舉種類被漏掉，
+   也不會有自訂代碼混進跨屆比較。 */
+{
+  const tbl = document.getElementById("t-custom");
+  tbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th><th>屆別</th>
+    <th>選舉人數</th><th>投票數</th><th>投票率</th><th>席次</th>
+    <th>候選人紀錄</th><th>選舉區</th></tr></thead>`;
+  const tb = document.createElement("tbody");
+  CUSTOM.forEach(t => {
+    // 只列該種類【實際有資料】的屆別——沒有的屆別不列，不以 0 或 × 佔位，
+    // 因為這張表本來就是逐屆逐列，缺屆等於沒有那一列。
+    const ys = YS.filter(v => t.years[v]);
+    ys.forEach((y, i) => {
+      const d = t.years[y], tr = document.createElement("tr");
+      tr.innerHTML = `<td>${i === 0 ? t.code + " " + t.name : ""}</td>`
+        + `<td>${y}</td><td>${NF(d.electors)}</td><td>${NF(d.votes)}</td>`
+        + `<td>${d.turnout}%</td><td>${d.seats}</td>`
+        + `<td>${d.cands}</td><td>${d.districts}</td>`;
+      tb.append(tr);
+    });
   });
   tbl.append(tb);
 }
