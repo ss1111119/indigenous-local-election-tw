@@ -13,6 +13,11 @@
    下一個人很容易當成冗餘而移除，然後白字回來、淺色「其他」上的對比
    掉回 2.12:1。這裡把 4.5:1 這條下限釘住。
 
+3. 相鄰系列的色差。原本只守文字對比，**色差本身沒有任何測試**——把「其他」
+   的灰改成任何顏色都不會有測試失敗，包含改成跟旁邊那個系列糊在一起的顏色。
+   這正是 `fix-party-bucket-drift` 的 4.1（無黨籍改中性深色）會踩到的地方：
+   兩個中性色相鄰、只靠亮度分，是整套配色最容易失效的組合。
+
 ⚠️ 與 `test_build_site_data.py` 的分工：那個檔案只放「現有真實資料觸發不到的
    分支」，並明文寫著不重複 `--check` 已在做的事。本檔相反——它**刻意**執行
    `--check`，因為問題從來不是那個比對不夠強，而是沒人跑。
@@ -27,6 +32,15 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from palette_metrics import (  # noqa: E402
+    CVD_FLOOR,
+    NORMAL_FLOOR,
+    adjacent_pairs,
+    delta_e,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -127,6 +141,35 @@ def test_in_mark_label_contrast() -> None:
     assert not failures, "段內文字對比不足：\n  " + "\n  ".join(failures)
 
 
+def test_series_palette_separation() -> None:
+    """相鄰系列在常人視覺與 protan／deutan 下都要分得開。
+
+    門檻與 `site-chart-accessibility` spec 一致：常人 ΔE ≥ 15、色盲 ΔE ≥ 8
+    （OKLab ×100）。量測工具是同目錄的 `palette_metrics.py`，它對照外部
+    驗證器校準過（見該檔 docstring）。
+
+    這個測試在系列色被改動時會立刻回報是哪一對、在哪個主題、差多少。
+    """
+    failures: list[str] = []
+    for name in ("index.html", "roster.html"):
+        css = (DOCS / name).read_text(encoding="utf-8")
+        for theme, selector in THEME_SELECTORS.items():
+            v = theme_vars(css, selector)
+            series = [v.get(f"s{i}") for i in (1, 2, 3, 4)]
+            assert all(series), f"{name} {theme}: --s1~--s4 不齊"
+            for i, j in adjacent_pairs(series):
+                normal = delta_e(series[i], series[j])
+                cvd = min(delta_e(series[i], series[j], "protan"),
+                          delta_e(series[i], series[j], "deutan"))
+                if normal < NORMAL_FLOOR or cvd < CVD_FLOOR:
+                    failures.append(
+                        f"{name} {theme} 系列{i + 1}↔{j + 1}（{series[i]}↔{series[j]}）："
+                        f"常人 {normal:.1f}（需 ≥{NORMAL_FLOOR:.0f}）、"
+                        f"色盲 {cvd:.1f}（需 ≥{CVD_FLOOR:.0f}）"
+                    )
+    assert not failures, "相鄰系列色差不足：\n  " + "\n  ".join(failures)
+
+
 def test_pages_declare_encoding_language_and_viewport() -> None:
     """離線開啟不能變亂碼、手機不能用桌機寬度渲染。
 
@@ -150,6 +193,7 @@ def test_pages_declare_encoding_language_and_viewport() -> None:
 if __name__ == "__main__":
     for fn in (test_embedded_constants_match_long_tables,
                test_in_mark_label_contrast,
+               test_series_palette_separation,
                test_pages_declare_encoding_language_and_viewport):
         fn()
         print(f"  PASS  {fn.__name__}")

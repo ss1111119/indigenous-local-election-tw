@@ -14,6 +14,8 @@ Each task description MUST state:
 - [x] 1.3 依設計決策「顏色可及性只放一個 capability」，把 `fix-party-bucket-drift` 提出的「慣用色不外借」吸收進本 capability：實現 Categorical Colors Are Measured Against Each Other 中「彙總桶不得取用某政黨的慣用色」一節。驗證方式：內容複核——「其他各政黨」在兩個主題皆為中性灰（`#ADB3B9`／`#6A7178`），未取用藍、綠、橘任一。
 - [x] 1.4 落實 Color Verification Is Recorded, Not Asserted：把工具、模擬的色盲類型、門檻與實測值寫進 design.md 與本檔，而非只聲稱「已檢查」。驗證方式：design.md 決策 3 列出八組墨色對比實測值；spec 的 Example 表列出工具（`validate_palette.js`、WCAG 相對亮度）、protan／deutan／tritan、門檻 ΔE 15／8 與 4.5:1、以及實測 16.9／16.6、9.0／9.7、4.58–8.41。
 
+- [x] 1.5 依設計決策「量測工具必須在 repo 裡」新增 `scripts/palette_metrics.py`，讓 Color Verification Is Recorded, Not Asserted 有人履行得起：原本量測用的是外部 skill 的驗證器，不在版控內、也不是每個 session 摸得到。驗證方式：以四個參考點校準——常人 16.9／16.6 差 ≤0.04、protan 9.0 差 0.01、deutan 9.7 差 0.03；tritan 無法重現（差 4~18）故不實作，並在 docstring 與 spec 中明載。
+
 ## 2. 段內文字
 
 - [x] 2.1 依設計決策「每系列一個墨色變數」新增 `--lab1`~`--lab4`，並讓 `PARTIES` 每項同時帶填色與墨色變數名，實現 Labels Drawn Inside A Mark Meet 4.5:1 Against That Mark。驗證方式：八個「系列×主題」組合的 WCAG 對比全部 ≥4.5（4.76／5.56／6.32／8.41／4.89／4.58／5.82／4.95）。
@@ -39,4 +41,5 @@ Each task description MUST state:
 - [x] 6.1 依設計決策「一致性要有東西在守，不是有指令可查」新增 `scripts/test_site_invariants.py::test_embedded_constants_match_long_tables`，實現 Constant-To-Long-Table Consistency Is Enforced, Not Merely Checkable：由測試套件執行 `--check` 並在退出碼非零時列出差異的鍵。驗證方式：變異測試——把 `docs/index.html` 常數中 T2 1998 的 `seats` 由 23 改為 24，該測試失敗；還原後通過。
 - [x] 6.2 新增 `test_in_mark_label_contrast`，把 4.5:1 這條下限釘住，防止四個墨色變數被當成冗餘移除。驗證方式：變異測試——把淺色 `--lab4` 改回 `#fff`（對比 2.12），該測試失敗並指出是哪個系列與主題。
 - [x] 6.3 新增 `test_pages_declare_encoding_language_and_viewport`。驗證方式：變異測試——移除 `viewport` meta，該測試失敗。
-- [x] 6.4 確認新測試不是「永遠通過的測試」。驗證方式：三項變異同時植入時三個測試同時失敗（`3 failed`），還原後全套 `pytest scripts/ -q` 為 `30 passed`。
+- [x] 6.4 新增 `test_series_palette_separation`，補上本 change 原本的缺口：色差本身沒有任何測試，把「其他」改成與鄰接系列糊在一起的顏色不會有任何測試失敗。驗證方式：變異測試——把淺色 `--s4` 改成 `#3fbd8c`（接近民進黨綠），測試失敗並指出「index.html light 系列3↔4：常人 4.8（需 ≥15）、色盲 4.7（需 ≥8）」。
+- [x] 6.5 確認新測試不是「永遠通過的測試」。驗證方式：三項變異同時植入時三個測試同時失敗（`3 failed`），還原後全套 `pytest scripts/ -q` 為 `30 passed`。

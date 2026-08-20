@@ -44,7 +44,7 @@ Where a chart encodes identity by color, every adjacent pair in the series order
 | a fourth hue, e.g. purple | yes | not conventional for any party here |
 | green | no | reads as 民主進步黨 |
 | blue | no | reads as 中國國民黨 |
-| orange | no | already used by 無黨籍及未經政黨推薦 in this palette |
+| orange | no | conventional for 親民黨; forbidden by this clause whether or not another bucket currently uses it |
 
 
 ### Requirement: Labels Drawn Inside A Mark Meet 4.5:1 Against That Mark
@@ -171,8 +171,8 @@ Any claim that a palette is readable SHALL be recorded with the tool used, the c
 
 | Field | Value |
 | --- | --- |
-| tool | `dataviz` skill's `scripts/validate_palette.js` (OKLab ΔE ×100) for separation; WCAG relative-luminance contrast for inks |
-| CVD types simulated | protan, deutan, tritan |
+| tool | `scripts/palette_metrics.py` in this repo (OKLab ΔE ×100; Machado 2009 CVD matrices on linear RGB) for separation; WCAG relative-luminance contrast for inks. Calibrated against an external validator to ≤0.04 for normal vision and ≤0.03 for protan/deutan |
+| CVD types simulated | protan, deutan (in-repo tool). tritan measured once with the external validator (9.6 light / 15.1 dark) and **not reproducible in-repo** — see `palette_metrics.py` docstring |
 | thresholds | ΔE 15 normal vision / ΔE 8 CVD for adjacent pairs; 4.5:1 for text inside a mark |
 | measured | separation 16.9 (light) / 16.6 (dark), CVD 9.0 / 9.7; eight ink-on-fill combinations 4.58–8.41 |
 
@@ -185,4 +185,4 @@ Any claim that a palette is readable SHALL be recorded with the tool used, the c
 | Statement | Counts |
 | --- | --- |
 | "配色已檢查，色盲下可辨識" | no — no tool, no type, no number |
-| "validate_palette.js，protan/deutan/tritan，門檻 ΔE 8，實測 9.0／9.7" | yes |
+| "palette_metrics.py，protan/deutan，門檻 ΔE 8，實測 9.0／9.7" | yes |

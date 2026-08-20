@@ -90,3 +90,22 @@
 2. **驗證須留紀錄**（工具、模擬的色盲類型、門檻、實測值）——本 change 的 design 有這些數字，但 spec 沒要求下一個人也提供。
 
 因此請 `fix-party-bucket-drift` 從它的 `site-data-generation` delta 移除 `Colour Is Not The Only Encoding`；內容已在此保留，未遺失。**本 change 不去修改另一個進行中 change 的檔案**——那正是本輪 `--write` 事故的同一類錯誤。
+
+### 9. 量測工具必須在 repo 裡
+
+決策 8 吸收進來的 `Color Verification Is Recorded, Not Asserted` 要求記錄「所用工具」。但本 change 實際用的是 `dataviz` skill 的 `validate_palette.js`——**它不在版控內，另一個並行 session 明確回報找不到它**（repo、`.claude/skills/`、`~/.claude/` 都沒有）。要求別人記錄一個他們拿不到的工具，等於那條 requirement 沒有人履行得起。
+
+因此在 repo 內實作 `scripts/palette_metrics.py`，並對照外部驗證器校準：
+
+| 量測 | 參考值 | 本實作 | 差 |
+| --- | ---: | ---: | ---: |
+| 常人 ΔE（兩組） | 16.9 / 16.6 | 16.9 / 16.6 | ≤0.04 |
+| protan ΔE | 9.0 | 9.0 | 0.01 |
+| deutan ΔE | 9.7 | 9.7 | 0.03 |
+| tritan ΔE（兩組） | 9.6 / 15.1 | 13.9 / 32.9 | 4.3 / 17.8 |
+
+前三項吻合到小數點，是因為找出了對方的做法：**Machado 2009 的 severity 1.0 矩陣、套用在線性 RGB**（改在 gamma 空間會差 0.6~1.2）。
+
+**tritan 沒有實作。** 試過 Viénot 單平面近似與 Machado 矩陣都對不上，對方顯然用別的方法（可能是 Brettel 雙平面）。提供一個差 18 的數字比不提供更糟——它會讓人以為量過了。本專案 spec 的 CVD 門檻只涵蓋 protan 與 deutan，所以這個缺口不影響 requirement 的可履行性；需要 tritan 就得用外部驗證器，且要標明來源。
+
+順帶補上本 change 原本的缺口：色差先前**沒有任何測試**在守（只守文字對比），所以把「其他」改成與鄰接系列糊在一起的顏色不會有人發現。`test_series_palette_separation` 補上這一層，也讓 `fix-party-bucket-drift` 的 4.1（無黨籍改中性深色，會產生兩個相鄰中性色）改完就有客觀判準。
