@@ -49,8 +49,17 @@ Any chart that connects values across terms SHALL include only rows whose `is_ma
 - **THEN** it SHALL do so outside the cross-term lines and SHALL state that the provincial assembly was abolished in 1998, and that the combined category is not split into plain and mountain indigenous
 
 ### Requirement: Absent Election Types Are Marked Rather Than Zero-Filled
-Where an election type did not exist in a term, the site SHALL mark it as absent and SHALL NOT display a zero.
+Where an election type did not exist in a term, the generated constant SHALL carry `null` for that
+(type, term) pair rather than a zero-valued record, and the site SHALL render it as absent rather
+than as a zero.
 
 #### Scenario: A type absent from a term
 - **WHEN** the site renders indigenous district chief (D2) figures for 1998, a term in which that election did not exist
-- **THEN** it SHALL show the absent marker, so that "did not exist" is distinguishable from "zero seats"
+- **THEN** the constant SHALL hold `null` for that pair, and the rendering SHALL leave the line chart
+  without a plotted point and SHALL write 「無此選舉」 or 「—」 in cross-term tables, so that
+  "did not exist" is distinguishable from "zero seats"
+
+#### Scenario: A type present but with no winners
+- **WHEN** an election type exists in a term but no candidate is elected under the authoritative field
+- **THEN** the constant SHALL hold a record with `seats` of `0` and `perSeat` of `null`, because
+  "zero seats" and "did not exist" are different facts and only the former is a measured zero
