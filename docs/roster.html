@@ -200,9 +200,14 @@ const D = {"types":[["T2","議員(平地原住民)",1],["T3","議員(山地原�
    寫死的清單列不出那些按鈕，等於那四屆完全點不到。
    D.types 由 scripts/build_site_data.py 產生，格式為 [代碼, 名稱, 是否原住民專屬]。 */
 const TYPES = D.types;
-const MAIN = {"中國國民黨":0,"無黨籍及未經政黨推薦":1,"民主進步黨":2};
+const MAIN = {"中國國民黨":0,"民主進步黨":2,"無":1,"無黨籍及未經政黨推薦":1};
 const pslot = name => name in MAIN ? MAIN[name] : 9;
-const short = name => name === "無黨籍及未經政黨推薦" ? "無黨籍" : name;
+/* 顯示用的短名。無黨籍在來源有兩個名稱（舊屆「無」／新屆「無黨籍及未經政黨推薦」），
+   兩者是同一類，所以顯示成同一個標籤——否則顏色對了、標籤還是兩種，
+   讀者仍分不出那是同一類。判準取自【已產生的 MAIN】的色槽，
+   不另外維護一份名稱清單（那正是這次要消滅的重複）。 */
+const NP_SLOT = MAIN["無黨籍及未經政黨推薦"];
+const short = name => pslot(name) === NP_SLOT ? "無黨籍" : name;
 let year = "2022", type = "T2", q = "";
 
 /* 網址雜湊：#2018/T3/搜尋字 — 可直接連到特定檢視 */

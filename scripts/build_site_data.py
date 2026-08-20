@@ -523,6 +523,36 @@ def normalise_roster(d: dict) -> dict:
 
 DATA_MARKER = "const DATA = "
 ROSTER_MARKER = "const D = "
+ROSTER_MAIN_MARKER = "const MAIN = "
+
+
+def build_roster_main() -> dict[str, int]:
+    """名錄頁的 `MAIN`：政黨名稱 → 色槽索引。由同一份對照表投影而來。
+
+    這一份先前是**手寫死在 HTML 裡的**（不在產生的 `D` 常數內），因此只認新屆的
+    「無黨籍及未經政黨推薦」——舊屆的「無」在名錄裡拿到「其他」的顏色。
+    同一個分類決策有兩份來源，其中一份必然會漂移。
+
+    ⚠️ **這裡只能用名稱當鍵，因為名錄前端拿不到政黨代號。** 候選人 tuple 存的是
+    `D.parties` 的索引，`pslot(name)` 只有名稱。這與圖表端以 (代號, 名稱) 配對
+    分桶不同——是前端資料形狀的限制，不是判準放寬。
+
+    ⚠️ 因此這個投影**可能是歧義的**：若對照表哪天讓同一個名稱在不同代號下歸到
+    不同的桶，名稱就不足以決定色槽。那種情況下中止，不猜——要嘛把代號帶進
+    名錄的資料形狀，要嘛承認這個名稱無法在名錄上正確著色。
+    """
+    slot_of = {b: i for i, b in enumerate(PARTY_BUCKETS)}
+    out: dict[str, int] = {}
+    for (code, name), bucket in PARTY_IDENTITY_BUCKETS.items():
+        slot = slot_of[bucket]
+        if name in out and out[name] != slot:
+            raise SiteDataError(
+                f"政黨名稱「{name}」在對照表中對應到兩個不同的桶"
+                f"（色槽 {out[name]} 與 {slot}）。名錄端只有名稱可用，"
+                f"無法決定色槽——不猜。需把政黨代號帶進名錄的資料形狀。"
+            )
+        out[name] = slot
+    return out
 
 
 def read_embedded_constant(path: Path, marker: str) -> dict:
@@ -579,24 +609,34 @@ def unexpected_diffs(diffs: list[str]) -> list[str]:
                        for k in INTENTIONAL_NEW_KEYS)]
 
 
-def replace_constant(path: Path, marker: str, value: dict) -> bytes:
-    """算出把 HTML 的資料常數換成 `value` 之後的完整位元組。
+def replace_constant_bytes(raw_bytes: bytes, marker: str, value: dict,
+                           label: str) -> bytes:
+    """把位元組中的資料常數換成 `value`，回傳完整位元組。
 
     ⚠️ 只替換以標記開頭的那一行，其餘位元組（含換行形式）原封不動。
        找不到標記行即中止，**不做模糊比對**——正則誤傷會安靜地改壞頁面。
+
+    吃位元組而非路徑，是為了讓同一個檔案的**多處替換可以串接**
+    （名錄頁有 `D` 與 `MAIN` 兩個常數）。若每次都從路徑重讀，
+    第二次替換會讀到還沒寫入的舊內容，於是前一次的結果被安靜丟掉。
     """
-    raw = path.read_bytes().decode("utf-8")
+    raw = raw_bytes.decode("utf-8")
     newline = "\r\n" if "\r\n" in raw else "\n"
     lines = raw.split(newline)
     hits = [i for i, ln in enumerate(lines) if ln.startswith(marker)]
     if len(hits) != 1:
         raise SiteDataError(
-            f"{path.name} 中以 {marker!r} 開頭的行有 {len(hits)} 個，預期恰為 1 個。"
+            f"{label} 中以 {marker!r} 開頭的行有 {len(hits)} 個，預期恰為 1 個。"
             f"不做模糊比對。"
         )
     payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
     lines[hits[0]] = f"{marker}{payload};"
     return newline.join(lines).encode("utf-8")
+
+
+def replace_constant(path: Path, marker: str, value: dict) -> bytes:
+    """算出把 HTML 的資料常數換成 `value` 之後的完整位元組。"""
+    return replace_constant_bytes(path.read_bytes(), marker, value, path.name)
 
 
 def report_other_bucket(cands: list[dict]) -> None:
@@ -691,14 +731,26 @@ def main() -> None:
 
     if args.write:
         # 先算完兩份、都成功了才落地——不產出半套結果。
+        #
+        # ⚠️ 名錄頁有【兩個】常數要換（`D` 與 `MAIN`），所以逐檔串接替換，
+        #    每一步都吃上一步的位元組。若每步都從路徑重讀，
+        #    第二次替換會把第一次的結果安靜丟掉。
         outputs = []
-        for html, marker, builder in (
-            (ROOT / "docs" / "index.html", DATA_MARKER, build_index_data),
-            (ROOT / "docs" / "roster.html", ROSTER_MARKER, build_roster_data),
+        for html, replacements in (
+            (ROOT / "docs" / "index.html", [(DATA_MARKER, build_index_data)]),
+            (ROOT / "docs" / "roster.html", [(ROSTER_MARKER, build_roster_data),
+                                             (ROSTER_MAIN_MARKER, None)]),
         ):
-            only = read_embedded_constant(html, marker)["years"]                 if args.only_existing_terms else None
-            outputs.append((html, replace_constant(
-                html, marker, builder(summary, cands, only_terms=only))))
+            data = html.read_bytes()
+            for marker, builder in replacements:
+                if builder is None:      # MAIN 不吃長表，只由對照表投影
+                    value = build_roster_main()
+                else:
+                    only = (read_embedded_constant(html, marker)["years"]
+                            if args.only_existing_terms else None)
+                    value = builder(summary, cands, only_terms=only)
+                data = replace_constant_bytes(data, marker, value, html.name)
+            outputs.append((html, data))
         print()
         for html, data in outputs:
             before = html.read_bytes()
@@ -738,7 +790,13 @@ def main() -> None:
             # ⚠️ 這裡【不剝除】刻意新增的欄位。剝除只在一次性遷移（站台還是
             #    手動維護的舊常數）時有意義；站台改由本腳本產生之後，
             #    要守的就是「重建 == 現況」。
+            # ⚠️ 名錄頁的 `MAIN` 也必須納入這個斷言。它不參與上面的語意比對
+            #    （那只比 `D`），所以少了這一步，`MAIN` 過時會完全沒人發現——
+            #    而 `MAIN` 過時正是本次修正的第二個現場。
             rebuilt = replace_constant(html, marker, new_data)
+            if marker == ROSTER_MARKER:
+                rebuilt = replace_constant_bytes(
+                    rebuilt, ROSTER_MAIN_MARKER, build_roster_main(), html.name)
             if rebuilt != html.read_bytes():
                 rc = 1
                 print(f"★ {html.name} 的位元組與現況不同"

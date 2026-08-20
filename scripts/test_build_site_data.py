@@ -566,7 +566,40 @@ def test_party_code_and_name_hygiene() -> None:
           {k: sorted(v) for k, v in by_int.items() if len(v) > 1}, {})
 
 
-# ------------------------------------ 七、無黨籍逐屆非零（具名的領域斷言）
+# ---------------------------------------------- 七、名錄的 MAIN 由對照表投影
+
+@reports
+def test_roster_main_projection() -> None:
+    """名錄的 `MAIN` 是「名稱 → 色槽」，由 (代號, 名稱) 對照表投影而來。
+
+    ⚠️ 名錄前端只有政黨名稱可用（候選人 tuple 存的是 `D.parties` 的索引），
+    所以這一份只能以名稱為鍵。因此投影**可能是歧義的**：若對照表讓同一個名稱
+    在不同代號下歸到不同的桶，名稱就不足以決定色槽。那條防護在真實資料上
+    **永遠不會觸發**，只能用合成資料測。
+    """
+    print("\n[合成] 名錄的 MAIN 投影：同名同槽，歧義即中止")
+    main = build_site_data.build_roster_main()
+    check("「無」與「無黨籍及未經政黨推薦」同一個色槽",
+          main.get("無") == main.get("無黨籍及未經政黨推薦") is not None, True)
+    check("兩者的色槽是 1（對應 --s2）", main.get("無"), 1)
+    check("中國國民黨在色槽 0", main.get("中國國民黨"), 0)
+    check("民主進步黨在色槽 2（兩個代號投影到同一槽）",
+          main.get("民主進步黨"), 2)
+    check("投影後恰四個名稱", len(main), 4)
+
+    print("\n       同名對到不同桶 → 中止，不猜")
+    orig = dict(build_site_data.PARTY_IDENTITY_BUCKETS)
+    try:
+        build_site_data.PARTY_IDENTITY_BUCKETS[("888", "無")] = "中國國民黨"
+        check_raises("同一名稱兩個桶時中止",
+                     build_site_data.build_roster_main)
+    finally:
+        build_site_data.PARTY_IDENTITY_BUCKETS.clear()
+        build_site_data.PARTY_IDENTITY_BUCKETS.update(orig)
+    check("還原後投影仍正常", len(build_site_data.build_roster_main()), 4)
+
+
+# ------------------------------------ 八、無黨籍逐屆非零（具名的領域斷言）
 
 # 實測的逐屆無黨籍候選人數。舊五屆是本次修正的直接產物——修正前全部是 0，
 # 因為分桶只認新屆的名稱「無黨籍及未經政黨推薦」，舊屆的代號 99／名稱「無」
@@ -634,6 +667,7 @@ def main() -> int:
                test_missing_column_aborts_at_header,
                test_party_bucket_key_semantics,
                test_party_code_and_name_hygiene,
+               test_roster_main_projection,
                test_independent_bucket_non_empty_every_term):
         try:
             fn()

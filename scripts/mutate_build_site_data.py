@@ -115,6 +115,15 @@ MUTATIONS = [
      '    ("99", "無"): "無黨籍及未經政黨推薦",\n',
      ''),
 
+    # ---- 名錄的 MAIN 投影 ----
+    ("MAIN 投影回到只認新屆的名稱（舊屆無黨籍在名錄拿到其他的顏色）",
+     '    slot_of = {b: i for i, b in enumerate(PARTY_BUCKETS)}',
+     '    slot_of = {b: i for i, b in enumerate(PARTY_BUCKETS)}\n'
+     '    return {n: i for i, n in enumerate(PARTY_BUCKETS)}'),
+    ("MAIN 的歧義防護被拿掉（同名對到兩個桶時安靜取後者）",
+     '        if name in out and out[name] != slot:',
+     '        if False:'),
+
     # ---- 主序列旗標 ----
     ("旗標寫死為 true（前端會把自訂選舉種類畫進跨屆折線）",
      '        ms = r["is_main_sequence"] == "true"',
