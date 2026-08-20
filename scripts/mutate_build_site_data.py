@@ -69,6 +69,52 @@ MUTATIONS = [
      '    if mark in ("!", "-"):',
      '    if mark in ("-",):'),
 
+    # ---- 分桶鍵 ----
+    #
+    # ⚠️ 下面三項裡，只有第一項在真實資料上會失敗。實測：對照表內的五個代號
+    #    各自只對到一個名稱，全資料五組「同代號多名稱」全部落在表外。
+    #    所以「只用代號」與「代號回退」在現有資料上的輸出與正確實作**完全相同**。
+    #    它們之所以會被偵測到，靠的是 test_party_bucket_key_semantics 的合成斷言。
+    #    把那個測試刪掉，這兩項就會變成漏網——這正是它存在的理由。
+    ("分桶鍵改成只用名稱（舊屆的代號 99／無 會掉回其他）",
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    return {n: b for (c, n), b in PARTY_IDENTITY_BUCKETS.items()}.get(\n'
+     '        row["政黨名稱"], OTHER_BUCKET)'),
+    ("分桶鍵改成只用代號（真實資料看不出差別）",
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    return {c: b for (c, n), b in PARTY_IDENTITY_BUCKETS.items()}.get(\n'
+     '        row["政黨代號"], OTHER_BUCKET)'),
+    ("配對查不到時以代號回退（等同同代號自動合併）",
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    hit = PARTY_IDENTITY_BUCKETS.get((row["政黨代號"], row["政黨名稱"]))\n'
+     '    if hit is not None:\n'
+     '        return hit\n'
+     '    for (c, n), b in PARTY_IDENTITY_BUCKETS.items():\n'
+     '        if c == row["政黨代號"]:\n'
+     '            return b\n'
+     '    return OTHER_BUCKET'),
+    ("分桶鍵改成鬆散的「代號在表內 and 名稱在表內」",
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    codes = {c for c, n in PARTY_IDENTITY_BUCKETS}\n'
+     '    for (c, n), b in PARTY_IDENTITY_BUCKETS.items():\n'
+     '        if row["政黨代號"] in codes and row["政黨名稱"] == n:\n'
+     '            return b\n'
+     '    return OTHER_BUCKET'),
+    ("無黨籍改用子字串比對（會吸收無黨團結聯盟）",
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    if "無" in row["政黨名稱"]:\n'
+     '        return "無黨籍及未經政黨推薦"\n'
+     '    return PARTY_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)'),
+    ("把舊屆無黨籍那一筆從對照表移除（本次修正的本體）",
+     '    ("99", "無"): "無黨籍及未經政黨推薦",\n',
+     ''),
+
     # ---- 主序列旗標 ----
     ("旗標寫死為 true（前端會把自訂選舉種類畫進跨屆折線）",
      '        ms = r["is_main_sequence"] == "true"',
@@ -111,8 +157,11 @@ MUTATIONS = [
     # ---- 輸入欄位契約（兩個方向）----
     ("契約：把實際會讀的 `鄉鎮市區` 從 candidates 清單移除",
      '        "省市", "縣市", "選舉區", "鄉鎮市區", "行政區名稱",\n'
-     '        "號次", "姓名", "政黨名稱", "性別", "年齡", "現任",',
+     '        "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",',
      '        "省市", "縣市", "選舉區", "行政區名稱",\n'
+     '        "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",'),
+    ("契約：把實際會讀的 `政黨代號` 從 candidates 清單移除",
+     '        "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",',
      '        "號次", "姓名", "政黨名稱", "性別", "年齡", "現任",'),
     ("契約：把不讀的 `候選人數`／`當選人數` 加回 summary 清單",
      '        "選舉人數", "投票數",\n'
@@ -227,10 +276,16 @@ def main() -> int:
             rc = 1
             print("      ", mout.strip()[-300:].replace("\n", " | "))
 
+    # ⚠️ 「因前置條件未驗證」與「驗證後漏網」是兩件不同的事，分開計數。
+    #    但兩者都不算通過——把未驗證的項目算成通過，就是「靜默縮減涵蓋範圍」。
+    skipped_msgs: list[str] = []
     caught, msg = mutate_index_html()
     print(msg)
     if not caught:
-        rc = 1
+        if msg.lstrip().startswith("★ 跳過"):
+            skipped_msgs.append(msg.strip())
+        else:
+            rc = 1
 
     # ---- @reports 承重驗證 ----
     print("\n[骨架] 驗證 @reports 是承重的，不是裝飾")
@@ -257,8 +312,19 @@ def main() -> int:
         print(final_out[-1500:])
         rc = 1
 
-    print("\n" + ("全部通過" if rc == 0 else "★有項目未通過"))
-    return rc
+    print()
+    if rc:
+        print("★ 有變異漏網——那些檢查沒有辨識力，必須補斷言")
+    elif skipped_msgs:
+        print(f"★ 全部已驗證的變異都被偵測到，但有 {len(skipped_msgs)} 項"
+              f"因前置條件【未驗證】：")
+        for m in skipped_msgs:
+            print("   ", m)
+        print("    未驗證不等於通過。處理前置條件後請重跑。")
+    else:
+        print("全部通過")
+    # 未驗證的項目一樣不算通過——把它算成通過就是靜默縮減涵蓋範圍。
+    return rc or (1 if skipped_msgs else 0)
 
 
 if __name__ == "__main__":

@@ -599,6 +599,51 @@ def replace_constant(path: Path, marker: str, value: dict) -> bytes:
     return newline.join(lines).encode("utf-8")
 
 
+def report_other_bucket(cands: list[dict]) -> None:
+    """列出「其他」桶逐屆的組成，由候選人數多到少。
+
+    ⚠️ **這是給人看的，不是自動檢查。** 本專案刻意不對「其他」桶設任何自動門檻——
+    已實測兩種被提議的門檻都不可用：
+
+    - 「單一政黨佔該屆總候選人數 < 5%」：在修正舊屆無黨籍編碼之後**仍然會失敗**
+      （2002 年「其他」由親民黨 28 人領先，28/164 = 17.1%）。舊屆規模太小
+      （1994 全屆只有 23 位候選人），固定比例在那裡沒有意義。
+    - 「其他桶成員必須小於具名桶」：舊屆的民進黨只有 3 至 7 人，比親民黨少，會誤報。
+
+    所以偵測「下一個被錯誤歸戶的大政黨」這件事，靠的是**有人看這份輸出**。
+    自動守得住的部分由 test_independent_bucket_non_empty_every_term 負責
+    （無黨籍逐屆非零），那是具名的領域斷言而非統計門檻。
+    """
+    # ⚠️ 每一屆都要列出，包括「其他」為空的那些屆。靜默省略會讓讀者
+    #    分不出「該屆沒有其他政黨」與「該屆的資料沒被算到」。
+    totals: dict[str, int] = {}
+    by_term: dict[str, dict[tuple[str, str], int]] = {}
+    for c in cands:
+        y = c["年度"]
+        totals[y] = totals.get(y, 0) + 1
+        by_term.setdefault(y, {})
+        if party_bucket(c) == OTHER_BUCKET:
+            k = (c["政黨代號"], c["政黨名稱"])
+            by_term[y][k] = by_term[y].get(k, 0) + 1
+
+    print()
+    print("=== 「其他」桶逐屆組成（候選人數由多到少）===")
+    print("⚠️ 沒有自動門檻在守這裡。若某一屆的首位佔比異常，"
+          "可能是又一種跨屆編碼漂移——見 report_other_bucket 的 docstring。")
+    for y in sorted(by_term):
+        members = sorted(by_term[y].items(), key=lambda kv: (-kv[1], kv[0][0]))
+        n = sum(v for _, v in members)
+        if not members:
+            print(f"  {y:<11} 共    0 人／該屆 {totals[y]:>4} 人"
+                  f"　（該屆所有候選人都在具名桶內）")
+            continue
+        (top_code, top_name), top_n = members[0]
+        print(f"  {y:<11} 共 {n:>4} 人／該屆 {totals[y]:>4} 人"
+              f"　首位 {top_name}（{top_n} 人，佔該屆 {top_n / totals[y]:.1%}）")
+        for (code, name), cnt in members:
+            print(f"      {cnt:>4} 人  代號 {code:<4} {name}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data-dir", type=Path, default=DATA_DIR,
@@ -625,6 +670,8 @@ def main() -> None:
     for code, meta in types.items():
         flag = "主序列" if meta["mainSequence"] else "**不進主序列**"
         print(f"  {code:8s} {meta['name']:<22s} {flag}")
+
+    report_other_bucket(cands)
 
     if args.diff_index:
         index_html = ROOT / "docs" / "index.html"

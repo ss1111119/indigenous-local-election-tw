@@ -488,6 +488,140 @@ def _node_or_none() -> str | None:
     return None
 
 
+# ------------------------------------------------ 六、分桶鍵的語意（合成）
+
+@reports
+def test_party_bucket_key_semantics() -> None:
+    """鍵是 (代號, 名稱) 配對，兩個欄位都必須吻合。
+
+    ⚠️ **這幾條非用合成資料不可。** 實測真實資料：對照表內的五個代號
+    （1／2／16／99／999）**各自只對到一個名稱**，而全資料五組「同代號多名稱」
+    （166／199／254／290／303）**全部落在表外**、兩個名稱本來都歸「其他」。
+
+    後果是：把鍵改成**只用代號**，或加上「代號相同就沿用該桶」的回退，
+    在現有真實資料上算出的結果**與正確實作完全相同**——任何只斷言真實資料
+    最終輸出的測試都不可能亮紅燈。是這份資料的分布剛好掩蓋了那個漏洞。
+
+    這裡守的是**設計意圖**（代號會被回收再發給另一個政黨），不是現有資料。
+    """
+    print("\n[合成] 分桶鍵是 (代號, 名稱) 配對，兩者都要吻合")
+    def b(code: str, name: str) -> str:
+        return build_site_data.party_bucket({"政黨代號": code, "政黨名稱": name})
+
+    print("       正向對照：對照表列出的五筆必須各歸其位")
+    check("1／中國國民黨", b("1", "中國國民黨"), "中國國民黨")
+    check("2／民主進步黨（舊屆代號）", b("2", "民主進步黨"), "民主進步黨")
+    check("16／民主進步黨（新屆代號）", b("16", "民主進步黨"), "民主進步黨")
+    check("99／無（舊屆無黨籍）", b("99", "無"), "無黨籍及未經政黨推薦")
+    check("999／無黨籍及未經政黨推薦", b("999", "無黨籍及未經政黨推薦"),
+          "無黨籍及未經政黨推薦")
+
+    print("\n       代號相符但名稱不符 → 其他（擋下「只用代號」與「代號回退」）")
+    check("2／某未知黨（代號被回收的情境）", b("2", "某未知黨"), "其他")
+    check("999／某未知黨", b("999", "某未知黨"), "其他")
+
+    print("\n       名稱相符但代號不符 → 其他（擋下「只用名稱」）")
+    check("777／無", b("777", "無"), "其他")
+    check("777／中國國民黨", b("777", "中國國民黨"), "其他")
+
+    print("\n       兩欄各自都在表內、但不成配對 → 其他")
+    print("       （擋下「代號在表內 and 名稱在表內」這種鬆散寫法）")
+    check("1／民主進步黨", b("1", "民主進步黨"), "其他")
+    check("16／中國國民黨", b("16", "中國國民黨"), "其他")
+    check("99／無黨籍及未經政黨推薦", b("99", "無黨籍及未經政黨推薦"), "其他")
+
+    print("\n       同代號多名稱：兩者都歸其他，且不因共用代號互相牽連")
+    print("       ⚠️ 這一組【不是】辨識用的案例——兩個名稱都不在表內，")
+    print("          沒有桶可以外洩，合併與不合併的結果相同。列出是為了記錄意圖。")
+    check("303／基進黨", b("303", "基進黨"), "其他")
+    check("303／台灣基進", b("303", "台灣基進"), "其他")
+
+
+@reports
+def test_party_code_and_name_hygiene() -> None:
+    """代號與名稱在真實資料裡沒有空白、補零或空值的變體。
+
+    ⚠️ **量到例外集合是空的，所以【不加】清洗機制。** 在 party_bucket 裡塞
+    `str(...).strip()` 會蓋出一段永遠不會執行的程式碼，而且會讓後來的人以為
+    這裡本來就有髒資料因此放寬警覺。改為斷言它繼續是空的——真的出現變體時
+    這條會失敗，屆時再決定怎麼處置。
+    """
+    print("\n[真實] 政黨代號與名稱的乾淨度（空集合以斷言守，不以清洗守）")
+    if not (DATA_DIR / CANDIDATES_FILE).exists():
+        print("  SKIP  找不到長表")
+        skipped.append("test_party_code_and_name_hygiene")
+        return
+    _, cands = load_long_tables()
+    codes = {c["政黨代號"] for c in cands}
+    names = {c["政黨名稱"] for c in cands}
+    check("代號全為數字字串", sorted(c for c in codes if not c.isdigit()), [])
+    check("代號無前後空白", sorted(c for c in codes if c != c.strip()), [])
+    check("名稱無前後空白", sorted(n for n in names if n != n.strip()), [])
+    check("無空字串代號", "" in codes, False)
+    # 只差前導零的代號會讓 ("1", X) 與 ("01", X) 變成兩個鍵
+    by_int: dict[str, list[str]] = {}
+    for c in codes:
+        by_int.setdefault(str(int(c)), []).append(c)
+    check("無只差前導零的代號組",
+          {k: sorted(v) for k, v in by_int.items() if len(v) > 1}, {})
+
+
+# ------------------------------------ 七、無黨籍逐屆非零（具名的領域斷言）
+
+# 實測的逐屆無黨籍候選人數。舊五屆是本次修正的直接產物——修正前全部是 0，
+# 因為分桶只認新屆的名稱「無黨籍及未經政黨推薦」，舊屆的代號 99／名稱「無」
+# 整批落進「其他」。
+EXPECTED_INDEPENDENT_CANDS = {
+    "1994": 14, "1998": 44, "2002": 50, "2005": 42, "2006": 1,
+}
+
+INDEPENDENT_BUCKET = "無黨籍及未經政黨推薦"
+
+
+@reports
+def test_independent_bucket_non_empty_every_term() -> None:
+    """無黨籍在每一屆都必須有候選人。
+
+    ⚠️ **這是具名的領域斷言，不是「每個桶在每屆都非零」的通則。**
+    某個桶在某屆確實可能真的沒有候選人（例如民進黨在 1994 只有 3 人、
+    某些選舉種類是 0）。無黨籍不同：九屆每一屆都有人以無黨籍身分參選，
+    這是可查證的事實，因此可以拿來當不變量。
+
+    ⚠️ **為什麼用真實資料而不是合成資料**（本檔其餘測試都是合成的）：
+    這條要守的是「對照表涵蓋了資料裡實際出現的每一種無黨籍編碼」。
+    合成資料只能證明我列出的那幾筆有效，證明不了沒有第三種編碼被漏掉。
+    只有真實資料能。
+
+    ⚠️ **為什麼 `--check` 不能取代它**：`--check` 比對「重建的常數 == 檔案現況」，
+    它的辨識力來自「已提交的常數目前是對的」。若對照表漏了一筆而常數
+    也是用漏了那筆的程式產生的，兩邊會一致而 `--check` 通過。
+    這條斷言不依賴檔案，所以擋得住。
+    """
+    print("\n[真實] 無黨籍在九屆每一屆都必須有候選人")
+    if not (DATA_DIR / CANDIDATES_FILE).exists():
+        print("  SKIP  找不到長表")
+        skipped.append("test_independent_bucket_non_empty_every_term")
+        return
+
+    summ, cands = load_long_tables()
+    d = build_index_data(summ, cands)
+    per_term: dict[str, int] = {}
+    for t in d["types"]:
+        for year, v in t["years"].items():
+            if v is None:
+                continue
+            per_term[year] = per_term.get(year, 0) + v["party"][INDEPENDENT_BUCKET][1]
+
+    check("涵蓋九屆", len(per_term), 9)
+    for year in sorted(per_term):
+        # 屆別寫進斷言名稱裡，失敗訊息才指得出是哪一屆
+        check(f"{year} 的無黨籍候選人數 > 0", per_term[year] > 0, True)
+
+    print("\n       舊五屆的實測值（修正前全部是 0）")
+    for year, want in EXPECTED_INDEPENDENT_CANDS.items():
+        check(f"{year} 的無黨籍候選人數", per_term.get(year), want)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -497,7 +631,10 @@ def main() -> int:
                test_index_html_filters_custom_types,
                test_turnout_round_half_up,
                test_required_columns_matches_actual_reads,
-               test_missing_column_aborts_at_header):
+               test_missing_column_aborts_at_header,
+               test_party_bucket_key_semantics,
+               test_party_code_and_name_hygiene,
+               test_independent_bucket_non_empty_every_term):
         try:
             fn()
         except AssertionError:
