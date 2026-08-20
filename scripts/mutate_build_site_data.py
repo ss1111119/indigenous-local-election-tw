@@ -220,9 +220,23 @@ def apply_to_copy(fname: str, old: str, new: str) -> bool:
 
 
 def git_is_clean(path: Path) -> bool:
-    r = subprocess.run(["git", "status", "--porcelain", "--", str(path)],
-                       capture_output=True, text=True, cwd=ROOT)
-    return r.returncode == 0 and not r.stdout.strip()
+    """該檔的內容是否與 HEAD 相同（因此 git checkout -- 不會丟掉任何東西）。
+
+    ⚠️ **不可用 `git status --porcelain` 判斷。** 在 core.autocrlf 生效的環境下，
+       只有換行不同的檔案也會被報成 ` M`，於是這個防護會把「內容其實一模一樣」
+       誤判為「有未提交的工作」，白白跳過一項變異驗證——實測 docs/index.html
+       就是這樣被跳過的（全檔 641 個換行都是 CRLF，而 blob 存的是 LF）。
+
+    要問的是「內容有沒有差」，所以用 `git diff --quiet`，
+    而且工作區與索引兩層都要問：只查工作區的話，
+    已 staged 但未 commit 的改動會被 `git checkout --` 一併還原掉。
+    """
+    for extra in ([], ["--cached"]):
+        r = subprocess.run(["git", "diff", "--quiet", *extra, "--", str(path)],
+                           capture_output=True, cwd=ROOT)
+        if r.returncode != 0:
+            return False
+    return True
 
 
 def mutate_index_html() -> tuple[bool, str]:
