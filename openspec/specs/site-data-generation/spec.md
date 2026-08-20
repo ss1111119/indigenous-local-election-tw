@@ -2,7 +2,18 @@
 
 ## Purpose
 
-TBD - created by archiving change 'update-site-to-nine-terms'. Update Purpose after archive.
+The constants embedded in the published site pages are derived from the project's
+long tables by a generator, not maintained by hand. This capability governs how that
+derivation works and what it must preserve.
+
+It covers: where the numbers come from (the long tables, never a second hand-kept
+copy); the requirement to reproduce the existing published values before extending
+coverage; which source field decides whether a candidate was elected; which election
+types may be joined into a cross-term line; and how a term in which an election did
+not exist is distinguished from one in which it returned zero seats.
+
+The reason this capability exists is that the site's constants were once hand-maintained,
+and drifted four terms behind the dataset without anything failing.
 
 ## Requirements
 

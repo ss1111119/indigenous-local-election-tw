@@ -100,14 +100,26 @@ def delta_e(a: str, b: str, kind: str | None = None) -> float:
 
 
 def adjacent_pairs(colors: list[str]) -> list[tuple[int, int]]:
-    """spec 的門檻針對「相鄰配對」——即系列順序上相接的兩個。"""
+    """系列順序上相接的兩個。"""
     return [(i, i + 1) for i in range(len(colors) - 1)]
 
 
-def report(colors: list[str], labels: list[str] | None = None, all_pairs: bool = False):
+def all_pairs(colors: list[str]) -> list[tuple[int, int]]:
+    """所有兩兩配對。
+
+    ⚠️ **門檻應該套在全配對，不只相鄰配對。** 只驗相鄰，等於假設圖表的物理排列
+       永遠是 s1-s2-s3-s4——但圖例在窄螢幕折成 2×2 時，原本非相鄰的 s1 與 s4
+       會直接上下相接，讀者跨區比對時視線也會跳躍配對。
+       實例：把「其他」桶改成紫色的方案，在【非相鄰】的國民黨藍↔紫上
+       色盲 ΔE 只有 5.9（門檻 8），只驗相鄰完全抓不到。
+    """
+    return [(i, j) for i in range(len(colors)) for j in range(i + 1, len(colors))]
+
+
+def report(colors: list[str], labels: list[str] | None = None,
+           every_pair: bool = False):
     labels = labels or [c for c in colors]
-    pairs = ([(i, j) for i in range(len(colors)) for j in range(i + 1, len(colors))]
-             if all_pairs else adjacent_pairs(colors))
+    pairs = all_pairs(colors) if every_pair else adjacent_pairs(colors)
     rows, failures = [], []
     for i, j in pairs:
         n = delta_e(colors[i], colors[j])
@@ -137,7 +149,7 @@ def main() -> int:
         print("--labels 的數量與顏色不符", file=sys.stderr)
         return 2
 
-    rows, failures = report(colors, labels, args.all_pairs)
+    rows, failures = report(colors, labels, every_pair=args.all_pairs)
     print(f"{'配對':<28}{'常人':>7}{'protan':>9}{'deutan':>9}")
     for a, b, n, p, d, bad in rows:
         mark = "  ✗ " + "、".join(bad) if bad else ""

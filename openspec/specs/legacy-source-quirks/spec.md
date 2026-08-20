@@ -2,7 +2,21 @@
 
 ## Purpose
 
-TBD - created by archiving change 'include-1994-2006-terms'. Update Purpose after archive.
+The source election files change shape across eras: keys carry trailing whitespace in
+some years, county codes are renumbered, town codes are re-issued per file, population
+figures appear as decimal strings, and the elected-status mark is corrupt in specific
+files. This capability governs how those defects are handled.
+
+The standing rule is that source values are preserved as they came, never overwritten.
+Where a value is wrong or ambiguous, the response is a named exception plus a
+compensating check that would fail if the defect changed shape — not a silent repair
+and not a relaxed validation.
+
+It covers: which columns may be whitespace-normalized and which must not; the county
+code crosswalk and the levels at which normalization is and is not attempted; the
+preservation of population strings and the levels where that column is meaningful;
+how authoritative elected status is derived when the source mark cannot be trusted;
+and the compensating checks that bound each of these.
 
 ## Requirements
 

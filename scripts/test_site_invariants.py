@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from palette_metrics import (  # noqa: E402
     CVD_FLOOR,
     NORMAL_FLOOR,
-    adjacent_pairs,
+    all_pairs,
     delta_e,
 )
 
@@ -157,17 +157,26 @@ def test_series_palette_separation() -> None:
             v = theme_vars(css, selector)
             series = [v.get(f"s{i}") for i in (1, 2, 3, 4)]
             assert all(series), f"{name} {theme}: --s1~--s4 不齊"
-            for i, j in adjacent_pairs(series):
+            # ⚠️ 全配對，不只相鄰。原本只驗相鄰配對，那假設了「圖表的物理排列
+            #    永遠是 s1-s2-s3-s4」——而圖例在窄螢幕折成 2×2 時，原本非相鄰的
+            #    s1 與 s4 會直接上下相接；讀者跨區比對時視線也會跳躍配對。
+            #    實測代價：擴到全配對後，現況四色在兩個頁面、兩個主題下仍全部通過，
+            #    所以這是純增強、不是放寬也不是收緊到需要改色。
+            #    這條擴充是必要的：把「其他」換成紫色的方案就是在【非相鄰】的
+            #    國民黨藍↔紫 上以色盲 ΔE 5.9 失敗，只驗相鄰完全抓不到。
+            for i, j in all_pairs(series):
                 normal = delta_e(series[i], series[j])
                 cvd = min(delta_e(series[i], series[j], "protan"),
                           delta_e(series[i], series[j], "deutan"))
                 if normal < NORMAL_FLOOR or cvd < CVD_FLOOR:
+                    adj = "相鄰" if j == i + 1 else "非相鄰"
                     failures.append(
-                        f"{name} {theme} 系列{i + 1}↔{j + 1}（{series[i]}↔{series[j]}）："
+                        f"{name} {theme} 系列{i + 1}↔{j + 1}（{adj}）"
+                        f"（{series[i]}↔{series[j]}）："
                         f"常人 {normal:.1f}（需 ≥{NORMAL_FLOOR:.0f}）、"
                         f"色盲 {cvd:.1f}（需 ≥{CVD_FLOOR:.0f}）"
                     )
-    assert not failures, "相鄰系列色差不足：\n  " + "\n  ".join(failures)
+    assert not failures, "系列色差不足：\n  " + "\n  ".join(failures)
 
 
 def test_pages_declare_encoding_language_and_viewport() -> None:
