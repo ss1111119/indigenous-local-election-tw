@@ -234,7 +234,11 @@ GENDER = {"1": "男", "2": "女"}
 # 2009-2010 以後四屆從未出現 99（範圍 23–89）；全資料的 0 出現 0 次。
 AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})
 AGE_UNRECORDED_VALUE = "99"
-AGE_ALWAYS_NO_DATA = frozenset({"0"})
+# ⚠️ 空字串也在內。格式文件只列了 0 與 99，但空白比兩者更明確地就是「無資料」，
+#    而且它**不可能**是年齡。實測本資料集空白出現 0 次——列入不是為了處理現況，
+#    是為了移除一個錯誤行為：不列入的話，來源哪天在具名的五屆寫出空白，
+#    check_age_sentinel 會把它當成「該屆其實有真實年齡」而**誤中止**。
+AGE_ALWAYS_NO_DATA = frozenset({"0", ""})
 AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
 
 

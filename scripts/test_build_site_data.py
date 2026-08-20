@@ -590,12 +590,14 @@ def test_age_read_from_derived_column() -> None:
     check("有值時原樣帶入", roster_age("45"), 45)
     check("留空時為 None（常數裡是 null）", roster_age(""), None)
 
-    print("\n       站台原始碼不得再出現自己的哨兵判準實作")
-    src = SRC.read_text(encoding="utf-8")
-    for token in ("AGE_UNRECORDED_TERMS", "AGE_ALWAYS_NO_DATA",
-                  "AGE_UNRECORDED_VALUE", "def display_age",
-                  "def check_age_sentinel"):
-        check(f"未出現 {token}", token in src, False)
+    print("\n       判別測試：兩欄刻意衝突，只有一種實作能通過")
+    print("       屆別=1998（在建置端的具名清單內）、年齡=99、年齡_有效=45")
+    print("       讀 年齡_有效 → 45；自己重算判準 → None。兩者不可能同時成立。")
+    conflict = [dict(c, **{"年度": "1998", "年齡": "99", "年齡_有效": "45"})
+                for c in _mixed_cands()]
+    summ = [dict(r, **{"年度": "1998"}) for r in _mixed_summary()]
+    got = build_roster_data(summ, conflict)["rows"]["1998"][_TYPE][0][2][0][4]
+    check("站台取 年齡_有效（45），不是自己算出的 None", got, 45)
 
 
 # ---------------------------------------------- 七、名錄的 MAIN 由對照表投影

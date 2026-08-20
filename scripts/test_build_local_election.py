@@ -1026,6 +1026,11 @@ def test_valid_age() -> None:
     print("       0 不可能是真實年齡 → 任何屆別都留空")
     check("1998 的 0", valid_age("1998", "0"), "")
     check("2022 的 0", valid_age("2022", "0"), "")
+    # 空白比 0 與 99 更明確地就是無資料，且不可能是年齡。
+    # 列入不是為了處理現況（實測 0 筆），是為了移除一個錯誤行為：
+    # 不列入的話，具名的五屆出現空白時 check_age_sentinel 會誤中止。
+    check("1998 的空白", valid_age("1998", ""), "")
+    check("2022 的空白", valid_age("2022", ""), "")
 
     print("\n       99 落在合法年齡值域內 → 只在具名的五屆留空")
     for term in ("1994", "1998", "2002", "2005", "2006"):
@@ -1045,6 +1050,8 @@ def test_valid_age() -> None:
     # 格式文件把 0 與 99 並列，所以舊屆出現 0 不是異常，不得誤中止
     check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
     check("列入清單的屆別出現 0 → 不中止", True, True)
+    check_age_sentinel(base + [{"年度": "1998", "年齡": ""}])
+    check("列入清單的屆別出現空白 → 不中止", True, True)
 
     def with_row(term, raw):
         return lambda: check_age_sentinel(base + [{"年度": term, "年齡": raw}])
