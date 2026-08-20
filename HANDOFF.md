@@ -11,13 +11,19 @@
 
 - `b6fda7c spectra(include-1994-2006-terms): 納入 1994-2006 舊屆別並防堵來源靜默錯誤`
 - `2599c73 docs: 文件同步至九屆，並補上 當選／elected_authoritative 的分工警告`
+- `9bdaf25 spectra(update-site-to-nine-terms): 站台前端擴充至九屆，常數改由腳本產生`
+- `82d9a17 spectra(update-site-to-nine-terms): 歸檔，並建立 site-data-generation 主 spec`
 
 **資料集現在涵蓋九屆**：1994、1998、2002、2005、2006、2009-2010、2014、2018、2022。
 Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 `openspec/changes/archive/2026-08-20-include-1994-2006-terms/`，
 並建立本專案第一份主 specs（`openspec/specs/` 下兩個能力、9 條 Requirement）。
 
-**站台已跟上九屆。** change `update-site-to-nine-terms` 10/10 完成（尚未歸檔）。
+**站台已跟上九屆。** change `update-site-to-nine-terms` 10/10 完成、**已歸檔**至
+`openspec/changes/archive/2026-08-20-update-site-to-nine-terms/`，
+並新增第三份主 spec `site-data-generation`（5 條 Requirement）。
+
+**目前沒有進行中的 change。** `openspec/specs/` 下三個能力、14 條 Requirement。
 
 議員席次序列（權威值）：
 
@@ -37,9 +43,16 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 
 ## 二、下一步（依優先序）
 
-1. **`/spectra-archive update-site-to-nine-terms`** —— 10/10 完成，可歸檔。
-2. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
-3. **`docs/schema/cec-local-election.md` 的「18 項自我驗證」列表未隨新驗證更新。**
+1. **`docs/schema/cec-local-election.md` 的「18 項自我驗證」列表未隨新驗證更新。**
+   數字與內容都已落後，讀者會據此以為某些檢查存在而其實不存在。
+2. **變異測試腳本的去留未決。** `scratch/` 不在版控內，兩支腳本（48 + 17 個變異）
+   會隨資料夾一起消失。要保留就得搬進 `scripts/`——見下方紀律最後一條。
+3. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
+4. **`data/processed/cec-county-code-crosswalk-1998-2002.csv` 放錯位置**——
+   它是**輸入**（人工建立的對照表，`build_local_election.py:543` 由 `OUT_DIR` 讀入），
+   不是建置產物，卻和產物放在同一個資料夾。
+   「清空輸出目錄再重跑」這個很自然的動作會把它一起刪掉，然後建置失敗。
+   它有入版控，`git restore` 救得回來，不會永久遺失——但值得搬到 `data/` 下另一處。
 
 ---
 
