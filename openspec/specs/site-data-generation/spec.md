@@ -508,3 +508,311 @@ tests:
   - scripts/test_build_site_data.py
   - scratch/mutation_test.py
 -->
+
+---
+### Requirement: Party Buckets Are Keyed By Source Identity
+The generator SHALL assign each candidate to a chart bucket using a named lookup table keyed by the
+pair `(政黨代號, 政黨名稱)` taken from the source row, not by party name alone and not by party code
+alone. Identities absent from the table SHALL fall into the residual bucket.
+
+Both single-field keys are known to be wrong for this dataset: the same party appears under two codes
+across eras (民主進步黨 is `2` before 2009 and `16` from 2009), and the same concept appears under two
+names across eras (independents are `99`/「無」 before 2009 and `999`/「無黨籍及未經政黨推薦」 from 2009).
+
+#### Scenario: The same concept under two source encodings
+- **WHEN** the generator buckets a 1998 candidate whose source row carries code `99` and name 「無」
+- **THEN** that candidate SHALL be counted in the same bucket as a 2018 candidate carrying code `999`
+  and name 「無黨籍及未經政黨推薦」
+
+#### Scenario: The same party under two source codes
+- **WHEN** the generator buckets a 2002 candidate carrying code `2` and name 「民主進步黨」
+- **THEN** that candidate SHALL be counted in the same bucket as a 2018 candidate carrying code `16`
+  and the same name
+
+#### Scenario: One code reused for two names
+- **WHEN** two source rows share a party code but carry different party names, and neither pair is
+  listed in the lookup table
+- **THEN** the generator SHALL NOT merge them on the strength of the shared code, and both SHALL fall
+  into the residual bucket, so that a recycled code cannot silently misattribute one party's results
+  to another
+
+
+<!-- @trace
+source: fix-party-bucket-drift
+updated: 2026-08-20
+code:
+  - README.md
+  - scratch/verify_claims.py
+  - scratch/review_q3.md
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_pop.py
+  - scratch/measure_whitespace.py
+  - scratch/review_q7.md
+  - scratch/verify_pop2.py
+  - scratch/strip_experiment.py
+  - scratch/measure_ws2.py
+  - scratch/verify_32.py
+  - scratch/measure_town_codes.py
+  - scratch/baseline/votes.csv
+  - scratch/measure_pop2.py
+  - scratch/probe_1994.py
+  - scratch/zip_names.json
+  - scratch/verify_identity.py
+  - scratch/review_q4.md
+  - GEMINI.md
+  - scratch/probe_districts.py
+  - scripts/mutate_build_site_data.py
+  - scratch/list_zip.py
+  - docs/index.html
+  - .spectra.yaml
+  - scratch/measure_auth_existing.py
+  - scratch/gen_anomalies.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_review.py
+  - scripts/build_site_data.py
+  - scratch/probe_anomalies.py
+  - scratch/chk1998t2.py
+  - scratch/verify_33.py
+  - scratch/verify_21c.py
+  - scratch/chk_cw.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe7.py
+  - scratch/probe_legacy_build.py
+  - docs/roster.html
+  - scratch/measure_2005g.py
+  - scratch/review_q2.md
+  - scratch/verify_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe5.py
+  - scratch/measure_trunc.py
+  - scratch/probe_districts2.py
+  - scratch/add_defect7.py
+  - scratch/baseline/summary.csv
+  - scratch/add_legacy_sources.py
+  - scratch/probe6.py
+  - scratch/gen_expected.py
+  - scratch/probe4.py
+  - scratch/verify_auth.py
+  - scratch/verify_strip.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/review_q6.md
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/review_question.md
+  - scratch/probe2.py
+  - scratch/verify_21.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005c.py
+  - AGENTS.md
+  - scratch/measure_town_feasible.py
+  - scratch/probe3.py
+  - scratch/verify_11.py
+  - scripts/palette_metrics.py
+  - scratch/measure_2005d.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_pop.py
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+tests:
+  - scripts/test_build_site_data.py
+  - scripts/test_site_invariants.py
+-->
+
+---
+### Requirement: The Independent Bucket Is Non-Empty In Every Term
+The test suite SHALL assert that the independent bucket has a non-zero candidate count in every term
+the dataset covers. This is a named domain claim about this dataset, not a general rule that every
+bucket is non-empty in every term.
+
+No statistical threshold is used for this, because measurement showed the obvious candidates do not
+work: a "largest residual member must stay under 5% of the term's candidates" rule still fails after
+the defect is fixed (2002 residual is led by 親民黨 at 28 of 164, 17.1%), and a "residual members must
+be smaller than named buckets" rule misfires because 民主進步黨 fielded only 3 to 7 candidates per term
+before 2009.
+
+#### Scenario: A bucket silently emptied by encoding drift
+- **WHEN** the lookup table loses the entry that maps a term's encoding of independents
+- **THEN** the assertion SHALL fail for that term, naming the term and the bucket
+
+
+<!-- @trace
+source: fix-party-bucket-drift
+updated: 2026-08-20
+code:
+  - README.md
+  - scratch/verify_claims.py
+  - scratch/review_q3.md
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_pop.py
+  - scratch/measure_whitespace.py
+  - scratch/review_q7.md
+  - scratch/verify_pop2.py
+  - scratch/strip_experiment.py
+  - scratch/measure_ws2.py
+  - scratch/verify_32.py
+  - scratch/measure_town_codes.py
+  - scratch/baseline/votes.csv
+  - scratch/measure_pop2.py
+  - scratch/probe_1994.py
+  - scratch/zip_names.json
+  - scratch/verify_identity.py
+  - scratch/review_q4.md
+  - GEMINI.md
+  - scratch/probe_districts.py
+  - scripts/mutate_build_site_data.py
+  - scratch/list_zip.py
+  - docs/index.html
+  - .spectra.yaml
+  - scratch/measure_auth_existing.py
+  - scratch/gen_anomalies.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_review.py
+  - scripts/build_site_data.py
+  - scratch/probe_anomalies.py
+  - scratch/chk1998t2.py
+  - scratch/verify_33.py
+  - scratch/verify_21c.py
+  - scratch/chk_cw.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe7.py
+  - scratch/probe_legacy_build.py
+  - docs/roster.html
+  - scratch/measure_2005g.py
+  - scratch/review_q2.md
+  - scratch/verify_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe5.py
+  - scratch/measure_trunc.py
+  - scratch/probe_districts2.py
+  - scratch/add_defect7.py
+  - scratch/baseline/summary.csv
+  - scratch/add_legacy_sources.py
+  - scratch/probe6.py
+  - scratch/gen_expected.py
+  - scratch/probe4.py
+  - scratch/verify_auth.py
+  - scratch/verify_strip.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/review_q6.md
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/review_question.md
+  - scratch/probe2.py
+  - scratch/verify_21.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005c.py
+  - AGENTS.md
+  - scratch/measure_town_feasible.py
+  - scratch/probe3.py
+  - scratch/verify_11.py
+  - scripts/palette_metrics.py
+  - scratch/measure_2005d.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_pop.py
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+tests:
+  - scripts/test_build_site_data.py
+  - scripts/test_site_invariants.py
+-->
+
+---
+### Requirement: Bucket Membership Has A Single Source
+Every page that colours or groups candidates by bucket SHALL derive that grouping from the same
+lookup table, emitted by the generator into the page. No page SHALL carry a hand-maintained copy of
+the bucket membership.
+
+#### Scenario: The roster page groups by bucket
+- **WHEN** the roster page assigns a colour slot to a candidate's party badge
+- **THEN** it SHALL use a mapping emitted by the generator, so that a change to the lookup table
+  reaches every page without a second hand edit
+
+<!-- @trace
+source: fix-party-bucket-drift
+updated: 2026-08-20
+code:
+  - README.md
+  - scratch/verify_claims.py
+  - scratch/review_q3.md
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_pop.py
+  - scratch/measure_whitespace.py
+  - scratch/review_q7.md
+  - scratch/verify_pop2.py
+  - scratch/strip_experiment.py
+  - scratch/measure_ws2.py
+  - scratch/verify_32.py
+  - scratch/measure_town_codes.py
+  - scratch/baseline/votes.csv
+  - scratch/measure_pop2.py
+  - scratch/probe_1994.py
+  - scratch/zip_names.json
+  - scratch/verify_identity.py
+  - scratch/review_q4.md
+  - GEMINI.md
+  - scratch/probe_districts.py
+  - scripts/mutate_build_site_data.py
+  - scratch/list_zip.py
+  - docs/index.html
+  - .spectra.yaml
+  - scratch/measure_auth_existing.py
+  - scratch/gen_anomalies.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_review.py
+  - scripts/build_site_data.py
+  - scratch/probe_anomalies.py
+  - scratch/chk1998t2.py
+  - scratch/verify_33.py
+  - scratch/verify_21c.py
+  - scratch/chk_cw.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe7.py
+  - scratch/probe_legacy_build.py
+  - docs/roster.html
+  - scratch/measure_2005g.py
+  - scratch/review_q2.md
+  - scratch/verify_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe5.py
+  - scratch/measure_trunc.py
+  - scratch/probe_districts2.py
+  - scratch/add_defect7.py
+  - scratch/baseline/summary.csv
+  - scratch/add_legacy_sources.py
+  - scratch/probe6.py
+  - scratch/gen_expected.py
+  - scratch/probe4.py
+  - scratch/verify_auth.py
+  - scratch/verify_strip.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/review_q6.md
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/review_question.md
+  - scratch/probe2.py
+  - scratch/verify_21.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005c.py
+  - AGENTS.md
+  - scratch/measure_town_feasible.py
+  - scratch/probe3.py
+  - scratch/verify_11.py
+  - scripts/palette_metrics.py
+  - scratch/measure_2005d.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_pop.py
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+tests:
+  - scripts/test_build_site_data.py
+  - scripts/test_site_invariants.py
+-->

@@ -717,3 +717,205 @@ tests:
   - scripts/test_build_local_election.py
   - scratch/mutation_test.py
 -->
+
+---
+### Requirement: Cross-Term Party Encoding Drift Is Named, Not Inferred
+Where the source encodes the same party or party status under different codes or different names in
+different terms, the project SHALL record the correspondence as an explicit named entry rather than
+inferring it from string similarity, substring matching, or a shared code.
+
+The measured drift in this dataset is: independents are code `99` name 「無」 in 1994 through 2006 and
+code `999` name 「無黨籍及未經政黨推薦」 from 2009 onward; 民主進步黨 is code `2` before 2009 and code
+`16` from 2009 while keeping one name; 新黨, 親民黨, 台灣團結聯盟, 無黨團結聯盟 and 勞動黨 each carry two
+codes across eras; and codes `166`, `199`, `254`, `290` and `303` each carry two different names.
+
+#### Scenario: Correspondence asserted without an explicit entry
+- **WHEN** a rule would merge two source party identities on the basis of similar names or a shared
+  code, without a named entry recording that they are the same entity
+- **THEN** the project SHALL NOT merge them
+
+#### Scenario: Substring matching on the independent category
+- **WHEN** a rule matches independents by testing whether the party name contains 「無」 or starts with
+  「無黨」
+- **THEN** that rule is incorrect, because 無黨團結聯盟 is a distinct registered party that such a rule
+  would absorb
+
+
+<!-- @trace
+source: fix-party-bucket-drift
+updated: 2026-08-20
+code:
+  - README.md
+  - scratch/verify_claims.py
+  - scratch/review_q3.md
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_pop.py
+  - scratch/measure_whitespace.py
+  - scratch/review_q7.md
+  - scratch/verify_pop2.py
+  - scratch/strip_experiment.py
+  - scratch/measure_ws2.py
+  - scratch/verify_32.py
+  - scratch/measure_town_codes.py
+  - scratch/baseline/votes.csv
+  - scratch/measure_pop2.py
+  - scratch/probe_1994.py
+  - scratch/zip_names.json
+  - scratch/verify_identity.py
+  - scratch/review_q4.md
+  - GEMINI.md
+  - scratch/probe_districts.py
+  - scripts/mutate_build_site_data.py
+  - scratch/list_zip.py
+  - docs/index.html
+  - .spectra.yaml
+  - scratch/measure_auth_existing.py
+  - scratch/gen_anomalies.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_review.py
+  - scripts/build_site_data.py
+  - scratch/probe_anomalies.py
+  - scratch/chk1998t2.py
+  - scratch/verify_33.py
+  - scratch/verify_21c.py
+  - scratch/chk_cw.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe7.py
+  - scratch/probe_legacy_build.py
+  - docs/roster.html
+  - scratch/measure_2005g.py
+  - scratch/review_q2.md
+  - scratch/verify_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe5.py
+  - scratch/measure_trunc.py
+  - scratch/probe_districts2.py
+  - scratch/add_defect7.py
+  - scratch/baseline/summary.csv
+  - scratch/add_legacy_sources.py
+  - scratch/probe6.py
+  - scratch/gen_expected.py
+  - scratch/probe4.py
+  - scratch/verify_auth.py
+  - scratch/verify_strip.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/review_q6.md
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/review_question.md
+  - scratch/probe2.py
+  - scratch/verify_21.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005c.py
+  - AGENTS.md
+  - scratch/measure_town_feasible.py
+  - scratch/probe3.py
+  - scratch/verify_11.py
+  - scripts/palette_metrics.py
+  - scratch/measure_2005d.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_pop.py
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+tests:
+  - scripts/test_build_site_data.py
+  - scripts/test_site_invariants.py
+-->
+
+---
+### Requirement: A Silently Zeroed Series Is Treated As A Defect
+Where a category is present in the source for a term but reaches the published output with a count of
+zero, that SHALL be treated as a defect in the classification, not as a fact about the term.
+
+#### Scenario: Independents present in source but absent from output
+- **WHEN** the source for a term contains rows whose party identity denotes independents, and the
+  published output reports zero independents for that term
+- **THEN** this SHALL be recorded as a classification defect and corrected, rather than published as
+  a finding that no independents contested that term
+
+<!-- @trace
+source: fix-party-bucket-drift
+updated: 2026-08-20
+code:
+  - README.md
+  - scratch/verify_claims.py
+  - scratch/review_q3.md
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_pop.py
+  - scratch/measure_whitespace.py
+  - scratch/review_q7.md
+  - scratch/verify_pop2.py
+  - scratch/strip_experiment.py
+  - scratch/measure_ws2.py
+  - scratch/verify_32.py
+  - scratch/measure_town_codes.py
+  - scratch/baseline/votes.csv
+  - scratch/measure_pop2.py
+  - scratch/probe_1994.py
+  - scratch/zip_names.json
+  - scratch/verify_identity.py
+  - scratch/review_q4.md
+  - GEMINI.md
+  - scratch/probe_districts.py
+  - scripts/mutate_build_site_data.py
+  - scratch/list_zip.py
+  - docs/index.html
+  - .spectra.yaml
+  - scratch/measure_auth_existing.py
+  - scratch/gen_anomalies.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_review.py
+  - scripts/build_site_data.py
+  - scratch/probe_anomalies.py
+  - scratch/chk1998t2.py
+  - scratch/verify_33.py
+  - scratch/verify_21c.py
+  - scratch/chk_cw.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe7.py
+  - scratch/probe_legacy_build.py
+  - docs/roster.html
+  - scratch/measure_2005g.py
+  - scratch/review_q2.md
+  - scratch/verify_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe5.py
+  - scratch/measure_trunc.py
+  - scratch/probe_districts2.py
+  - scratch/add_defect7.py
+  - scratch/baseline/summary.csv
+  - scratch/add_legacy_sources.py
+  - scratch/probe6.py
+  - scratch/gen_expected.py
+  - scratch/probe4.py
+  - scratch/verify_auth.py
+  - scratch/verify_strip.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/review_q6.md
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/review_question.md
+  - scratch/probe2.py
+  - scratch/verify_21.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005c.py
+  - AGENTS.md
+  - scratch/measure_town_feasible.py
+  - scratch/probe3.py
+  - scratch/verify_11.py
+  - scripts/palette_metrics.py
+  - scratch/measure_2005d.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_pop.py
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+tests:
+  - scripts/test_build_site_data.py
+  - scripts/test_site_invariants.py
+-->
