@@ -1,0 +1,148 @@
+# site-chart-accessibility Specification
+
+## ADDED Requirements
+
+### Requirement: Categorical Colors Are Measured Against Each Other
+Where a chart encodes identity by color, every adjacent pair in the series order SHALL be separated by at least ΔE 15 (OKLab ×100) under normal vision and at least ΔE 8 under protan and deutan simulation, in both the light and the dark theme, each measured against that theme's own chart surface. The dark theme SHALL be stepped and measured separately, never derived by inverting the light theme.
+
+#### Scenario: A series pair falls below the normal-vision floor
+- **WHEN** two adjacent series are separated by less than ΔE 15 under normal vision
+- **THEN** the palette SHALL be re-stepped before shipping, because readers with full color vision cannot tell the pair apart and no secondary encoding excuses this case
+
+##### Example: the pair that failed, measured before and after
+
+| Theme | Pair | Normal ΔE | Protan/Deutan ΔE | Verdict |
+| --- | --- | ---: | ---: | --- |
+| light | `#1baf7a` ↔ `#9BA0A5` | 14.5 | 5.5 | fails both floors |
+| dark | `#199e70` ↔ `#7C838A` | 12.9 | 4.5 | fails both floors |
+| light | `#1baf7a` ↔ `#ADB3B9` | 16.9 | 9.0 | passes |
+| dark | `#1da77a` ↔ `#6A7178` | 16.6 | 9.7 | passes |
+
+
+#### Scenario: A hue carries real-world meaning
+- **WHEN** a series color is fixed by outside convention, such as a political party's color
+- **THEN** the adjustment SHALL be made on a series whose color carries no such meaning, such as an "other" aggregate bucket, and the conventional hue SHALL be left in place
+
+##### Example: which series may move
+
+| Series | Color fixed by convention? | Re-stepping allowed |
+| --- | --- | --- |
+| 中國國民黨 (blue) | yes | no |
+| 民主進步黨 (green) | yes | hue-preserving nudge only |
+| 無黨籍及未經政黨推薦 (orange) | weakly | avoid |
+| 其他各政黨 (gray) | no — an aggregate bucket | yes, this is where the fix goes |
+
+
+### Requirement: Labels Drawn Inside A Mark Meet 4.5:1 Against That Mark
+Text placed inside a colored mark SHALL reach at least 4.5:1 against the fill it sits on, in both themes. The ink SHALL be chosen per series from its own fill, not applied uniformly across series.
+
+#### Scenario: White text fails on a light fill
+- **WHEN** white text on a series fill measures below 4.5:1
+- **THEN** that series SHALL switch to a dark ink rather than the fill being lightened or darkened, and where the fill carries conventional meaning both black and white SHALL be tried before the fill is touched at all
+
+##### Example: the KMT blue case, where changing the fill was the wrong fix
+
+| Ink on `#2a78d6` | Contrast | Outcome |
+| --- | ---: | --- |
+| `#fff` | 4.42 | below 4.5 — the reason the fill was wrongly re-stepped to `#2670cc` |
+| `#16181A` (page ink) | 4.03 | below 4.5 |
+| `#000` | 4.76 | passes — so the conventional fill never needed to move |
+
+
+#### Scenario: A new series is added
+- **WHEN** a series is added or a fill is re-stepped
+- **THEN** the ink for that series SHALL be recomputed, because a fill change can flip which ink passes
+
+##### Example: the same bucket takes opposite inks in the two themes
+
+| Theme | 其他 fill | Ink | Contrast |
+| --- | --- | --- | ---: |
+| light | `#ADB3B9` | `#16181A` | 8.41 |
+| dark | `#6A7178` | `#fff` | 4.95 |
+
+
+### Requirement: Color-Encoded Data Has A Tabular Equivalent
+Where a chart omits labels on marks too small to hold them, the omitted values SHALL be reachable without color and without pointer hover. A tooltip alone SHALL NOT satisfy this, because it does not exist for keyboard users, screen readers, print, or forced-colors mode.
+
+#### Scenario: A mark is too narrow to label
+- **WHEN** a segment is too narrow for its value to be drawn inside it
+- **THEN** the value SHALL appear in a table on the same page, and the chart SHALL reference that table so assistive technology can find it
+
+##### Example: values only the table carries
+
+| Type | Term | Segment omitted from the chart | Value in the table |
+| --- | --- | --- | ---: |
+| T2 | 2002 | 民主進步黨 | 1 |
+| T3 | 1998 | 其他各政黨 | 1 |
+| T-COMBO | 1994 | 無黨籍及未經政黨推薦 | 1 |
+
+
+#### Scenario: Building the tabular equivalent
+- **WHEN** the table is generated
+- **THEN** it SHALL be derived from the same embedded constant the chart reads, never from a separately maintained copy
+
+##### Example: one source, two renderings
+
+| Consumer | Reads | Result for T3 2005 |
+| --- | --- | --- |
+| stacked bar | `DATA` | 20 / 8 / 0 / 2 |
+| `#t-party` table | the same `DATA` | 20 / 8 / 0 / 2, total 30 |
+
+
+### Requirement: Print And Forced Colors Do Not Erase The Encoding
+The data encoding SHALL survive printing and forced-colors mode.
+
+#### Scenario: Printing while the dark theme is active
+- **WHEN** the page is printed with the dark theme in effect
+- **THEN** the light palette SHALL be applied for print and fills SHALL be preserved, so that light text is never printed onto white paper and the bars are never dropped as background decoration
+
+##### Example: what the dark theme would otherwise print as
+
+| Token | Dark theme on screen | Under `@media print` |
+| --- | --- | --- |
+| `--paper` | `#16181A` | `#fff` |
+| `--lab4` (ink inside 其他) | `#fff` — invisible on paper | `#16181A` |
+| bar fills | dropped as background by ink-saving | kept via `print-color-adjust:exact` |
+
+
+#### Scenario: Forced-colors mode is active
+- **WHEN** the operating system forces its own colors
+- **THEN** marks whose color is data SHALL keep their own colors rather than collapsing to a single system color, while the surrounding interface follows the system
+
+##### Example: scope of the opt-out
+
+| Element | `forced-color-adjust` | Why |
+| --- | --- | --- |
+| `svg` (bars, gender squares) | `none` | the fill is the datum |
+| `.sw` (legend swatch) | `none` | must match the bar it names |
+| `.pty` (roster party badge) | `none` | the badge color is the party |
+| everything else | inherited (system wins) | it is interface, not data |
+
+
+### Requirement: Pages Declare Encoding, Language, And Viewport
+Each published page SHALL declare its character encoding, document language, and viewport in the document itself, not rely on headers supplied by the host.
+
+#### Scenario: The file is opened outside the host
+- **WHEN** a reader saves the page and opens it from the local filesystem
+- **THEN** the text SHALL render correctly, because the site's stated design is a single self-contained file that works offline
+
+##### Example: the failure this prevents
+
+| Delivery | Charset source | Result |
+| --- | --- | --- |
+| GitHub Pages | HTTP header sets utf-8 | correct |
+| saved file opened locally | none — falls back to the OS locale (cp950 here) | every Chinese character mojibake |
+| local server without charset header | none | same mojibake |
+
+
+#### Scenario: The page is opened on a phone
+- **WHEN** the page is opened on a narrow viewport
+- **THEN** it SHALL lay out to the device width rather than rendering at desktop width and scaling down
+
+##### Example: with and without the declaration
+
+| `meta viewport` | Layout width on a 390px phone | Legibility |
+| --- | --- | --- |
+| absent | ~980px, then scaled to fit | text far below readable size |
+| `width=device-width, initial-scale=1` | 390px | panels reflow, text at intended size |
+

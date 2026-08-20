@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>原住民族地方選舉九屆</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -8,7 +13,9 @@
   --paper:#FBFAF7; --panel:#FFFFFF; --ink:#1B1E21; --ink2:#5F6469; --ink3:#8A9096;
   --rule:#E2DFD8; --rule2:#EFEDE7; --grid:#EAE7E0;
   --accent:#2a78d6; --limit:#8A6A28; --limitbg:#FAF4E6;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#9BA0A5;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#ADB3B9;
+  /* 段內數字的墨色：依各系列填色算出的 4.5:1 選黑或白，不動政黨色 */
+  --lab1:#000; --lab2:#16181A; --lab3:#16181A; --lab4:#16181A;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -16,7 +23,8 @@
     --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
     --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
     --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C838A;
+    --s1:#3987e5; --s2:#d95926; --s3:#1da77a; --s4:#6A7178;
+    --lab1:#16181A; --lab2:#16181A; --lab3:#16181A; --lab4:#fff;
   }
 }
 :root[data-theme="dark"]{
@@ -24,7 +32,8 @@
   --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
   --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
   --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#7C838A;
+  --s1:#3987e5; --s2:#d95926; --s3:#1da77a; --s4:#6A7178;
+  --lab1:#16181A; --lab2:#16181A; --lab3:#16181A; --lab4:#fff;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -65,6 +74,10 @@ figcaption{font-size:12.5px;color:var(--ink3);margin-top:14px;line-height:1.65;m
 .pn{font-size:12.5px;font-weight:500;line-height:1.35}
 .ref{font-size:9.5px;color:var(--ink3);border:1px solid var(--rule);padding:0 4px;border-radius:2px;flex:none}
 .tw{overflow-x:auto;margin:20px 0 0}
+.dt{margin:14px 0 0}
+.dt>summary{cursor:pointer;font-size:13px;color:var(--ink2);padding:2px 0}
+.dt>summary:hover{color:var(--ink)}
+#t-party td:first-child{white-space:nowrap}
 table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--rule2);white-space:nowrap}
 th:first-child,td:first-child{text-align:left;white-space:normal}
@@ -94,7 +107,29 @@ svg{display:block;overflow:visible}
 .nav a:hover{border-bottom-color:var(--accent)}
 .nav a[aria-current]{color:var(--ink);border-bottom-color:var(--ink)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* 列印：瀏覽器預設會剝掉背景色，暗色主題印出來會是白紙白字。一律改用淺色那組。 */
+@media print{
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+    color-scheme:light;
+    --paper:#fff; --panel:#fff; --ink:#16181A; --ink2:#42474C; --ink3:#5F6469;
+    --rule:#C9C6C0; --rule2:#E2DFD8; --grid:#E2DFD8;
+    --accent:#2a78d6; --limit:#6B5320; --limitbg:#fff;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#ADB3B9;
+    --lab1:#000; --lab2:#16181A; --lab3:#16181A; --lab4:#16181A;
+  }
+  body{background:#fff}
+  /* 長條圖的顏色就是資料，不能被省墨規則吃掉 */
+  *{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
+/* Windows 高對比：系統會把填色全換成系統色，四個系列會糊成同一色。
+   圖表的顏色承載資料，所以這幾類保留原色；其餘介面照樣交給系統。 */
+@media (forced-colors: active){
+  svg, .sw, .pty{forced-color-adjust:none}
+}
 </style>
+</head>
+<body>
 
 <div class="wrap">
 <header>
@@ -172,13 +207,18 @@ svg{display:block;overflow:visible}
   <div class="sh"><span class="sn">02</span><h2>政黨</h2></div>
   <div class="col"><p>下圖為<strong>當選席次</strong>的政黨組成，每段直接標註席次數。
     「無黨籍」是原始檔政黨代碼 <code>999</code>，官方名稱為「無黨籍及未經政黨推薦」，
-    包含未獲任何政黨推薦者。</p></div>
+    包含未獲任何政黨推薦者。<strong>1994–2005 的原始檔用的是代碼 <code>99</code>、名稱「無」</strong>，
+    本頁併入同一類，所以舊屆也看得到無黨籍席次。</p></div>
   <figure>
     <div class="legend" id="l-party"></div>
     <div class="grid" id="c-party"></div>
-    <figcaption>每個面板三條由上而下為 2014／2018／2022，條長按該屆總席次歸一化。
-      段內數字為席次，1 席以下不標，完整數字見滑鼠停留提示。
+    <figcaption>每個面板由上而下為該種選舉存在的各屆，條長按該屆總席次歸一化。
+      段內數字為席次；<strong>段太窄時不標</strong>，那些數字在下方表格裡都有。
       「其他各政黨」含親民黨、台灣民眾黨等。</figcaption>
+    <details class="dt">
+      <summary>以表格檢視（含圖中未標註的窄段）</summary>
+      <div class="tw"><table id="t-party"></table></div>
+    </details>
   </figure>
   <div class="limit">
     <p class="lt">限制</p>
@@ -293,10 +333,10 @@ const CUSTOM = DATA.types.filter(t => !t.mainSequence);
    「涵蓋什麼」一節都有。 */
 const YLAB = v => v.slice(2, 4);
 const PARTIES = [
-  ["中國國民黨","中國國民黨","--s1"],
-  ["無黨籍及未經政黨推薦","999 無黨籍及未經政黨推薦","--s2"],
-  ["民主進步黨","民主進步黨","--s3"],
-  ["其他","其他各政黨","--s4"]
+  ["中國國民黨","中國國民黨","--s1","--lab1"],
+  ["無黨籍及未經政黨推薦","999 無黨籍及未經政黨推薦","--s2","--lab2"],
+  ["民主進步黨","民主進步黨","--s3","--lab3"],
+  ["其他","其他各政黨","--s4","--lab4"]
 ];
 const NF = n => n.toLocaleString("en-US");
 const tip = document.getElementById("tip");
@@ -408,14 +448,14 @@ function panel(t, extra){
   MAIN.forEach(t => {
     const H = YS.filter(v => t.years[v]).length * (BH + GAP);
     const s = svgEl("svg",{viewBox:`0 0 ${W} ${H}`, width:"100%", role:"img",
-      "aria-label": `${t.code} 各屆政黨席次組成`});
+      "aria-label": `${t.code} 各屆政黨席次組成`, "aria-describedby": "t-party"});
     const ys2 = YS.filter(v => t.years[v]);
     ys2.forEach((yr, r) => {
       const d = t.years[yr], total = d.seats, top = r * (BH + GAP);
       const yl = svgEl("text",{x:0,y:top+BH/2+3.5,fill:"var(--ink3)","font-size":9.5,
         "font-family":"IBM Plex Mono, monospace"}); yl.textContent = yr; s.append(yl);
       let cx = LW;
-      PARTIES.forEach(([key, label, cv]) => {
+      PARTIES.forEach(([key, label, cv, lv]) => {
         const seats = d.party[key][0], cands = d.party[key][1];
         if (!seats) return;
         const w = seats / total * (W - LW);
@@ -423,7 +463,7 @@ function panel(t, extra){
         g.append(svgEl("rect",{x:cx,y:top,width:Math.max(w-2,1),height:BH,rx:2,fill:`var(${cv})`}));
         if (w > 20){
           const lb = svgEl("text",{x:cx+(w-2)/2,y:top+BH/2+3.5,"text-anchor":"middle",
-            "font-size":9.5,fill:"#fff","font-family":"IBM Plex Mono, monospace","font-weight":500});
+            "font-size":9.5,fill:`var(${lv})`,"font-family":"IBM Plex Mono, monospace","font-weight":500});
           lb.textContent = seats; g.append(lb);
         }
         bind(g, `${yr}　${t.code}\n${label}\n當選 ${seats} 席 / 共 ${total} 席\n候選人紀錄 ${cands} 筆`);
@@ -432,6 +472,27 @@ function panel(t, extra){
     });
     box.append(panel(t, s));
   });
+
+  /* 圖表的替代內容。窄段不標數字，這裡是唯一拿得到那些數值的地方——
+     鍵盤、螢幕閱讀器、列印與高對比模式都取不到 tooltip。 */
+  const ptbl = document.getElementById("t-party");
+  ptbl.innerHTML = `<thead><tr><th style="text-align:left">選舉種類</th><th>屆別</th>`
+    + PARTIES.map(([, label]) => `<th>${label}</th>`).join("")
+    + `<th>總席次</th></tr></thead>`;
+  const ptb = document.createElement("tbody");
+  MAIN.forEach(t => {
+    YS.filter(v => t.years[v]).forEach((yr, i) => {
+      const d = t.years[yr];
+      const tr = document.createElement("tr");
+      if (!t.indigenous) tr.className = "rr";
+      tr.innerHTML = `<td>${i===0 ? t.code + " " + t.name + (t.indigenous?"":"（參考組）") : ""}</td>`
+        + `<td>${yr}</td>`
+        + PARTIES.map(([key]) => `<td>${d.party[key][0]}</td>`).join("")
+        + `<td>${d.seats}</td>`;
+      ptb.append(tr);
+    });
+  });
+  ptbl.append(ptb);
 }
 
 /* 03 性別：席次方格 */
@@ -576,3 +637,5 @@ function panel(t, extra){
   tbl.append(tb);
 }
 </script>
+</body>
+</html>

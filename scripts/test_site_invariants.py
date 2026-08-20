@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""站台的不變量：用真實檔案驗，而不是合成資料。
+
+**這個檔案存在的理由是：`site-accessibility-baseline` 那一輪修好的東西，
+沒有任何測試在守。** 兩件事都屬於「改壞了畫面不會壞、測試也不會紅」的類型：
+
+1. `docs/index.html` 的內嵌常數與長表不一致。`build_site_data.py --check`
+   早就抓得到——它當時回報 36 項差異、退出碼 1——但沒有任何流程會執行它，
+   所以 1994-2005 的無黨籍席次被算成「其他」，在站台上活了一整天。
+   缺的不是規則，是**執行點**。這裡就是那個執行點。
+
+2. 段內數字的墨色。`--lab1`~`--lab4` 是四個只用在一處的 CSS 變數，
+   下一個人很容易當成冗餘而移除，然後白字回來、淺色「其他」上的對比
+   掉回 2.12:1。這裡把 4.5:1 這條下限釘住。
+
+⚠️ 與 `test_build_site_data.py` 的分工：那個檔案只放「現有真實資料觸發不到的
+   分支」，並明文寫著不重複 `--check` 已在做的事。本檔相反——它**刻意**執行
+   `--check`，因為問題從來不是那個比對不夠強，而是沒人跑。
+
+用法：
+    pytest scripts/test_site_invariants.py
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DOCS = ROOT / "docs"
+GENERATOR = Path(__file__).resolve().parent / "build_site_data.py"
+
+# 段內文字的最低對比。WCAG AA 對一般大小文字的門檻；段內數字是 9.5px，
+# 不能用 large text 的 3:1。
+MIN_CONTRAST = 4.5
+
+# 主題區塊：名稱 -> 起始選擇器。淺色是裸 :root，暗色取 [data-theme="dark"]
+# 那一份（media query 內的那份與它同值，見 index.html）。
+THEME_SELECTORS = {
+    "light": ":root{",
+    "dark": ':root[data-theme="dark"]{',
+}
+
+
+# ------------------------------------------------------------ WCAG 對比
+
+def _channel(v: float) -> float:
+    return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def relative_luminance(hex_color: str) -> float:
+    h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return 0.2126 * _channel(r) + 0.7152 * _channel(g) + 0.0722 * _channel(b)
+
+
+def contrast(a: str, b: str) -> float:
+    la, lb = sorted((relative_luminance(a), relative_luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+# ------------------------------------------------------------ 讀 CSS 變數
+
+def theme_vars(css: str, selector: str) -> dict[str, str]:
+    """取出某個主題區塊裡的 --name:#value 對映。"""
+    start = css.find(selector)
+    if start == -1:
+        raise AssertionError(f"找不到主題區塊 {selector!r}")
+    end = css.find("}", start)
+    block = css[start:end]
+    return {m.group(1): m.group(2)
+            for m in re.finditer(r"--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,6})", block)}
+
+
+# ------------------------------------------------------------ 測試
+
+def test_embedded_constants_match_long_tables() -> None:
+    """站台常數必須與 data/processed 的長表一致。
+
+    這是把 `--check` 拉進測試套件本身。任何改動了衍生邏輯（政黨歸屬、席次
+    來源…）卻沒重新產生站台常數的變更，會在這裡失敗並列出差異的鍵。
+    """
+    proc = subprocess.run(
+        [sys.executable, str(GENERATOR), "--check"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(ROOT), timeout=600,
+    )
+    detail = "\n".join(
+        line for line in (proc.stdout or "").splitlines()
+        if line.startswith("★") or line.strip().startswith("types[")
+    )
+    assert proc.returncode == 0, (
+        "站台內嵌常數與長表不一致。跑 `python scripts/build_site_data.py --write` "
+        f"重新產生，或把差異具名記錄下來。\n{detail or proc.stderr}"
+    )
+
+
+def test_in_mark_label_contrast() -> None:
+    """段內數字與政黨徽章的文字，對自己的填色都要有 4.5:1。
+
+    `--labN` 與 `--sN` 一一對應。改了填色卻沒重算墨色，或把四個墨色變數
+    收斂成單一顏色，都會在這裡失敗。
+    """
+    failures: list[str] = []
+    for name in ("index.html", "roster.html"):
+        css = (DOCS / name).read_text(encoding="utf-8")
+        for theme, selector in THEME_SELECTORS.items():
+            v = theme_vars(css, selector)
+            for i in (1, 2, 3, 4):
+                fill, ink = v.get(f"s{i}"), v.get(f"lab{i}")
+                assert fill, f"{name} {theme}: 找不到 --s{i}"
+                assert ink, (
+                    f"{name} {theme}: 找不到 --lab{i}。段內文字的墨色必須依各系列"
+                    f"填色分別指定——單一顏色套用到四個填色一定有組合低於 "
+                    f"{MIN_CONTRAST}:1，見 site-chart-accessibility spec。"
+                )
+                ratio = contrast(ink, fill)
+                if ratio < MIN_CONTRAST:
+                    failures.append(
+                        f"{name} {theme} 系列{i}：墨色 {ink} 對填色 {fill} "
+                        f"只有 {ratio:.2f}:1（需 ≥{MIN_CONTRAST}）"
+                    )
+    assert not failures, "段內文字對比不足：\n  " + "\n  ".join(failures)
+
+
+def test_pages_declare_encoding_language_and_viewport() -> None:
+    """離線開啟不能變亂碼、手機不能用桌機寬度渲染。
+
+    線上靠 GitHub Pages 送的 header 會蓋過缺少的 charset，所以這件事在
+    瀏覽線上站台時看不出來——只有把檔案存下來開才會發現。
+    """
+    failures: list[str] = []
+    for name in ("index.html", "roster.html"):
+        head = (DOCS / name).read_text(encoding="utf-8")[:2000].lower()
+        for needle, why in (
+            ("<!doctype html>", "缺 doctype，瀏覽器會進入 quirks mode"),
+            ('charset="utf-8"', "缺 charset，離線開啟會是亂碼"),
+            ("name=\"viewport\"", "缺 viewport，手機會以桌機寬度渲染再縮小"),
+            ('lang="zh-hant"', "缺 lang，螢幕閱讀器可能用錯語音"),
+        ):
+            if needle not in head:
+                failures.append(f"{name}: {why}")
+    assert not failures, "頁面文件層宣告不完整：\n  " + "\n  ".join(failures)
+
+
+if __name__ == "__main__":
+    for fn in (test_embedded_constants_match_long_tables,
+               test_in_mark_label_contrast,
+               test_pages_declare_encoding_language_and_viewport):
+        fn()
+        print(f"  PASS  {fn.__name__}")
