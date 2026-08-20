@@ -120,17 +120,21 @@ MUTATIONS = [
      'AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})',
      'AGE_UNRECORDED_TERMS = frozenset()'),
     ("判準改成無條件「99 一律當未記載」（新屆真有 99 歲時會被吃掉）",
-     '    if (row["年度"] in AGE_UNRECORDED_TERMS\n'
-     '            and row["年齡"] == AGE_UNRECORDED_VALUE):',
-     '    if row["年齡"] == AGE_UNRECORDED_VALUE:'),
+     '    if raw == AGE_UNRECORDED_VALUE and row["年度"] in AGE_UNRECORDED_TERMS:',
+     '    if raw == AGE_UNRECORDED_VALUE:'),
+    ("未記載改回用 0 表示（與格式文件明列的來源 0 語意重疊）",
+     '    if raw in AGE_ALWAYS_NO_DATA:\n'
+     '        return None',
+     '    if raw in AGE_ALWAYS_NO_DATA:\n'
+     '        return 0'),
     ("拿掉「列入的屆別必須整批是無資料值」那條斷言",
      '            extra = ages - AGE_NO_DATA_VALUES\n'
      '            if extra:',
      '            extra = ages - AGE_NO_DATA_VALUES\n'
      '            if False:'),
     ("無資料值集合縮成只有 99（舊屆若出現格式文件明列的 0 會誤中止）",
-     'AGE_NO_DATA_VALUES = frozenset({"0", AGE_UNRECORDED_VALUE})',
-     'AGE_NO_DATA_VALUES = frozenset({AGE_UNRECORDED_VALUE})'),
+     'AGE_ALWAYS_NO_DATA = frozenset({"0"})',
+     'AGE_ALWAYS_NO_DATA = frozenset()'),
     ("拿掉「清單外不得出現哨兵值」那條斷言",
      '        elif AGE_UNRECORDED_VALUE in ages:',
      '        elif False:'),

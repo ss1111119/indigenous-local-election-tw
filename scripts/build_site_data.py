@@ -206,7 +206,8 @@ AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})
 AGE_UNRECORDED_VALUE = "99"
 # 格式文件明列的兩個無資料值。列入 AGE_UNRECORDED_TERMS 的屆別，
 # 年齡欄只允許出現這兩個值——出現第三個值代表該屆其實有真實年齡。
-AGE_NO_DATA_VALUES = frozenset({"0", AGE_UNRECORDED_VALUE})
+AGE_ALWAYS_NO_DATA = frozenset({"0"})
+AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
 
 
 def check_age_sentinel(cands: list[dict]) -> None:
@@ -239,15 +240,25 @@ def check_age_sentinel(cands: list[dict]) -> None:
             )
 
 
-def display_age(row: dict) -> int:
-    """名錄要顯示的年齡。未記載回傳 0，前端的模板因此省略「歲」那一段。
+def display_age(row: dict) -> int | None:
+    """名錄要顯示的年齡。未記載回傳 `None`（常數裡是 `null`）。
 
     ⚠️ 長表**不動**，`年齡` 欄在資料集裡維持來源的 99。這裡只在呈現端轉換。
+
+    ⚠️ **未記載用 `None` 而不是 `0`。** 前端的 `年齡 ? ... : ""` 對兩者都會略過，
+       所以顯示結果相同——但 `0` 本身就是格式文件明列的無資料值之一，
+       拿它當「我映射過去的 99」會讓同一個 0 有兩種來歷。
+       日後有人在常數裡看到 0、回頭比對來源發現是 99，會合理地懷疑
+       產生器把 99 讀成了 0。`null` 沒有這個歧義。
     """
-    if (row["年度"] in AGE_UNRECORDED_TERMS
-            and row["年齡"] == AGE_UNRECORDED_VALUE):
-        return 0
-    return int(row["年齡"])
+    raw = row["年齡"]
+    # `0` 不可能是真實年齡 → 任何屆別都是無資料，不需要具名。
+    if raw in AGE_ALWAYS_NO_DATA:
+        return None
+    # `99` 落在合法年齡值域內 → 只在具名的屆別視為無資料。
+    if raw == AGE_UNRECORDED_VALUE and row["年度"] in AGE_UNRECORDED_TERMS:
+        return None
+    return int(raw)
 
 
 def party_bucket(row: dict) -> str:

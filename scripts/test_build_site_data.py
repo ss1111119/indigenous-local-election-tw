@@ -581,9 +581,9 @@ def test_age_sentinel() -> None:
     def age(term: str, raw: str) -> int:
         return build_site_data.display_age({"年度": term, "年齡": raw})
 
-    print("       舊屆的 99 → 0（前端因此省略「歲」）")
+    print("       舊屆的 99 → None（常數裡是 null，前端因此省略「歲」）")
     for term in ("1994", "1998", "2002", "2005", "2006"):
-        check(f"{term} 的 99", age(term, "99"), 0)
+        check(f"{term} 的 99", age(term, "99"), None)
 
     print("\n       新屆的年齡原樣保留，包含 99 本身")
     check("2022 的 45", age("2022", "45"), 45)
@@ -611,7 +611,11 @@ def test_age_sentinel() -> None:
     build_site_data.check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
     check("列入清單的屆別出現格式文件明列的 0 → 不中止", True, True)
     check("0 在任何屆別都視為未記載（不可能是真實年齡）",
-          (age("1998", "0"), age("2022", "0")), (0, 0))
+          (age("1998", "0"), age("2022", "0")), (None, None))
+    # ⚠️ 未記載用 None 而不是 0：0 本身也是格式文件明列的無資料值，
+    #    拿它當「映射過去的 99」會讓同一個 0 有兩種來歷。
+    check("未記載是 None 而非 0（兩者在前端同樣略過，但語意不同）",
+          age("1998", "99") is None, True)
 
     # 失敗訊息必須指得出是哪一屆，否則要重跑一次才知道去看哪裡
     for term, raw in (("1998", "52"), ("2022", "99")):
