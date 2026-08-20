@@ -50,17 +50,3 @@ the bucket membership.
 - **WHEN** the roster page assigns a colour slot to a candidate's party badge
 - **THEN** it SHALL use a mapping emitted by the generator, so that a change to the lookup table
   reaches every page without a second hand edit
-
-### Requirement: Colour Is Not The Only Encoding
-Charts and badges SHALL convey bucket identity through at least one non-colour channel in addition to
-colour, and SHALL NOT assign a colour that is conventionally identified with a specific political
-party to a bucket that is not that party.
-
-The verification of colour accessibility SHALL be recorded with the tool used, the colour-vision
-deficiency types simulated, and the contrast threshold applied. A bare claim that a palette was
-"checked" is not a record.
-
-#### Scenario: Reading the chart without colour
-- **WHEN** a reader cannot distinguish the bucket colours
-- **THEN** the bucket SHALL still be identifiable from the value labels, badge text, or legend text
-  present on the page

@@ -17,6 +17,10 @@
 
 ## 4. 配色與文件
 
-- [ ] 4.1 把無黨籍改為中性深色、橘色不再指派給任何桶，並確認藍與綠轉為灰階後仍可分辨。實現 Colour Is Not The Only Encoding 的顏色側，落實設計決策「無黨籍改用中性深色，橘色不再指派給任何桶」。驗證方式：以指定的色覺障礙模擬工具檢查 protanopia、deuteranopia、tritanopia 三種模擬下四個桶兩兩可分辨，並確認相鄰桶的對比達到所採用的門檻。
-- [ ] 4.2 把 4.1 所用的工具名稱、模擬的色覺障礙類型、對比門檻與實際量到的值寫進專案說明文件，取代現有那句無法查核的「配色以 CVD 驗證器檢過」。驗證方式：以指令搜尋該句，確認已被含有工具、類型、門檻三項資訊的敘述取代。
+- [ ] 4.1 把無黨籍改為中性深色、橘色不再指派給任何桶，落實設計決策「無黨籍改用中性深色，橘色不再指派給任何桶」。門檻與驗證形式服從既有能力 `site-chart-accessibility`（Categorical Colors Are Measured Against Each Other、Color Verification Is Recorded, Not Asserted），本任務不另訂標準。
+
+  ⚠️ **必須先量「無黨籍（中性深色）↔ 其他（灰）」這一個配對。** 改色後這兩個桶會是相鄰的中性色、只靠亮度區分，是整套配色裡最容易糊掉的組合，**不可目測**。工具為 dataviz skill 的 `scripts/validate_palette.js`。
+
+  驗證方式：以該工具量出四個桶所有相鄰配對在明、暗兩個主題下的 ΔE，斷言正常視覺 ΔE ≥ 15、protan 與 deutan 模擬 ΔE ≥ 8；未達門檻即重新調色，不得放行。中性配對的實測值必須逐一列出，不可只寫「通過」。
+- [ ] 4.2 把 4.1 所用的工具名稱、模擬的色覺障礙類型、ΔE 門檻與實際量到的值（含中性配對）寫進專案說明文件，取代現有那句無法查核的「配色以 CVD 驗證器檢過」。驗證方式：以指令搜尋該句，確認已被含有工具、類型、門檻與實測值的敘述取代。
 - [ ] 4.3 落實設計決策「兩份主 spec 的 Purpose 一併補上」：把兩份主 spec 的 `## Purpose` 由歸檔工具留下的 `TBD - created by archiving change ...` 佔位文字改寫為實質內容。驗證方式：以指令搜尋 `openspec/specs/` 下的 `TBD - created by archiving`，確認 `site-data-generation` 與 `legacy-source-quirks` 兩份不再命中。
