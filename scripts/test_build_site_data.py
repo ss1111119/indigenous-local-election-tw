@@ -566,6 +566,62 @@ def test_party_code_and_name_hygiene() -> None:
           {k: sorted(v) for k, v in by_int.items() if len(v) > 1}, {})
 
 
+# ------------------------------------------ 六b、年齡的未記載哨兵值（合成）
+
+@reports
+def test_age_sentinel() -> None:
+    """舊屆的 `99` 是未記載，不是年齡；而且判準必須具名到屆別。
+
+    ⚠️ **兩條中止在真實資料上永遠不會觸發**——真實資料正好滿足前提
+    （五個舊屆整批 99、新四屆從未出現 99），所以只能用合成資料驅動。
+    這正是它們最容易被無聲拿掉的原因。
+    """
+    print("\n[合成] 年齡 99 在舊屆是未記載哨兵，在新屆是合法年齡")
+
+    def age(term: str, raw: str) -> int:
+        return build_site_data.display_age({"年度": term, "年齡": raw})
+
+    print("       舊屆的 99 → 0（前端因此省略「歲」）")
+    for term in ("1994", "1998", "2002", "2005", "2006"):
+        check(f"{term} 的 99", age(term, "99"), 0)
+
+    print("\n       新屆的年齡原樣保留，包含 99 本身")
+    check("2022 的 45", age("2022", "45"), 45)
+    check("2014 的 23", age("2014", "23"), 23)
+    # ⚠️ 這一條是「具名到屆別」的核心：若判準寫成無條件「99 一律當未記載」，
+    #    將來真有 99 歲候選人時他的年齡會被默默吃掉。
+    check("2022 的 99 仍是 99（不得被當成未記載）", age("2022", "99"), 99)
+    check("舊屆的非 99 原樣保留", age("1998", "52"), 52)
+
+    print("\n       兩條前提斷言：不成立即中止")
+    base = [{"年度": "1998", "年齡": "99"}, {"年度": "2022", "年齡": "45"}]
+    build_site_data.check_age_sentinel(base)   # 前提成立時不得拋出
+    check("前提成立時不中止", True, True)
+
+    def with_row(term: str, raw: str):
+        return lambda: build_site_data.check_age_sentinel(
+            base + [{"年度": term, "年齡": raw}])
+
+    check_raises("列入清單的屆別出現非 99 → 中止", with_row("1998", "52"))
+    check_raises("清單外的屆別出現 99 → 中止", with_row("2022", "99"))
+
+    # ⚠️ 格式文件把 `0` 與 `99` 並列為無資料值，所以舊屆出現 0 **不是**異常，
+    #    不得誤中止。本資料集目前 0 出現 0 次，所以這條只能用合成資料守——
+    #    把無資料值集合縮成只有 99 的變異，就是靠這一條抓到的。
+    build_site_data.check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
+    check("列入清單的屆別出現格式文件明列的 0 → 不中止", True, True)
+    check("0 在任何屆別都視為未記載（不可能是真實年齡）",
+          (age("1998", "0"), age("2022", "0")), (0, 0))
+
+    # 失敗訊息必須指得出是哪一屆，否則要重跑一次才知道去看哪裡
+    for term, raw in (("1998", "52"), ("2022", "99")):
+        try:
+            with_row(term, raw)()
+            check(f"{term} 應中止", "沒有中止", "中止")
+        except SiteDataError as exc:
+            check(f"{term} 的中止訊息指出屆別", term in str(exc), True)
+
+
 # ---------------------------------------------- 七、名錄的 MAIN 由對照表投影
 
 @reports
@@ -667,6 +723,7 @@ def main() -> int:
                test_missing_column_aborts_at_header,
                test_party_bucket_key_semantics,
                test_party_code_and_name_hygiene,
+               test_age_sentinel,
                test_roster_main_projection,
                test_independent_bucket_non_empty_every_term):
         try:
