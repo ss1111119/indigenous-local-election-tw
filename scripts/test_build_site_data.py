@@ -143,19 +143,19 @@ def _mixed_cands() -> list[dict]:
     base = dict(年度=_TERM, 選舉種類=_TYPE, 省市="10", 縣市="001",
                 admin_code_system="test", 檔別="city", 鄉鎮市區="000")
     return [
-        cand_row(**base, 選舉區="01", 號次="1", 姓名="甲", 政黨名稱="中國國民黨",
+        cand_row(**base, 選舉區="01", 號次="1", 姓名="甲", 政黨代號="1", 政黨名稱="中國國民黨",
                  性別="男", 年齡="50", 現任="N",
                  當選註記="*", elected_authoritative="true",
                  行政區名稱="測試縣第01選舉區"),
-        cand_row(**base, 選舉區="01", 號次="2", 姓名="乙", 政黨名稱="民主進步黨",
+        cand_row(**base, 選舉區="01", 號次="2", 姓名="乙", 政黨代號="16", 政黨名稱="民主進步黨",
                  性別="女", 年齡="40", 現任="Y",
                  當選註記="", elected_authoritative="true",
                  行政區名稱="測試縣第01選舉區"),
-        cand_row(**base, 選舉區="02", 號次="1", 姓名="丙", 政黨名稱="中國國民黨",
+        cand_row(**base, 選舉區="02", 號次="1", 姓名="丙", 政黨代號="1", 政黨名稱="中國國民黨",
                  性別="女", 年齡="45", 現任="N",
                  當選註記="", elected_authoritative="false",
                  行政區名稱="測試縣第02選舉區"),
-        cand_row(**base, 選舉區="02", 號次="2", 姓名="丁", 政黨名稱="某小黨",
+        cand_row(**base, 選舉區="02", 號次="2", 姓名="丁", 政黨代號="777", 政黨名稱="某小黨",
                  性別="男", 年齡="60", 現任="Y",
                  當選註記="", elected_authoritative="false",
                  行政區名稱="測試縣第02選舉區"),
@@ -262,7 +262,7 @@ def test_main_sequence_flag_passthrough() -> None:
     cands = _mixed_cands() + [
         cand_row(年度=_TERM, 選舉種類="T-CUSTOM", 省市="10", 縣市="001",
                  選舉區="01", 鄉鎮市區="000", 號次="1", 姓名="戊",
-                 政黨名稱="中國國民黨", 性別="男", 年齡="55", 現任="N",
+                 政黨代號="1", 政黨名稱="中國國民黨", 性別="男", 年齡="55", 現任="N",
                  當選註記="*", elected_authoritative="true",
                  行政區名稱="測試縣第01選舉區",
                  admin_code_system="test", 檔別="city"),
@@ -448,6 +448,9 @@ def test_missing_column_aborts_at_header() -> None:
     `鄉鎮市區` 是 district_key 決定粒度的那一欄，`admin_code_system` 是名錄
     回填鄉鎮市區名稱的鍵。這兩欄先前都沒有宣告——缺了會在計算途中
     KeyError，錯誤訊息離真正的原因很遠。
+
+    `政黨代號` 是 party_bucket 的鍵之一。少了它，分桶會退回只認名稱，
+    而那正是「舊屆無黨籍全是 0」的成因——所以缺這一欄必須中止，不可容忍。
     """
     print("\n[契約] 缺少實際會讀的欄位 → SiteDataError（不是 KeyError）")
     with tempfile.TemporaryDirectory() as td:
@@ -458,7 +461,8 @@ def test_missing_column_aborts_at_header() -> None:
         check("完整的合成表可讀取（summary 列數）", len(summ), 1)
         check("完整的合成表可讀取（candidates 列數）", len(cands), 4)
 
-    for col in ("鄉鎮市區", "admin_code_system", "elected_authoritative"):
+    for col in ("鄉鎮市區", "admin_code_system", "elected_authoritative",
+                "政黨代號"):
         with tempfile.TemporaryDirectory() as td:
             d = Path(td)
             _write_synthetic_tables(d, drop_from_cands=col)
