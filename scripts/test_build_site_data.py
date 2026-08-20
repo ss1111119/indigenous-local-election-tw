@@ -37,6 +37,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import build_site_data  # noqa: E402
 from build_site_data import (  # noqa: E402
     CANDIDATES_FILE,
     REQUIRED_COLUMNS,
@@ -50,7 +51,13 @@ from build_site_data import (  # noqa: E402
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "scripts" / "build_site_data.py"
+
+# ⚠️ 由**匯入的模組**推導，不要寫死 ROOT/"scripts"/"build_site_data.py"。
+#    變異測試把原始碼與本檔複製到別的資料夾再改壞副本；寫死路徑的話
+#    test_required_columns_matches_actual_reads 會回頭去讀真正那份沒被改壞的檔，
+#    於是變異永遠不會被偵測到——那正是「永遠通過的測試」的長相。
+SRC = Path(build_site_data.__file__).resolve()
+
 DATA_DIR = ROOT / "data" / "processed"
 
 failures: list[str] = []
