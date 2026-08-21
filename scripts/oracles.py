@@ -677,8 +677,10 @@ _LEG_SHARED = {
     "村里": dict(
         provenance="official", structure="official-doc", arithmetic=None,
         semantic="official-doc",
-        note="⚠️ 首碼可能是英文（2016／2020 的跨村里投開票所，官方格式文件明載）。"
-             "不可轉數值，也不可假設首碼為數字",
+        note="⚠️ 可能含英文字母，且位置跨屆不同：2016／2020 為 `A001`（首字），"
+             "**2024 為 `0A01`（第二字）**。不可轉數值，也不可假設任何字元位置是數字——"
+             "用 `村里[0].isdigit()` 偵測會漏掉 2024 的 4,696 列。"
+             "逐投開票所跨選舉對接時，這一欄不可進 join 鍵",
     ),
     "投開票所": dict(provenance="official", structure="official-doc",
                   arithmetic=None, semantic="official-doc", note=None),
