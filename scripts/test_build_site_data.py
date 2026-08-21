@@ -566,24 +566,25 @@ def test_party_code_and_name_hygiene() -> None:
           {k: sorted(v) for k, v in by_int.items() if len(v) > 1}, {})
 
 
-# -------------------------------- 六b、年齡直接取自長表的 `年齡_有效`（合成）
+# ------------------------ 六b、年齡取自長表已是乾淨值的 `年齡` 欄（合成）
 
 @reports
 def test_age_read_from_derived_column() -> None:
-    """站台**讀取** `年齡_有效`，不自行推導未記載的判準。
+    """站台**讀取** `年齡`（長表已將它清乾淨），不自行推導未記載的判準。
 
     ⚠️ 判準（哪些屆別的 99 算未記載）與守住它的兩條斷言都在長表建置端，
     見 scripts/build_local_election.py 的 valid_age 與 check_age_sentinel，
     測試在 scripts/test_build_local_election.py。
+    來源原值在長表的 `年齡_原始`，站台**不讀那一欄**——讀了就等於有第二份判準。
 
     同一個規則若在兩處各有一份實作，其中一份必然漂移——這個專案已經因此
     出過兩個 bug（名錄的 MAIN 手寫一份、政黨分桶只認一種名稱）。所以這裡
     要守的不是判準本身，而是「站台沒有第二份判準」。
     """
-    print("\n[合成] 名錄的年齡取自長表的 `年齡_有效`，站台不重算判準")
+    print("\n[合成] 名錄的年齡取自長表的 `年齡`（已是乾淨值），站台不重算判準")
 
-    def roster_age(valid: str):
-        cands = [dict(c, **{"年齡_有效": valid}) for c in _mixed_cands()]
+    def roster_age(clean: str):
+        cands = [dict(c, **{"年齡": clean}) for c in _mixed_cands()]
         d = build_roster_data(_mixed_summary(), cands)
         return d["rows"][_TERM][_TYPE][0][2][0][4]
 
@@ -591,13 +592,14 @@ def test_age_read_from_derived_column() -> None:
     check("留空時為 None（常數裡是 null）", roster_age(""), None)
 
     print("\n       判別測試：兩欄刻意衝突，只有一種實作能通過")
-    print("       屆別=1998（在建置端的具名清單內）、年齡=99、年齡_有效=45")
-    print("       讀 年齡_有效 → 45；自己重算判準 → None。兩者不可能同時成立。")
-    conflict = [dict(c, **{"年度": "1998", "年齡": "99", "年齡_有效": "45"})
+    print("       屆別=1998（在建置端的具名清單內）、年齡_原始=99、年齡=45")
+    print("       讀 年齡 → 45；改讀 年齡_原始 再自己重算 → None。")
+    print("       兩者不可能同時成立。")
+    conflict = [dict(c, **{"年度": "1998", "年齡_原始": "99", "年齡": "45"})
                 for c in _mixed_cands()]
     summ = [dict(r, **{"年度": "1998"}) for r in _mixed_summary()]
     got = build_roster_data(summ, conflict)["rows"]["1998"][_TYPE][0][2][0][4]
-    check("站台取 年齡_有效（45），不是自己算出的 None", got, 45)
+    check("站台取 年齡（45），不是自己從 年齡_原始 算出的 None", got, 45)
 
 
 # ---------------------------------------------- 七、名錄的 MAIN 由對照表投影

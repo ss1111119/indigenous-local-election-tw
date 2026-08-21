@@ -243,13 +243,15 @@ AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
 
 
 def valid_age(year: str, raw: str) -> str:
-    """`年齡_有效`：有記載放值、未記載留空。
+    """輸出的 `年齡`：有記載放值、未記載留空。
 
-    ⚠️ **`年齡` 欄不受影響**，維持來源原值（含 99）。本欄是衍生欄位，
-       與 `縣市_正規化`／`鄉鎮市區_正規化` 同一個慣例：空字串代表「不可用」。
+    ⚠️ **來源原值完整保留在 `年齡_原始`。** 這裡回傳的是乾淨值，放進 `年齡`。
+       對調的理由：`年齡` 這個名字有最強的預設吸引力，不讀文件的分析者
+       第一直覺就是 `AVG(年齡)`。把乾淨值放在最直覺的名字下，才是封閉陷阱；
+       另開一個 `年齡_有效` 只是開了一條安全通道，陷阱還在。
 
-    ⚠️ 「有效」指的是「有記載因而可用於計算」，**不是**「這個年齡正確」。
-       來源記載的年齡本身正確與否，本專案未查證也無從查證。
+    ⚠️ 乾淨**不等於正確**：它只保證不含哨兵值，不保證年齡本身正確。
+       來源記載的年齡正確與否，本專案未查證也無從查證。
     """
     if raw in AGE_ALWAYS_NO_DATA:
         return ""
@@ -263,11 +265,11 @@ def check_age_sentinel(cands: list[dict]) -> None:
 
     具名清單是依「實測整批為無資料值」建立的。那個前提若不再成立，
     清單就是錯的，而錯的方向是**安靜的**——多出一個真實年齡會被當成
-    未記載而消失，或新屆的 99 會被當成真年齡放進 `年齡_有效`。
+    未記載而消失，或新屆的 99 會被當成真年齡放進乾淨的 `年齡` 欄。
     """
     by_term: dict[str, set[str]] = {}
     for c in cands:
-        by_term.setdefault(c["年度"], set()).add(c["年齡"])
+        by_term.setdefault(c["年度"], set()).add(c["年齡_原始"])
     for term, ages in sorted(by_term.items()):
         if term in AGE_UNRECORDED_TERMS:
             extra = ages - AGE_NO_DATA_VALUES
@@ -276,7 +278,7 @@ def check_age_sentinel(cands: list[dict]) -> None:
                     f"{term} 屆被列為「年齡未記載」，但年齡欄出現了 "
                     f"{sorted(extra)}。列入的前提是整批為格式文件所列的無資料值 "
                     f"{sorted(AGE_NO_DATA_VALUES)}，該前提已不成立——"
-                    f"若逕行套用，這些真實年齡會被當成未記載而從 `年齡_有效` 消失。"
+                    f"若逕行套用，這些真實年齡會被當成未記載而從 `年齡` 消失。"
                     f"請重新判斷 AGE_UNRECORDED_TERMS。"
                 )
         elif AGE_UNRECORDED_VALUE in ages:
@@ -970,8 +972,10 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "政黨代號": r[7],
             "政黨名稱": parties.get(r[7], ""),
             "性別": GENDER.get(r[8], r[8]),
-            "年齡": r[10],
-            "年齡_有效": valid_age(year, r[10]),
+            # ⚠️ 階段邊界：`r[10]` 是來源原值，輸出的 `年齡` 是【乾淨值】。
+            #    乾淨值一律經 valid_age()，不得直接引用 r[10]。
+            "年齡": valid_age(year, r[10]),
+            "年齡_原始": r[10],
             "現任": r[13],
             "當選註記": mark.strip(),
             "當選註記語意": WIN_MARKS[mark],

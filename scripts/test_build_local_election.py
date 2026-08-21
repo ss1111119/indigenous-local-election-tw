@@ -1012,7 +1012,7 @@ def test_custom_type_terms() -> None:
 
 @reports
 def test_valid_age() -> None:
-    """`年齡_有效`：有記載放值、未記載留空；判準具名到屆別。
+    """輸出的 `年齡`（乾淨值）：有記載放值、未記載留空；判準具名到屆別。
 
     ⚠️ **這一組必須用合成資料。** 真實資料正好滿足前提——五個舊屆整批是 99、
     新四屆從未出現 99、全資料的 0 出現 0 次——所以兩條中止**永遠不會觸發**，
@@ -1022,7 +1022,7 @@ def test_valid_age() -> None:
     語意來自壓縮檔內的官方格式文件：
     「年齡 Num(3) (部分選舉未必有資料，可能 0 或 99)」。
     """
-    print("\n[單元] 年齡_有效——0 與 99 的處置不對稱")
+    print("\n[單元] 年齡（乾淨值）——0 與 99 的處置不對稱")
     print("       0 不可能是真實年齡 → 任何屆別都留空")
     check("1998 的 0", valid_age("1998", "0"), "")
     check("2022 的 0", valid_age("2022", "0"), "")
@@ -1044,17 +1044,19 @@ def test_valid_age() -> None:
     check("2022 的 45", valid_age("2022", "45"), "45")
 
     print("\n       兩條前提斷言：不成立即中止")
-    base = [{"年度": "1998", "年齡": "99"}, {"年度": "2022", "年齡": "45"}]
+    base = [{"年度": "1998", "年齡_原始": "99"},
+            {"年度": "2022", "年齡_原始": "45"}]
     check_age_sentinel(base)
     check("前提成立時不中止", True, True)
     # 格式文件把 0 與 99 並列，所以舊屆出現 0 不是異常，不得誤中止
-    check_age_sentinel(base + [{"年度": "1998", "年齡": "0"}])
+    check_age_sentinel(base + [{"年度": "1998", "年齡_原始":"0"}])
     check("列入清單的屆別出現 0 → 不中止", True, True)
-    check_age_sentinel(base + [{"年度": "1998", "年齡": ""}])
+    check_age_sentinel(base + [{"年度": "1998", "年齡_原始":""}])
     check("列入清單的屆別出現空白 → 不中止", True, True)
 
     def with_row(term, raw):
-        return lambda: check_age_sentinel(base + [{"年度": term, "年齡": raw}])
+        return lambda: check_age_sentinel(
+            base + [{"年度": term, "年齡_原始": raw}])
 
     check_raises("列入清單的屆別出現非無資料值 → 中止", with_row("1998", "52"))
     check_raises("清單外的屆別出現 99 → 中止", with_row("2022", "99"))
@@ -1069,12 +1071,12 @@ def test_valid_age() -> None:
 
 @reports
 def test_age_valid_column_in_output() -> None:
-    """`年齡_有效` 這個規則**有被套用到列組裝**，不只是函式本身正確。
+    """乾淨值的規則**有被套用到列組裝**，不只是函式本身正確。
 
     ⚠️ 這一條是變異測試逼出來的，而且逼了兩次：
 
-    1. 原本只測 `valid_age()`。把列組裝處改成 `"年齡_有效": r[10]`
-       （直接抄原值）時，函式沒被動過所以測試照樣通過——
+    1. 原本只測 `valid_age()`。把列組裝處改成讓 `年齡` 直接抄 `r[10]` 時，
+       函式沒被動過所以測試照樣通過——
        **測了規則，沒測規則有沒有被套用。**
     2. 第一次補救是去讀**已建好的**長表。那也抓不到：變異改的是原始碼，
        不會重建長表，讀成品的測試對原始碼變異一律無感。
@@ -1082,7 +1084,7 @@ def test_age_valid_column_in_output() -> None:
 
     所以這裡實際跑一次 `process_one`——合成來源、真的走過列組裝。
     """
-    print("\n[單元] process_one 的 年齡_有效——實際跑列組裝，不是讀成品")
+    print("\n[單元] process_one 的 年齡／年齡_原始——實際跑列組裝，不是讀成品")
 
     def one(year: str, age: str) -> dict:
         zf = _synthetic_zip("1000", "1000", "1000", age=age)
@@ -1102,20 +1104,20 @@ def test_age_valid_column_in_output() -> None:
                 COUNTY_CROSSWALK_YEARS[year] = real_regional
         return p["candidates"][0]
 
-    print("       舊屆的 99 → 年齡 保留 99、年齡_有效 留空")
+    print("       舊屆的 99 → 年齡_原始 保留 99、年齡 留空")
     c = one("2002", "99")
-    check("2002 的 年齡", c["年齡"], "99")
-    check("2002 的 年齡_有效", c["年齡_有效"], "")
+    check("2002 的 年齡_原始", c["年齡_原始"], "99")
+    check("2002 的 年齡（乾淨）", c["年齡"], "")
 
     print("\n       舊屆的真實年齡 → 兩欄相同")
     c = one("2002", "45")
-    check("2002 的 年齡", c["年齡"], "45")
-    check("2002 的 年齡_有效", c["年齡_有效"], "45")
+    check("2002 的 年齡_原始", c["年齡_原始"], "45")
+    check("2002 的 年齡（乾淨）", c["年齡"], "45")
 
     print("\n       0 在任何屆別都留空")
     c = one("2002", "0")
-    check("2002 的 0 → 年齡_有效 留空", c["年齡_有效"], "")
-    check("2002 的 0 → 年齡 保留 0", c["年齡"], "0")
+    check("2002 的 0 → 年齡 留空", c["年齡"], "")
+    check("2002 的 0 → 年齡_原始 保留 0", c["年齡_原始"], "0")
 
 
 @reports
@@ -1136,7 +1138,7 @@ def test_oracles() -> None:
     # 沒有算術 oracle 的欄位數——這個數字本身是專案的已知弱點，釘死它
     n = sum(1 for f in MANIFEST.values() for d in f.values() if not d["arithmetic"])
     # 新增可比性標記 4 欄 × 3 張表 = 12 欄，全部沒有算術 oracle（43 → 55）
-    # candidates 新增 `年齡_有效`（衍生欄位，無算術 oracle）：60 → 61
+    # candidates 新增 `年齡_原始`（來源原值欄，無算術 oracle）：60 → 61
     check("沒有算術 oracle 的欄位數", n, 61)
 
 

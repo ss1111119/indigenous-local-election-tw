@@ -209,7 +209,7 @@ MUTATIONS = [
     # ⚠️ 這些變異的辨識力來自 test_build_local_election.py 的合成斷言，
     #    不是真實資料。真實資料正好滿足前提（五個舊屆整批 99、
     #    新四屆從未出現 99、0 出現 0 次），所以兩條中止永遠不會觸發。
-    ("哨兵清單清空（舊屆的 99 會被當成年齡放進 年齡_有效）",
+    ("哨兵清單清空（舊屆的 99 會被當成年齡放進乾淨的 年齡 欄）",
      "build_local_election.py",
      'AGE_UNRECORDED_TERMS = frozenset({"1994", "1998", "2002", "2005", "2006"})',
      'AGE_UNRECORDED_TERMS = frozenset()'),
@@ -225,10 +225,10 @@ MUTATIONS = [
      "build_local_election.py",
      'AGE_ALWAYS_NO_DATA = frozenset({"0", ""})',
      'AGE_ALWAYS_NO_DATA = frozenset({"0"})'),
-    ("年齡_有效 直接抄 年齡（哨兵值原封不動流進衍生欄位）",
+    ("年齡 直接抄 r[10]（哨兵值原封不動流進乾淨欄位）",
      "build_local_election.py",
-     '            "年齡_有效": valid_age(year, r[10]),',
-     '            "年齡_有效": r[10],'),
+     '            "年齡": valid_age(year, r[10]),',
+     '            "年齡": r[10],'),
     ("拿掉「列入的屆別必須整批是無資料值」那條斷言",
      "build_local_election.py",
      '            extra = ages - AGE_NO_DATA_VALUES\n            if extra:',
