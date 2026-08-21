@@ -42,11 +42,21 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 ⚠️ **`site-accessibility-baseline`（另一個 session）18/18 完成、尚未歸檔。**
 依約定順序它排在本 session 的變更之後，現在可以歸檔了。
 
-**進行中：`add-indigenous-legislative-elections`（17 項 task）。**
+**`add-indigenous-legislative-elections` 17/17 完成、已推送、已歸檔**至
+`openspec/changes/archive/2026-08-21-add-indigenous-legislative-elections/`，
+並建立第四份主 spec `indigenous-legislative-elections`（7 條 Requirement），
+另往 `legacy-source-quirks` 加 4 條。
+
 納入九屆原住民立法委員（1995-2024），輸出與地方公職【完全分開】的三張長表
 `cec-legislative-election-*`。既有地方公職四份輸出的 SHA-256 不變。
-詳見 `docs/schema/cec-legislative-election.md` 與 `data/sources.json` 的
-`indigenousLegislators1995_2024`。
+變異測試 28 項全數偵測到。詳見 `docs/schema/cec-legislative-election.md`
+與 `data/sources.json` 的 `indigenousLegislators1995_2024`。
+
+主 specs 現為四個能力、**36 條 Requirement**
+（`legacy-source-quirks` 18、`site-data-generation` 8、
+`indigenous-legislative-elections` 7、`historical-terms-1994-2006` 3）。
+
+**目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
 
@@ -66,12 +76,7 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 
 ## 二、下一步（依優先序）
 
-1. **完成 `add-indigenous-legislative-elections` 剩下的 task。**
-   ⚠️ 動工前先讀 design 的「實作前的完整普查結果」——提案階段有**四項事實
-   是抽樣後下的全稱宣稱，都被推翻了**（引號範圍、選舉區欄語意、年齡哨兵屆別、
-   2016 該用哪一份）。那一節是逐列數過的，可以信。
-
-2. **那 10 項變異漏網的分類**（不是全部都要補）。
+1. **那 10 項變異漏網的分類**（不是全部都要補）。
    共同結構是「驗證只在建置期觸發，而測試讀的是成品」。判準：
    **會改變資料值的清洗／過濾／補值邏輯要補測試**（做法見
    `test_build_local_election.py` 的 `test_age_valid_column_in_output`——
@@ -79,12 +84,12 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
    **上游已保證不可能發生的防禦性檢查是冗餘死碼，該刪不該補**。
    先分類本身就有價值，可能只有三四項值得補。
 
-3. **`docs/schema/cec-local-election.md` 的「18 項自我驗證」列表未隨新驗證更新。**
+2. **`docs/schema/cec-local-election.md` 的「18 項自我驗證」列表未隨新驗證更新。**
    數字與內容都已落後，讀者會據此以為某些檢查存在而其實不存在。
-4. **`historical-terms-1994-2006` 的 `## Purpose` 仍是歸檔工具留下的 TBD 佔位文字。**
+3. **`historical-terms-1994-2006` 的 `## Purpose` 仍是歸檔工具留下的 TBD 佔位文字。**
    另兩份主 spec 已補實。
-5. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
-6. **`data/processed/cec-county-code-crosswalk-1998-2002.csv` 放錯位置**——
+4. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
+5. **`data/processed/cec-county-code-crosswalk-1998-2002.csv` 放錯位置**——
    它是**輸入**（人工建立的對照表，`build_local_election.py:543` 由 `OUT_DIR` 讀入），
    不是建置產物，卻和產物放在同一個資料夾。
    「清空輸出目錄再重跑」這個很自然的動作會把它一起刪掉，然後建置失敗。
