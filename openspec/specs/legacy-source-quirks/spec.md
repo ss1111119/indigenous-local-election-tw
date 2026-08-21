@@ -923,95 +923,106 @@ tests:
 ---
 ### Requirement: Sentinel Values Are Not Presented As Measurements
 Where a source column carries a fixed value that stands for "not recorded" rather than a measurement,
-the published output SHALL NOT present that value as if it were the measurement. The value SHALL be
-preserved unchanged in the long tables; the substitution happens only where the figure is presented.
+the published output SHALL NOT present that value as if it were the measurement.
+
+The substitution SHALL happen in the long table, at the point where the cleaned column is produced,
+and the source's own value SHALL be preserved under an explicitly-marked name. It SHALL NOT be
+deferred to the presentation layer alone: a consumer reading the long table directly never reaches
+that layer, and gets the sentinel counted as a measurement with no error raised.
 
 The measured instance is the candidate age column: it holds `99` for every one of the 483 candidates
 in the 1994, 1998, 2002, 2005 and 2006 terms, and never holds `99` in the 2009-2010, 2014, 2018 or
 2022 terms, whose ages range from 23 to 89.
 
 #### Scenario: A term whose age column is uniformly the sentinel
-- **WHEN** the site presents a candidate from a term in which every age is the sentinel value
-- **THEN** it SHALL omit the age rather than state it, so that no claim is made about that person's age
+- **WHEN** any consumer reads the cleaned column for a term in which every source value is the
+  sentinel
+- **THEN** the field SHALL be empty rather than carrying the sentinel, so that no claim is made about
+  that person's age
 
 #### Scenario: A term that records real ages
-- **WHEN** the site presents a candidate from a term whose age column carries real values
-- **THEN** the age SHALL be presented unchanged
+- **WHEN** a consumer reads the cleaned column for a term whose source values are real ages
+- **THEN** the value SHALL be the source's value unchanged
+
+#### Scenario: A consumer who needs the sentinel itself
+- **WHEN** a consumer reads the explicitly-marked source column
+- **THEN** the sentinel SHALL still be there, because preserving what the source wrote is what that
+  column is for
 
 
 <!-- @trace
-source: age-99-is-unrecorded
+source: candidate-age-valid-column
 updated: 2026-08-21
 code:
-  - scratch/inventory_legacy.py
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/measure_2005_towns.py
-  - scratch/verify_21c.py
-  - scratch/probe3.py
-  - scratch/verify_33.py
-  - scratch/probe7.py
-  - scratch/measure_auth_existing.py
-  - scratch/measure_town_feasible.py
-  - CLAUDE.md
-  - scratch/baseline/summary.csv
-  - scratch/strip_experiment.py
-  - scratch/gen_anomalies.py
-  - scratch/verify_strip.py
-  - scratch/probe2.py
-  - scratch/review_q2.md
-  - scratch/measure_ws2.py
-  - scratch/probe_districts2.py
-  - scratch/zip_names.json
   - scratch/probe5.py
-  - scratch/measure_whitespace.py
-  - scratch/baseline/candidates.csv
-  - scratch/dryrun_manifest.py
-  - scratch/review_q7.md
-  - scratch/review_question.md
-  - scratch/inventory_legacy.json
-  - scratch/chk1998t2.py
-  - scratch/measure_trunc.py
-  - scratch/verify_pop2.py
-  - scratch/probe_1994.py
-  - scratch/probe6.py
-  - scratch/add_legacy_sources.py
-  - scratch/baseline/votes.csv
-  - scratch/verify_review.py
-  - scratch/measure_2005g.py
-  - scratch/review_q4.md
-  - scratch/verify_identity.py
-  - scratch/chk_cw.py
-  - scratch/measure_2005f.py
-  - scratch/verify_32.py
-  - scratch/measure_pop.py
-  - scratch/expected.txt
-  - scratch/review_q3.md
   - scratch/verify_crosswalk.py
-  - scratch/measure_2005.py
-  - scratch/verify_21.py
-  - AGENTS.md
-  - scratch/probe_districts.py
-  - scratch/measure_town_codes.py
-  - scratch/measure_2005c.py
-  - scratch/probe_legacy_build.py
-  - .spectra.yaml
-  - scratch/review_q6.md
-  - scratch/verify_pop.py
-  - scratch/verify_claims.py
-  - scratch/measure_2005d.py
   - scratch/probe4.py
-  - scratch/probe_anomalies.py
-  - scratch/gen_town_anom.py
-  - scratch/list_zip.py
-  - scratch/verify_11.py
-  - scratch/review_q5.md
-  - scratch/measure_2005e.py
-  - scratch/measure_2005b.py
-  - scratch/add_defect7.py
   - GEMINI.md
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_review.py
+  - scratch/list_zip.py
+  - scratch/measure_2005.py
+  - scratch/baseline/summary.csv
   - scratch/gen_expected.py
+  - scratch/zip_names.json
+  - scratch/measure_2005f.py
+  - scratch/verify_claims.py
+  - scratch/add_legacy_sources.py
+  - .spectra.yaml
+  - scratch/measure_2005e.py
+  - scratch/review_q7.md
+  - scratch/verify_21c.py
+  - scratch/probe_districts2.py
   - scratch/verify_auth.py
+  - scratch/measure_town_codes.py
+  - scratch/review_q5.md
+  - scratch/review_question.md
+  - scratch/measure_2005d.py
+  - AGENTS.md
+  - scratch/gen_anomalies.py
+  - scratch/measure_pop.py
+  - scratch/strip_experiment.py
+  - scratch/probe6.py
+  - scratch/review_q4.md
+  - scratch/add_defect7.py
+  - scratch/measure_auth_existing.py
+  - scratch/measure_2005b.py
+  - scratch/measure_town_feasible.py
+  - scratch/verify_identity.py
+  - scratch/verify_32.py
+  - scratch/baseline/votes.csv
+  - scratch/verify_21.py
+  - scratch/chk_cw.py
+  - scratch/verify_11.py
+  - scratch/review_q3.md
+  - scratch/expected.txt
+  - scratch/review_q2.md
+  - scratch/verify_strip.py
+  - scratch/gen_town_anom.py
+  - CLAUDE.md
+  - scratch/probe_legacy_build.py
+  - scratch/measure_2005g.py
+  - scratch/measure_whitespace.py
+  - scratch/probe_anomalies.py
+  - scratch/dryrun_manifest.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/inventory_legacy.py
+  - scratch/probe2.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/probe_districts.py
+  - scratch/review_q6.md
+  - scratch/baseline/candidates.csv
+  - scratch/probe_1994.py
+  - scratch/probe7.py
   - scratch/measure_pop2.py
+  - scratch/verify_pop2.py
+  - scratch/measure_ws2.py
+  - scratch/measure_trunc.py
 -->
 
 ---
@@ -1206,4 +1217,284 @@ code:
   - scratch/gen_expected.py
   - scratch/verify_auth.py
   - scratch/measure_pop2.py
+-->
+
+---
+### Requirement: The Plainest Column Name Holds The Safest Data
+Where a source column mixes a "not recorded" sentinel with real measurements, the plainest column
+name SHALL hold the cleaned values — the value where one was recorded, empty where none was — and
+the source's own value SHALL be preserved under an explicitly-marked name.
+
+Adding a separate clean column beside the raw one is not sufficient. It opens a safe route without
+closing the trap: the plainest name carries the strongest default pull, so a consumer who has not
+read the documentation aggregates it and gets a wrong answer with no error. For the candidate age
+column the nine-term mean moves from 50.80 over 7,335 recorded ages to 53.78 over 7,818 rows once
+the 483 sentinels are counted as ages.
+
+#### Scenario: A consumer who has not read the documentation
+- **WHEN** a consumer aggregates the plainest-named column without consulting any documentation
+- **THEN** the answer SHALL be correct, because rows with no recorded value are empty rather than
+  carrying a stand-in number
+
+#### Scenario: A consumer who needs exactly what the source wrote
+- **WHEN** a consumer reads the explicitly-marked source column
+- **THEN** it SHALL contain exactly what the source recorded, sentinel included, one row for one row
+
+#### Scenario: Renaming changes what a published column means
+- **WHEN** this exchange is made to a column that has already been published
+- **THEN** the project SHALL record that the same column name now means something different from
+  earlier revisions, because no error will be raised for a consumer who re-reads it
+
+
+<!-- @trace
+source: candidate-age-valid-column
+updated: 2026-08-21
+code:
+  - scratch/probe5.py
+  - scratch/verify_crosswalk.py
+  - scratch/probe4.py
+  - GEMINI.md
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_review.py
+  - scratch/list_zip.py
+  - scratch/measure_2005.py
+  - scratch/baseline/summary.csv
+  - scratch/gen_expected.py
+  - scratch/zip_names.json
+  - scratch/measure_2005f.py
+  - scratch/verify_claims.py
+  - scratch/add_legacy_sources.py
+  - .spectra.yaml
+  - scratch/measure_2005e.py
+  - scratch/review_q7.md
+  - scratch/verify_21c.py
+  - scratch/probe_districts2.py
+  - scratch/verify_auth.py
+  - scratch/measure_town_codes.py
+  - scratch/review_q5.md
+  - scratch/review_question.md
+  - scratch/measure_2005d.py
+  - AGENTS.md
+  - scratch/gen_anomalies.py
+  - scratch/measure_pop.py
+  - scratch/strip_experiment.py
+  - scratch/probe6.py
+  - scratch/review_q4.md
+  - scratch/add_defect7.py
+  - scratch/measure_auth_existing.py
+  - scratch/measure_2005b.py
+  - scratch/measure_town_feasible.py
+  - scratch/verify_identity.py
+  - scratch/verify_32.py
+  - scratch/baseline/votes.csv
+  - scratch/verify_21.py
+  - scratch/chk_cw.py
+  - scratch/verify_11.py
+  - scratch/review_q3.md
+  - scratch/expected.txt
+  - scratch/review_q2.md
+  - scratch/verify_strip.py
+  - scratch/gen_town_anom.py
+  - CLAUDE.md
+  - scratch/probe_legacy_build.py
+  - scratch/measure_2005g.py
+  - scratch/measure_whitespace.py
+  - scratch/probe_anomalies.py
+  - scratch/dryrun_manifest.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/inventory_legacy.py
+  - scratch/probe2.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/probe_districts.py
+  - scratch/review_q6.md
+  - scratch/baseline/candidates.csv
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_pop2.py
+  - scratch/verify_pop2.py
+  - scratch/measure_ws2.py
+  - scratch/measure_trunc.py
+-->
+
+---
+### Requirement: A Cleaned Column Holds Values, Not A Validity Flag
+A column that exists to make sentinel-bearing data safe SHALL carry the usable value itself, not a
+boolean saying whether the source value is usable.
+
+A boolean requires the consumer to know the flag exists before it protects them, which leaves the
+original failure mode intact for anyone who does not. A column that holds the value is self-directing:
+its name tells the consumer which column to use.
+
+#### Scenario: A consumer unaware of the derived column's existence
+- **WHEN** a consumer aggregates the original column without knowing about the derived one
+- **THEN** the project SHALL NOT treat that as protected, because no flag was consulted
+
+
+<!-- @trace
+source: candidate-age-valid-column
+updated: 2026-08-21
+code:
+  - scratch/probe5.py
+  - scratch/verify_crosswalk.py
+  - scratch/probe4.py
+  - GEMINI.md
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_review.py
+  - scratch/list_zip.py
+  - scratch/measure_2005.py
+  - scratch/baseline/summary.csv
+  - scratch/gen_expected.py
+  - scratch/zip_names.json
+  - scratch/measure_2005f.py
+  - scratch/verify_claims.py
+  - scratch/add_legacy_sources.py
+  - .spectra.yaml
+  - scratch/measure_2005e.py
+  - scratch/review_q7.md
+  - scratch/verify_21c.py
+  - scratch/probe_districts2.py
+  - scratch/verify_auth.py
+  - scratch/measure_town_codes.py
+  - scratch/review_q5.md
+  - scratch/review_question.md
+  - scratch/measure_2005d.py
+  - AGENTS.md
+  - scratch/gen_anomalies.py
+  - scratch/measure_pop.py
+  - scratch/strip_experiment.py
+  - scratch/probe6.py
+  - scratch/review_q4.md
+  - scratch/add_defect7.py
+  - scratch/measure_auth_existing.py
+  - scratch/measure_2005b.py
+  - scratch/measure_town_feasible.py
+  - scratch/verify_identity.py
+  - scratch/verify_32.py
+  - scratch/baseline/votes.csv
+  - scratch/verify_21.py
+  - scratch/chk_cw.py
+  - scratch/verify_11.py
+  - scratch/review_q3.md
+  - scratch/expected.txt
+  - scratch/review_q2.md
+  - scratch/verify_strip.py
+  - scratch/gen_town_anom.py
+  - CLAUDE.md
+  - scratch/probe_legacy_build.py
+  - scratch/measure_2005g.py
+  - scratch/measure_whitespace.py
+  - scratch/probe_anomalies.py
+  - scratch/dryrun_manifest.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/inventory_legacy.py
+  - scratch/probe2.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/probe_districts.py
+  - scratch/review_q6.md
+  - scratch/baseline/candidates.csv
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_pop2.py
+  - scratch/verify_pop2.py
+  - scratch/measure_ws2.py
+  - scratch/measure_trunc.py
+-->
+
+---
+### Requirement: One Implementation Of A Sentinel Rule
+Where a sentinel rule decides what is presented, it SHALL be implemented once, at the point where the
+cleaned column is produced. Consumers of the long tables — including this project's own site
+generator — SHALL read the cleaned column rather than re-deriving the rule from the source column.
+
+The checks that guard the rule's premises move with the rule; they are not dropped when the
+re-derivation is removed.
+
+#### Scenario: A second implementation of the same rule
+- **WHEN** a consumer re-implements the sentinel rule instead of reading the derived column
+- **THEN** that is a defect, because the two implementations will diverge and only one of them will
+  be exercised by any given test
+
+<!-- @trace
+source: candidate-age-valid-column
+updated: 2026-08-21
+code:
+  - scratch/probe5.py
+  - scratch/verify_crosswalk.py
+  - scratch/probe4.py
+  - GEMINI.md
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_review.py
+  - scratch/list_zip.py
+  - scratch/measure_2005.py
+  - scratch/baseline/summary.csv
+  - scratch/gen_expected.py
+  - scratch/zip_names.json
+  - scratch/measure_2005f.py
+  - scratch/verify_claims.py
+  - scratch/add_legacy_sources.py
+  - .spectra.yaml
+  - scratch/measure_2005e.py
+  - scratch/review_q7.md
+  - scratch/verify_21c.py
+  - scratch/probe_districts2.py
+  - scratch/verify_auth.py
+  - scratch/measure_town_codes.py
+  - scratch/review_q5.md
+  - scratch/review_question.md
+  - scratch/measure_2005d.py
+  - AGENTS.md
+  - scratch/gen_anomalies.py
+  - scratch/measure_pop.py
+  - scratch/strip_experiment.py
+  - scratch/probe6.py
+  - scratch/review_q4.md
+  - scratch/add_defect7.py
+  - scratch/measure_auth_existing.py
+  - scratch/measure_2005b.py
+  - scratch/measure_town_feasible.py
+  - scratch/verify_identity.py
+  - scratch/verify_32.py
+  - scratch/baseline/votes.csv
+  - scratch/verify_21.py
+  - scratch/chk_cw.py
+  - scratch/verify_11.py
+  - scratch/review_q3.md
+  - scratch/expected.txt
+  - scratch/review_q2.md
+  - scratch/verify_strip.py
+  - scratch/gen_town_anom.py
+  - CLAUDE.md
+  - scratch/probe_legacy_build.py
+  - scratch/measure_2005g.py
+  - scratch/measure_whitespace.py
+  - scratch/probe_anomalies.py
+  - scratch/dryrun_manifest.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/inventory_legacy.py
+  - scratch/probe2.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/probe_districts.py
+  - scratch/review_q6.md
+  - scratch/baseline/candidates.csv
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_pop2.py
+  - scratch/verify_pop2.py
+  - scratch/measure_ws2.py
+  - scratch/measure_trunc.py
 -->
