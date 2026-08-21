@@ -29,92 +29,83 @@ The site data constants embedded in `docs/index.html` and `docs/roster.html` SHA
 - **THEN** the generator SHALL abort rather than fall back to a fuzzy match
 
 #### Scenario: Required column missing
-- **WHEN** a long table lacks a column the generator depends on, such as `elected_authoritative`
+- **WHEN** a long table lacks a column the generator depends on, such as `當選`
 - **THEN** the generator SHALL abort and SHALL NOT write a partial result
 
 
 <!-- @trace
-source: update-site-to-nine-terms
-updated: 2026-08-20
+source: elected-column-swap
+updated: 2026-08-21
 code:
-  - scratch/measure_2005.py
-  - scratch/verify_strip.py
-  - scratch/measure_2005e.py
-  - scratch/review_q6.md
-  - scratch/probe5.py
-  - scratch/probe_districts2.py
-  - scratch/inventory_legacy.json
-  - scratch/zip_names.json
-  - scratch/review_question.md
-  - scripts/build_site_data.py
-  - docs/roster.html
-  - scratch/measure_2005_towns.py
-  - scratch/measure_2005g.py
-  - scratch/chk_cw.py
-  - HANDOFF.md
-  - scratch/review_q4.md
+  - scratch/probe_districts.py
+  - scratch/measure_town_codes.py
+  - scratch/expected.txt
   - scratch/review_q3.md
-  - scratch/verify_identity.py
+  - scratch/chk1998t2.py
+  - scratch/verify_21c.py
   - scratch/verify_33.py
-  - docs/index.html
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/strip_experiment.py
-  - scratch/baseline/summary.csv
+  - scratch/verify_pop.py
+  - scratch/zip_names.json
+  - .spectra.yaml
+  - scratch/measure_2005c.py
+  - scratch/measure_2005f.py
+  - scratch/add_defect7.py
+  - AGENTS.md
+  - scratch/verify_auth.py
+  - GEMINI.md
+  - scratch/probe3.py
+  - scratch/review_q4.md
   - scratch/verify_crosswalk.py
-  - scratch/measure_auth_existing.py
+  - scratch/strip_experiment.py
+  - scratch/verify_claims.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005b.py
+  - scratch/dryrun_manifest.py
+  - scratch/gen_expected.py
+  - scratch/verify_pop2.py
+  - scratch/add_legacy_sources.py
   - scratch/verify_11.py
+  - scratch/verify_21.py
+  - scratch/probe6.py
+  - scratch/chk_cw.py
+  - scratch/probe2.py
+  - scratch/measure_2005d.py
+  - scratch/verify_identity.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005e.py
   - scratch/gen_anomalies.py
   - scratch/list_zip.py
-  - scratch/measure_2005d.py
-  - scratch/probe3.py
-  - scratch/probe4.py
-  - scratch/verify_pop.py
-  - scratch/measure_pop2.py
-  - scratch/measure_trunc.py
-  - scratch/mutation_test_site_data.py
-  - CLAUDE.md
-  - scratch/gen_expected.py
-  - scratch/probe7.py
-  - scratch/probe_anomalies.py
-  - scratch/probe2.py
-  - scratch/verify_21c.py
-  - scratch/chk1998t2.py
-  - scratch/measure_2005c.py
-  - AGENTS.md
-  - scratch/measure_town_codes.py
-  - scratch/gen_town_anom.py
-  - scratch/measure_whitespace.py
-  - scratch/verify_review.py
-  - README.md
-  - scratch/verify_21.py
-  - .spectra.yaml
-  - scratch/verify_auth.py
-  - scratch/probe6.py
-  - scratch/probe_1994.py
-  - scratch/probe_legacy_build.py
-  - scratch/dryrun_manifest.py
-  - scratch/probe_districts.py
-  - scratch/measure_2005f.py
-  - scratch/measure_town_feasible.py
-  - scratch/expected.txt
-  - scratch/verify_claims.py
-  - scratch/verify_pop2.py
-  - scratch/measure_2005b.py
-  - scratch/review_q2.md
-  - scratch/measure_pop.py
-  - GEMINI.md
-  - scratch/review_q7.md
-  - scratch/add_defect7.py
-  - scratch/baseline/candidates.csv
-  - scratch/add_legacy_sources.py
-  - scratch/baseline/votes.csv
-  - scratch/verify_32.py
-  - scratch/review_q5.md
-  - scratch/measure_ws2.py
   - scratch/inventory_legacy.py
-tests:
-  - scripts/test_build_site_data.py
-  - scratch/mutation_test.py
+  - scratch/measure_trunc.py
+  - scratch/measure_pop.py
+  - scratch/gen_town_anom.py
+  - scratch/review_q5.md
+  - scratch/build_1998_2002_crosswalk.py
+  - CLAUDE.md
+  - scratch/measure_auth_existing.py
+  - scratch/measure_whitespace.py
+  - scratch/verify_32.py
+  - scratch/probe4.py
+  - scratch/review_question.md
+  - scratch/probe_anomalies.py
+  - scratch/review_q6.md
+  - scratch/measure_town_feasible.py
+  - scratch/verify_review.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005g.py
+  - scratch/probe_legacy_build.py
+  - scratch/probe5.py
+  - scratch/measure_ws2.py
+  - scratch/verify_strip.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_pop2.py
+  - scratch/review_q2.md
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/probe_districts2.py
+  - scratch/baseline/votes.csv
 -->
 
 ---
@@ -216,99 +207,94 @@ tests:
 
 ---
 ### Requirement: Seats Come From The Authoritative Elected Field
-Every seat count, elected marker, and statistic derived from winners SHALL be computed from `elected_authoritative`, not from the `當選` field, because `當選` reflects known source corruption.
+Every seat count, elected marker, and statistic derived from winners SHALL be computed from the `當選` field, which holds the cross-file authoritative determination. They SHALL NOT be recomputed from `當選註記`, which preserves the source's own marking and carries its known corruption.
 
 #### Scenario: Displaying 2005 county councilor seats
 - **WHEN** the site shows seats for the 2005 mountain-indigenous or plain-indigenous county councilors
-- **THEN** it SHALL show 30 and 27 respectively, not the 18 and 20 that `當選` yields
+- **THEN** it SHALL show 30 and 27 respectively, not the 18 and 20 that `當選註記` yields
 
 #### Scenario: Marking winners in the roster
 - **WHEN** the roster marks a candidate as elected
-- **THEN** the marking SHALL follow `elected_authoritative`, while the women's-quota (`!`) and displaced (`-`) distinctions SHALL still come from `當選註記`
+- **THEN** the marking SHALL follow `當選`, while the women's-quota (`!`) and displaced (`-`) distinctions SHALL still come from `當選註記`
+
+#### Scenario: A consumer reads the most plainly named elected field
+- **WHEN** a reader takes the field named `當選` without consulting documentation first
+- **THEN** the value they receive SHALL be the authoritative one, so that being uninformed yields correct seat counts rather than silently wrong ones
 
 
 <!-- @trace
-source: update-site-to-nine-terms
-updated: 2026-08-20
+source: elected-column-swap
+updated: 2026-08-21
 code:
-  - scratch/measure_2005.py
-  - scratch/verify_strip.py
-  - scratch/measure_2005e.py
-  - scratch/review_q6.md
-  - scratch/probe5.py
-  - scratch/probe_districts2.py
-  - scratch/inventory_legacy.json
-  - scratch/zip_names.json
-  - scratch/review_question.md
-  - scripts/build_site_data.py
-  - docs/roster.html
-  - scratch/measure_2005_towns.py
-  - scratch/measure_2005g.py
-  - scratch/chk_cw.py
-  - HANDOFF.md
-  - scratch/review_q4.md
+  - scratch/probe_districts.py
+  - scratch/measure_town_codes.py
+  - scratch/expected.txt
   - scratch/review_q3.md
-  - scratch/verify_identity.py
+  - scratch/chk1998t2.py
+  - scratch/verify_21c.py
   - scratch/verify_33.py
-  - docs/index.html
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/strip_experiment.py
-  - scratch/baseline/summary.csv
+  - scratch/verify_pop.py
+  - scratch/zip_names.json
+  - .spectra.yaml
+  - scratch/measure_2005c.py
+  - scratch/measure_2005f.py
+  - scratch/add_defect7.py
+  - AGENTS.md
+  - scratch/verify_auth.py
+  - GEMINI.md
+  - scratch/probe3.py
+  - scratch/review_q4.md
   - scratch/verify_crosswalk.py
-  - scratch/measure_auth_existing.py
+  - scratch/strip_experiment.py
+  - scratch/verify_claims.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005b.py
+  - scratch/dryrun_manifest.py
+  - scratch/gen_expected.py
+  - scratch/verify_pop2.py
+  - scratch/add_legacy_sources.py
   - scratch/verify_11.py
+  - scratch/verify_21.py
+  - scratch/probe6.py
+  - scratch/chk_cw.py
+  - scratch/probe2.py
+  - scratch/measure_2005d.py
+  - scratch/verify_identity.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005e.py
   - scratch/gen_anomalies.py
   - scratch/list_zip.py
-  - scratch/measure_2005d.py
-  - scratch/probe3.py
-  - scratch/probe4.py
-  - scratch/verify_pop.py
-  - scratch/measure_pop2.py
-  - scratch/measure_trunc.py
-  - scratch/mutation_test_site_data.py
-  - CLAUDE.md
-  - scratch/gen_expected.py
-  - scratch/probe7.py
-  - scratch/probe_anomalies.py
-  - scratch/probe2.py
-  - scratch/verify_21c.py
-  - scratch/chk1998t2.py
-  - scratch/measure_2005c.py
-  - AGENTS.md
-  - scratch/measure_town_codes.py
-  - scratch/gen_town_anom.py
-  - scratch/measure_whitespace.py
-  - scratch/verify_review.py
-  - README.md
-  - scratch/verify_21.py
-  - .spectra.yaml
-  - scratch/verify_auth.py
-  - scratch/probe6.py
-  - scratch/probe_1994.py
-  - scratch/probe_legacy_build.py
-  - scratch/dryrun_manifest.py
-  - scratch/probe_districts.py
-  - scratch/measure_2005f.py
-  - scratch/measure_town_feasible.py
-  - scratch/expected.txt
-  - scratch/verify_claims.py
-  - scratch/verify_pop2.py
-  - scratch/measure_2005b.py
-  - scratch/review_q2.md
-  - scratch/measure_pop.py
-  - GEMINI.md
-  - scratch/review_q7.md
-  - scratch/add_defect7.py
-  - scratch/baseline/candidates.csv
-  - scratch/add_legacy_sources.py
-  - scratch/baseline/votes.csv
-  - scratch/verify_32.py
-  - scratch/review_q5.md
-  - scratch/measure_ws2.py
   - scratch/inventory_legacy.py
-tests:
-  - scripts/test_build_site_data.py
-  - scratch/mutation_test.py
+  - scratch/measure_trunc.py
+  - scratch/measure_pop.py
+  - scratch/gen_town_anom.py
+  - scratch/review_q5.md
+  - scratch/build_1998_2002_crosswalk.py
+  - CLAUDE.md
+  - scratch/measure_auth_existing.py
+  - scratch/measure_whitespace.py
+  - scratch/verify_32.py
+  - scratch/probe4.py
+  - scratch/review_question.md
+  - scratch/probe_anomalies.py
+  - scratch/review_q6.md
+  - scratch/measure_town_feasible.py
+  - scratch/verify_review.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005g.py
+  - scratch/probe_legacy_build.py
+  - scratch/probe5.py
+  - scratch/measure_ws2.py
+  - scratch/verify_strip.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_pop2.py
+  - scratch/review_q2.md
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/probe_districts2.py
+  - scratch/baseline/votes.csv
 -->
 
 ---

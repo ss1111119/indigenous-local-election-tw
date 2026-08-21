@@ -34,6 +34,18 @@ reappear unnoticed.
 - **THEN** the check SHALL be re-pointed at the value derived from the source mark, and a mutation
   restoring the same-value comparison SHALL be detected by the test suite
 
+#### Scenario: A check that asserts what the source claimed
+- **WHEN** a validation asserts whether the source file's own stated total is internally consistent
+- **THEN** it SHALL count from the source mark, not from the published elected column, because
+  counting from the published column makes the assertion compare the authoritative value against
+  itself — it then holds for every file, raises nothing, and reports no error while having stopped
+  detecting source corruption entirely
+
+#### Scenario: A report field labelled as the source's count
+- **WHEN** the validation report publishes both the source's count and the authoritative count
+- **THEN** the two SHALL be computed from different columns, so that a term whose source is corrupt
+  shows two different numbers rather than one number twice
+
 #### Scenario: A mark anomaly outside the named list
 - **WHEN** a candidate's source-derived status disagrees with the cross-file derived status and that
   candidate is not on the named list

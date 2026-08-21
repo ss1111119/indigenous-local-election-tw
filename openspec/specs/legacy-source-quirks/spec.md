@@ -478,244 +478,207 @@ tests:
 
 ---
 ### Requirement: Authoritative Elected Status Derivation
-The system SHALL preserve the `elcand` elected status column and the `當選` field derived
-from it exactly as the source provides them, including where the source is known to be
-corrupt (the 2005 county councilor files), and SHALL derive a separate
-`elected_authoritative` field from the `elctks` vote breakdown, together with an
-`elected_authoritative_basis` field recording which administrative level the value came
-from.
+Where the source's own elected mark is known to be corrupt, the project SHALL derive elected status by
+cross-file reconciliation and SHALL publish that derived status under the plainest column name, so
+that a consumer who aggregates seats without reading any documentation gets the correct count.
 
-Matching a candidate to `elctks` rows SHALL constrain only those administrative code
-columns that are non-blank on the candidate record, and SHALL take the marks from the
-highest administrative level among the matching rows. The elected marks are `*` and `!`
-(both appear in `elctks`).
+The source's own claim SHALL remain available: the raw mark and its decoding stay in the long table
+unchanged. The project SHALL NOT publish a second column holding the same derived status under a
+longer name, because two columns carrying one fact will drift.
 
-The system SHALL abort rather than guess when a candidate has no matching `elctks` row,
-or when the marks at the chosen level disagree.
+The basis of the derivation — which level of the votes file it was taken from — SHALL be published
+alongside, because the levels differ in strength.
 
-#### Scenario: Deriving elected status from vote breakdown
-- **WHEN** the candidate's mark at the highest matching `elctks` level is `*` or `!`
-- **THEN** `elected_authoritative` SHALL be true
+#### Scenario: Counting seats without reading documentation
+- **WHEN** a consumer counts elected candidates from the plainest-named elected column
+- **THEN** the count SHALL be the cross-file derived one, not the source's corrupt claim
 
-#### Scenario: Candidate record is less specific than the vote breakdown
-- **WHEN** the candidate's town column is blank (`000`) and the only `elctks` rows for that
-  candidate are at town level — as for the 2005 mountain-indigenous Pingtung 16th district,
-  which has no district-level aggregate row
-- **THEN** the blank column SHALL NOT constrain the match, the value SHALL be derived from
-  the town-level rows, and `elected_authoritative_basis` SHALL record `elctks_鄉鎮市區`
-
-#### Scenario: Candidate record is less specific but the town column distinguishes candidates
-- **WHEN** the candidate's electoral-district column is blank (`00`), as for indigenous
-  district chief (D2) and district representative (R3) elections whose real unit is the town
-- **THEN** the town column SHALL still constrain the match, so that candidates sharing a
-  number in different towns are not merged
-
-#### Scenario: Lower levels carry no mark information
-- **WHEN** a candidate has rows at both district and town level, and the town-level marks
-  are blank as in the 2002 plain-indigenous file
-- **THEN** the district-level mark SHALL be used, because it is the highest matching level
-
-#### Scenario: No elctks row for a candidate
-- **WHEN** a candidate has no matching `elctks` row at any level
-- **THEN** the build SHALL abort. The system SHALL NOT fall back to inferring election from
-  `elprof` candidate/elected counts: no candidate in any covered file lacks an `elctks` row,
-  and such a fallback would silently mark a whole district elected if `elctks` rows were
-  lost, while still satisfying the per-district compensating check
-
-#### Scenario: Conflicting marks at the chosen level
-- **WHEN** the marks at the highest matching level disagree
-- **THEN** the build SHALL abort rather than take a majority or treat any asterisk as elected
+#### Scenario: Recovering what the source claimed
+- **WHEN** a consumer needs the source's own claim
+- **THEN** the raw mark and its decoded meaning SHALL still be present, unchanged, one row for one row
 
 
 <!-- @trace
-source: include-1994-2006-terms
-updated: 2026-08-20
+source: elected-column-swap
+updated: 2026-08-21
 code:
-  - scratch/strip_experiment.py
-  - scratch/verify_33.py
-  - scratch/verify_auth.py
-  - scratch/measure_2005_towns.py
-  - scratch/measure_2005.py
-  - scratch/review_q5.md
-  - scratch/measure_trunc.py
-  - scratch/verify_32.py
-  - scratch/review_q7.md
-  - scratch/baseline/votes.csv
-  - CLAUDE.md
-  - scratch/measure_town_feasible.py
+  - scratch/probe_districts.py
   - scratch/measure_town_codes.py
-  - data/processed/cec-local-election-votes-long.csv.gz
-  - scratch/gen_anomalies.py
-  - scratch/add_legacy_sources.py
-  - scratch/probe3.py
-  - AGENTS.md
-  - scratch/measure_2005d.py
-  - scratch/verify_pop2.py
-  - scratch/measure_whitespace.py
-  - scratch/review_q6.md
   - scratch/expected.txt
-  - scratch/verify_claims.py
-  - scratch/inventory_legacy.py
-  - scratch/verify_pop.py
-  - scratch/measure_2005e.py
-  - scratch/list_zip.py
-  - docs/schema/oracles.md
-  - scratch/probe_1994.py
-  - scratch/measure_pop2.py
-  - scratch/review_q4.md
-  - scratch/measure_2005b.py
-  - .spectra.yaml
-  - docs/schema/cec-local-election.md
-  - data/processed/cec-local-election-candidates-long.csv
-  - scratch/verify_identity.py
-  - scratch/gen_expected.py
-  - scratch/measure_2005c.py
-  - data/processed/cec-local-election-summary-long.csv.gz
-  - scratch/probe6.py
-  - scratch/measure_2005g.py
-  - scratch/probe4.py
-  - scratch/measure_2005f.py
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/probe2.py
-  - GEMINI.md
-  - scratch/baseline/summary.csv
-  - scratch/dryrun_manifest.py
-  - scratch/measure_auth_existing.py
-  - scratch/probe_anomalies.py
-  - scratch/chk_cw.py
-  - scripts/build_local_election.py
-  - scratch/probe_legacy_build.py
-  - scratch/add_defect7.py
-  - HANDOFF.md
-  - data/sources.json
-  - scripts/oracles.py
-  - scratch/verify_crosswalk.py
-  - scratch/verify_strip.py
-  - scratch/verify_review.py
-  - scratch/zip_names.json
+  - scratch/review_q3.md
   - scratch/chk1998t2.py
-  - README.md
-  - scratch/review_q2.md
+  - scratch/verify_21c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/zip_names.json
+  - .spectra.yaml
+  - scratch/measure_2005c.py
+  - scratch/measure_2005f.py
+  - scratch/add_defect7.py
+  - AGENTS.md
+  - scratch/verify_auth.py
+  - GEMINI.md
+  - scratch/probe3.py
+  - scratch/review_q4.md
+  - scratch/verify_crosswalk.py
+  - scratch/strip_experiment.py
+  - scratch/verify_claims.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005b.py
+  - scratch/dryrun_manifest.py
+  - scratch/gen_expected.py
+  - scratch/verify_pop2.py
+  - scratch/add_legacy_sources.py
+  - scratch/verify_11.py
+  - scratch/verify_21.py
+  - scratch/probe6.py
+  - scratch/chk_cw.py
+  - scratch/probe2.py
+  - scratch/measure_2005d.py
+  - scratch/verify_identity.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005e.py
+  - scratch/gen_anomalies.py
+  - scratch/list_zip.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_trunc.py
   - scratch/measure_pop.py
-  - data/processed/validation-report.json
   - scratch/gen_town_anom.py
-  - scratch/probe7.py
+  - scratch/review_q5.md
+  - scratch/build_1998_2002_crosswalk.py
+  - CLAUDE.md
+  - scratch/measure_auth_existing.py
+  - scratch/measure_whitespace.py
+  - scratch/verify_32.py
+  - scratch/probe4.py
+  - scratch/review_question.md
+  - scratch/probe_anomalies.py
+  - scratch/review_q6.md
+  - scratch/measure_town_feasible.py
+  - scratch/verify_review.py
   - scratch/baseline/candidates.csv
+  - scratch/measure_2005g.py
+  - scratch/probe_legacy_build.py
   - scratch/probe5.py
   - scratch/measure_ws2.py
-  - scratch/review_question.md
-  - data/processed/cec-county-code-crosswalk-1998-2002.csv
-  - scratch/review_q3.md
-  - scratch/inventory_legacy.json
-tests:
-  - scripts/test_build_local_election.py
-  - scratch/mutation_test.py
+  - scratch/verify_strip.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_pop2.py
+  - scratch/review_q2.md
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/probe_districts2.py
+  - scratch/baseline/votes.csv
 -->
 
 ---
 ### Requirement: Elected Status Compensating Checks
-The system SHALL validate `elected_authoritative` independently of the existing `elcand`
-checks, so that adding the derived field does not remove the ability to detect `elcand`
-corruption.
+The compensating check that bounds the named mark anomalies SHALL compare the value derived from the
+source mark against the cross-file derived value. It SHALL NOT compare the published elected column
+against the cross-file value once those two hold the same thing.
 
-#### Scenario: Existing elcand checks stay unchanged
-- **WHEN** the build validates `elprof` elected counts against `elcand`
-- **THEN** that check SHALL continue to use the `elcand`-derived `當選` field
+A check whose two sides are the same value passes for every row and raises nothing. The named anomaly
+list it guards then becomes a list nothing tests, and the corruption it was written to catch would
+reappear unnoticed.
 
-#### Scenario: Authoritative totals must reconcile
-- **WHEN** the build validates `elected_authoritative`
-- **THEN** the count SHALL equal the `elprof` elected count for the file, and for every
-  electoral district present at district level in `elprof`
+#### Scenario: The two sides of the check become the same value
+- **WHEN** the published elected column is changed to hold the cross-file derived value
+- **THEN** the check SHALL be re-pointed at the value derived from the source mark, and a mutation
+  restoring the same-value comparison SHALL be detected by the test suite
 
-#### Scenario: Disagreement with elcand must be named per candidate
-- **WHEN** `elected_authoritative` disagrees with the `elcand`-derived `當選`
-- **THEN** the build SHALL abort unless that candidate is listed individually in the known
-  anomaly set, and SHALL also abort if the set of disagreeing candidates is not exactly the
-  listed set — naming a whole file SHALL NOT be accepted
+#### Scenario: A check that asserts what the source claimed
+- **WHEN** a validation asserts whether the source file's own stated total is internally consistent
+- **THEN** it SHALL count from the source mark, not from the published elected column, because
+  counting from the published column makes the assertion compare the authoritative value against
+  itself — it then holds for every file, raises nothing, and reports no error while having stopped
+  detecting source corruption entirely
+
+#### Scenario: A report field labelled as the source's count
+- **WHEN** the validation report publishes both the source's count and the authoritative count
+- **THEN** the two SHALL be computed from different columns, so that a term whose source is corrupt
+  shows two different numbers rather than one number twice
+
+#### Scenario: A mark anomaly outside the named list
+- **WHEN** a candidate's source-derived status disagrees with the cross-file derived status and that
+  candidate is not on the named list
+- **THEN** the build SHALL abort, naming the term, election type, candidate and mark
+
 
 <!-- @trace
-source: include-1994-2006-terms
-updated: 2026-08-20
+source: elected-column-swap
+updated: 2026-08-21
 code:
-  - scratch/strip_experiment.py
-  - scratch/verify_33.py
-  - scratch/verify_auth.py
-  - scratch/measure_2005_towns.py
-  - scratch/measure_2005.py
-  - scratch/review_q5.md
-  - scratch/measure_trunc.py
-  - scratch/verify_32.py
-  - scratch/review_q7.md
-  - scratch/baseline/votes.csv
-  - CLAUDE.md
-  - scratch/measure_town_feasible.py
+  - scratch/probe_districts.py
   - scratch/measure_town_codes.py
-  - data/processed/cec-local-election-votes-long.csv.gz
-  - scratch/gen_anomalies.py
-  - scratch/add_legacy_sources.py
-  - scratch/probe3.py
-  - AGENTS.md
-  - scratch/measure_2005d.py
-  - scratch/verify_pop2.py
-  - scratch/measure_whitespace.py
-  - scratch/review_q6.md
   - scratch/expected.txt
-  - scratch/verify_claims.py
-  - scratch/inventory_legacy.py
-  - scratch/verify_pop.py
-  - scratch/measure_2005e.py
-  - scratch/list_zip.py
-  - docs/schema/oracles.md
-  - scratch/probe_1994.py
-  - scratch/measure_pop2.py
-  - scratch/review_q4.md
-  - scratch/measure_2005b.py
-  - .spectra.yaml
-  - docs/schema/cec-local-election.md
-  - data/processed/cec-local-election-candidates-long.csv
-  - scratch/verify_identity.py
-  - scratch/gen_expected.py
-  - scratch/measure_2005c.py
-  - data/processed/cec-local-election-summary-long.csv.gz
-  - scratch/probe6.py
-  - scratch/measure_2005g.py
-  - scratch/probe4.py
-  - scratch/measure_2005f.py
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/probe2.py
-  - GEMINI.md
-  - scratch/baseline/summary.csv
-  - scratch/dryrun_manifest.py
-  - scratch/measure_auth_existing.py
-  - scratch/probe_anomalies.py
-  - scratch/chk_cw.py
-  - scripts/build_local_election.py
-  - scratch/probe_legacy_build.py
-  - scratch/add_defect7.py
-  - HANDOFF.md
-  - data/sources.json
-  - scripts/oracles.py
-  - scratch/verify_crosswalk.py
-  - scratch/verify_strip.py
-  - scratch/verify_review.py
-  - scratch/zip_names.json
+  - scratch/review_q3.md
   - scratch/chk1998t2.py
-  - README.md
-  - scratch/review_q2.md
+  - scratch/verify_21c.py
+  - scratch/verify_33.py
+  - scratch/verify_pop.py
+  - scratch/zip_names.json
+  - .spectra.yaml
+  - scratch/measure_2005c.py
+  - scratch/measure_2005f.py
+  - scratch/add_defect7.py
+  - AGENTS.md
+  - scratch/verify_auth.py
+  - GEMINI.md
+  - scratch/probe3.py
+  - scratch/review_q4.md
+  - scratch/verify_crosswalk.py
+  - scratch/strip_experiment.py
+  - scratch/verify_claims.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005b.py
+  - scratch/dryrun_manifest.py
+  - scratch/gen_expected.py
+  - scratch/verify_pop2.py
+  - scratch/add_legacy_sources.py
+  - scratch/verify_11.py
+  - scratch/verify_21.py
+  - scratch/probe6.py
+  - scratch/chk_cw.py
+  - scratch/probe2.py
+  - scratch/measure_2005d.py
+  - scratch/verify_identity.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005e.py
+  - scratch/gen_anomalies.py
+  - scratch/list_zip.py
+  - scratch/inventory_legacy.py
+  - scratch/measure_trunc.py
   - scratch/measure_pop.py
-  - data/processed/validation-report.json
   - scratch/gen_town_anom.py
-  - scratch/probe7.py
+  - scratch/review_q5.md
+  - scratch/build_1998_2002_crosswalk.py
+  - CLAUDE.md
+  - scratch/measure_auth_existing.py
+  - scratch/measure_whitespace.py
+  - scratch/verify_32.py
+  - scratch/probe4.py
+  - scratch/review_question.md
+  - scratch/probe_anomalies.py
+  - scratch/review_q6.md
+  - scratch/measure_town_feasible.py
+  - scratch/verify_review.py
   - scratch/baseline/candidates.csv
+  - scratch/measure_2005g.py
+  - scratch/probe_legacy_build.py
   - scratch/probe5.py
   - scratch/measure_ws2.py
-  - scratch/review_question.md
-  - data/processed/cec-county-code-crosswalk-1998-2002.csv
-  - scratch/review_q3.md
-  - scratch/inventory_legacy.json
-tests:
-  - scripts/test_build_local_election.py
-  - scratch/mutation_test.py
+  - scratch/verify_strip.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_pop2.py
+  - scratch/review_q2.md
+  - scratch/probe_1994.py
+  - scratch/probe7.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/probe_districts2.py
+  - scratch/baseline/votes.csv
 -->
 
 ---
