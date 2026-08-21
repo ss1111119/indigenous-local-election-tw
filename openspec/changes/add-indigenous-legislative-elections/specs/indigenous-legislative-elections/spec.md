@@ -8,7 +8,7 @@ The dataset SHALL cover the mountain-indigenous and plain-indigenous legislative
 - **THEN** the counts SHALL be 3 for each category in 1995, 4 for each category in 1998, 2001 and 2004, and 3 for each category in 2008, 2012, 2016, 2020 and 2024
 
 #### Scenario: A source term fails to parse
-- **WHEN** any one of the eighteen source files cannot be parsed
+- **WHEN** any one of the ninety source files (eighteen term-category parts of five files each) cannot be parsed
 - **THEN** the build SHALL abort naming the term and category, and SHALL NOT write any output file
 
 ### Requirement: Legislative Data Is Published Separately From Local Office Data
@@ -33,16 +33,20 @@ Indigenous legislators are elected from a single nationwide constituency per cat
 - **WHEN** the district column in a term contains a value outside the set declared for that term and category
 - **THEN** the build SHALL abort naming the term, category, file, the declared set, and the value found
 
-### Requirement: A Term's Breakdown Never Silently Coarsens
-The finest administrative level present differs by term: the 1995 through 2004 elections are broken down to township level, and the 2008 through 2024 elections to polling-station level. A term SHALL NOT be published at a coarser breakdown than the one it has historically carried.
+### Requirement: A Term's Breakdown Is Declared, And Narrows Only Deliberately
+The finest administrative level available differs by term. A term's published breakdown SHALL be declared, and SHALL NOT become narrower than its declaration without the build aborting. A term MAY be published deliberately coarser than its source supports when the finer levels are known to be incomplete; such a narrowing SHALL be declared separately from the source's own depth, so that "the source lost rows" and "we chose not to publish these rows" remain distinguishable.
 
 #### Scenario: Fine-grained rows disappear from a source term
-- **WHEN** a term that has historically reached polling-station level yields only township-level rows
+- **WHEN** a term whose source has carried polling-station rows yields only township-level rows
 - **THEN** the build SHALL abort, because the totals would otherwise remain correct while the breakdown silently coarsened, and nothing in the output would say so
+
+#### Scenario: A term whose finer levels are known incomplete
+- **WHEN** a term's source reaches polling-station level but that level is known to be incomplete
+- **THEN** the incomplete levels SHALL be absent from the published tables rather than published with a caveat in the documentation, because a consumer reading the tables does not read the documentation first and the incomplete figures look entirely reasonable
 
 #### Scenario: A consumer checks what breakdown a term supports
 - **WHEN** a consumer needs to know whether a term can be analysed at polling-station level
-- **THEN** the documentation SHALL state the finest level per term, so that an empty result is distinguishable from an unsupported query
+- **THEN** the documentation SHALL state the published finest level per term, so that an empty result is distinguishable from an unsupported query
 
 ### Requirement: Elected Status Follows The Project's Established Column Convention
 The legislative tables SHALL carry elected status under the same convention as the local-office tables: the plainest-named elected column holds the cross-file determined value, the source's own mark and its decoding remain available unchanged, and the basis of the determination is published alongside. This convention SHALL hold even in terms where the source's mark and the official summary agree.
