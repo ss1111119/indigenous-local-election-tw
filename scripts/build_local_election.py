@@ -979,7 +979,10 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "現任": r[13],
             "當選註記": mark.strip(),
             "當選註記語意": WIN_MARKS[mark],
-            "當選": "Y" if mark in ELECTED_MARKS else "N",
+            # `當選` 與 `當選_依據` 在下方由 elctks 推導的權威值填入。
+            # 這裡先佔位，確保欄序穩定（`當選` 緊接在 `當選註記語意` 之後）。
+            "當選": "",
+            "當選_依據": "",
         })
 
     # ---- 當選權威值：由 elctks 推導，不覆寫 elcand ----
@@ -989,8 +992,15 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
     )
     for c, r in zip(candidates, cand):
         elected, basis = auth[tuple(r[:5]) + (r[5],)]
-        c["elected_authoritative"] = "true" if elected else "false"
-        c["elected_authoritative_basis"] = basis
+        # ⚠️ `當選` 存放【權威值】，不是來源的認定。
+        #    來源的認定完整保留在 `當選註記`（原樣）與 `當選註記語意`（解碼）；
+        #    `當選註記` 為 `*` 或 `!` 即為來源認定的當選。
+        #    這裡刻意不另立 `當選_原始`——那會是同一事實的第三份表述。
+        #
+        #    編碼維持 `Y`／`N`：同時改語意與編碼會讓靜默破壞最大化，
+        #    下游若寫死 `== "Y"` 會直接變成恆偽、席次算成 0。
+        c["當選"] = "Y" if elected else "N"
+        c["當選_依據"] = basis
 
     # ---- elctks：候選人得票 ----
     votes = []
@@ -1317,7 +1327,14 @@ def cross_validate(parts: list[dict], report: list[dict],
 
         # --- 4. elprof 的候選人數／當選人數 對得上 elcand 的實際列數 ---
         n_cand = len(p["candidates"])
-        n_win = sum(1 for c in p["candidates"] if c["當選"] == "Y")
+        # ⚠️ 這一項的語意是「elcand 自己宣稱的當選人數對不對」，所以只能數
+        #    【來源註記】。`當選` 現在存的是權威值（見 elected-column-swap），
+        #    拿它來數會恆等於 elprof 的當選人數——第 4 項的當選人數那一半
+        #    會**永遠不觸發**，再也偵測不到 elcand 損壞，而且不會有任何錯誤訊息。
+        #    下方 net 用的仍是 `當選`（權威值），那是刻意的：net 是具名異常
+        #    對「來源數 → 正確數」的淨補正量。
+        n_win = sum(1 for c in p["candidates"]
+                    if c["當選註記"] in ELECTED_MARKS)
         if n_cand != ft["候選人數"]:
             raise ValidationError(
                 f"{label} 候選人數不符：elprof={ft['候選人數']}、elcand={n_cand}"
@@ -1334,7 +1351,7 @@ def cross_validate(parts: list[dict], report: list[dict],
             if allow_m:
                 for c in p["candidates"]:
                     if (*area_key(c, with_station=False), c["號次"]) in allow_m:
-                        net += 1 if c["elected_authoritative"] == "true" else -1
+                        net += 1 if c["當選"] == "Y" else -1
             if not allow_m or n_win + net != ft["當選人數"]:
                 raise ValidationError(
                     f"{label} 當選人數不符：elprof={ft['當選人數']}、elcand={n_win}"
@@ -1349,7 +1366,7 @@ def cross_validate(parts: list[dict], report: list[dict],
         #    改掉就再也偵測不到 elcand 損壞。權威值另立這一項獨立檢查，
         #    兩者解耦。（2026-08-19 Codex 與 agy 兩邊外部覆核一致主張。）
         n_auth = sum(1 for c in p["candidates"]
-                     if c["elected_authoritative"] == "true")
+                     if c["當選"] == "Y")
         if n_auth != ft["當選人數"]:
             raise ValidationError(
                 f"{label} 當選權威值總數不符：elprof={ft['當選人數']}、"
@@ -1367,7 +1384,7 @@ def cross_validate(parts: list[dict], report: list[dict],
                 skipped_dist += 1
                 continue
             auth_by_dist.setdefault(d, 0)
-            if c["elected_authoritative"] == "true":
+            if c["當選"] == "Y":
                 auth_by_dist[d] += 1
         for d, want in prof_seats.items():
             got_seats = auth_by_dist.get(d)
@@ -1384,21 +1401,35 @@ def cross_validate(parts: list[dict], report: list[dict],
         )
         auth_mismatch = []
         for c in p["candidates"]:
-            if (c["elected_authoritative"] == "true") != (c["當選"] == "Y"):
+            # ⚠️ 比對的是【由來源註記推導的值】與【權威值】，**不是** `當選` 欄。
+            #
+            #    `當選` 欄即將改存權威值（見 change elected-column-swap）。屆時
+            #    「權威值 vs 當選」會變成「權威值 vs 權威值」——**永遠相等**，
+            #    這項檢查會靜默失效，而 KNOWN_ELECTED_MARK_ANOMALIES 那 63 筆
+            #    會變成一份沒有資料在測它的清單。不會有任何錯誤訊息。
+            #
+            #    來源的認定一律由 `當選註記` 現算，用的是既有的 ELECTED_MARKS，
+            #    不新增第二份判準。
+            source_says_elected = c["當選註記"] in ELECTED_MARKS
+            if (c["當選"] == "Y") != source_says_elected:
                 k = (*area_key(c, with_station=False), c["號次"])
                 if k in allow_marks:
+                    # ⚠️ 這筆紀錄的用途是「呈現兩邊分別怎麼認定」，
+                    #    兩個值必須來自不同的欄。`當選` 現在存的是權威值，
+                    #    所以來源那一側只能用 source_says_elected，
+                    #    不可再讀 `當選`——否則兩欄恆等，報告會失去它唯一的資訊。
                     auth_mismatch.append({
                         "單位": list(k), "姓名": c["姓名"],
                         "elcand當選註記": c["當選註記"],
-                        "elcand當選": c["當選"],
-                        "權威值": c["elected_authoritative"],
-                        "權威值依據": c["elected_authoritative_basis"],
+                        "由註記推導": "Y" if source_says_elected else "N",
+                        "權威值": c["當選"],
+                        "權威值依據": c["當選_依據"],
                     })
                 else:
                     raise ValidationError(
                         f"{label} 候選人 {k}（{c['姓名']}）的 elcand 當選註記"
                         f"{c['當選註記']!r} 與由 elctks 推導的權威值"
-                        f"{c['elected_authoritative']} 不一致，且未具名為已知異常"
+                        f"{c['當選']} 不一致，且未具名為已知異常"
                     )
         if allow_marks and len(auth_mismatch) != len(allow_marks):
             raise ValidationError(

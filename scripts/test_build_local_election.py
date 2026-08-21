@@ -685,29 +685,30 @@ def test_elected_authoritative() -> None:
 
     C = {c["姓名"]: c for c in p["candidates"]}
     check("三位候選人都在", sorted(C), ["乙", "杜春生", "甲"])
-    # 原欄位【原樣保留】——這是「不覆寫來源數字」的紀律
+    # 來源原樣【完整保留】——這是「不覆寫來源數字」的紀律。
+    # ⚠️ `當選` 現在存的是權威值，不是來源認定；來源認定看 `當選註記`。
     check("elcand 註記原樣保留（三人皆空白）",
           {c["當選註記"] for c in C.values()}, {""})
-    check("由 elcand 推導的 `當選` 原樣保留（三人皆 N）",
-          {c["當選"] for c in C.values()}, {"N"})
+    check("來源認定（由註記推導）三人皆未當選",
+          {c["當選註記"] in ELECTED_MARKS for c in C.values()}, {False})
     # 權威值由 elctks 推導
     check("甲：elctks 選舉區層級 '*' → 權威值當選",
-          C["甲"]["elected_authoritative"], "true")
+          C["甲"]["當選"], "Y")
     check("乙：elctks 選舉區層級 ' ' → 權威值未當選",
-          C["乙"]["elected_authoritative"], "false")
+          C["乙"]["當選"], "N")
     check("甲的依據是選舉區層級",
-          C["甲"]["elected_authoritative_basis"], "elctks_選舉區")
+          C["甲"]["當選_依據"], "elctks_選舉區")
     # ⚠️ 這一項是本組的核心：elcand 鄉鎮市區欄為 000，elctks 只有 033 那一列。
     #    若把鄉鎮市區欄也當成必須相等的鍵，這位候選人會完全對不上而中止。
     check("杜春生：elctks 只有鄉鎮市區層級的列 → 仍能推導出當選",
-          C["杜春生"]["elected_authoritative"], "true")
+          C["杜春生"]["當選"], "Y")
     check("杜春生的依據是鄉鎮市區層級",
-          C["杜春生"]["elected_authoritative_basis"], "elctks_鄉鎮市區")
+          C["杜春生"]["當選_依據"], "elctks_鄉鎮市區")
     # 乙在 11 區的鄉鎮市區層級也有一列（註記 ' '），但選舉區層級才是依據
     check("甲有多層級列時取最高層級（選舉區優先於鄉鎮市區）",
-          C["甲"]["elected_authoritative_basis"], "elctks_選舉區")
+          C["甲"]["當選_依據"], "elctks_選舉區")
     check("權威值當選人數 = 2（elprof 檔別合計也是 2）",
-          sum(1 for c in C.values() if c["elected_authoritative"] == "true"), 2)
+          sum(1 for c in C.values() if c["當選"] == "Y"), 2)
 
 
 @reports
@@ -886,16 +887,43 @@ def test_legacy_terms() -> None:
     check("當選註記異常筆數（2005 山原 28＋平原 33）", len(ema), 61)
     check("投票數超過選舉人數異常筆數（1998 山原寶山鄉）", len(ela), 1)
 
+    # ⚠️ 只數筆數不夠：兩側若取自同一欄，筆數仍是 61、這一項照樣通過，
+    #    但每一筆的兩個值會恆等，報告失去它唯一的資訊。
+    #    依定義能進這份清單就是因為兩邊不一致，故每一筆都必須相異。
+    check("異常紀錄的兩側取自不同來源",
+          [a["由註記推導"] == a["權威值"] for a in ema], [False] * len(ema))
+    check("由註記推導 與 elcand當選註記 相符",
+          [a["由註記推導"] == ("Y" if a["elcand當選註記"] in ELECTED_MARKS else "N")
+           for a in ema], [True] * len(ema))
+
+    # ⚠️ 報告的 `當選人數` 必須數【來源註記】、`當選人數_權威值` 數權威值。
+    #    若前者改讀 `當選`（現為權威值），它會恆等於 elprof 的當選人數，
+    #    第 4 項驗證的當選人數那一半就永遠不觸發——不會報錯，只會靜靜地
+    #    再也偵測不到 elcand 損壞。2005 兩檔的 20/27 與 18/30 是唯一能
+    #    分辨這兩者的真實資料。
+    by_key: dict[str, list[int]] = {}
+    for r in rep:
+        acc = by_key.setdefault(f"{r['年度']}-{r['選舉種類']}", [0, 0])
+        acc[0] += r["當選人數"]
+        acc[1] += r["當選人數_權威值"]
+    check("報告的來源席次與權威席次",
+          {k: tuple(v) for k, v in by_key.items()},
+          {"1998-T2": (23, 23), "1998-T3": (30, 30),
+           "2002-T2": (26, 26), "2002-T3": (30, 30),
+           "2005-T2": (20, 27), "2005-T3": (18, 30)})
+
     # 席次：2005 的 elcand 損壞，權威值才是正確席次
     seats = {}
     for p in parts:
         k = f"{p['year']}-{p['etype']}"
+        # ⚠️ 左為【來源認定】（由 elcand 註記推導）、右為【權威值】。
+        #    兩者必須取自不同的欄位——`當選` 現在存的是權威值，
+        #    左右都讀它會恆等，這一項就再也看不出 2005 兩檔的差異。
         seats[k] = (
+            sum(1 for c in p["candidates"] if c["當選註記"] in ELECTED_MARKS),
             sum(1 for c in p["candidates"] if c["當選"] == "Y"),
-            sum(1 for c in p["candidates"]
-                if c["elected_authoritative"] == "true"),
         )
-    check("elcand 席次與權威值席次", seats,
+    check("來源認定席次與權威值席次", seats,
           {"1998-T2": (23, 23), "1998-T3": (30, 30),
            "2002-T2": (26, 26), "2002-T3": (30, 30),
            "2005-T2": (20, 27), "2005-T3": (18, 30)})
@@ -985,7 +1013,7 @@ def test_custom_type_terms() -> None:
     for p in parts:
         k = (p["year"], p["etype"])
         seats[k] = seats.get(k, 0) + sum(
-            1 for c in p["candidates"] if c["elected_authoritative"] == "true")
+            1 for c in p["candidates"] if c["當選"] == "Y")
     check("各（屆別, 選舉種類）的權威值席次", seats,
           {("1994", "T-PRV3"): 2, ("1994", "T-PRV2"): 2,
            ("1994", "T-COMBO"): 2, ("1998", "T-COMBO"): 2,
@@ -996,9 +1024,11 @@ def test_custom_type_terms() -> None:
     # 1994 直轄市高雄市：elcand 標錯人，權威值標的是最高票者
     kh = [c for p in parts if (p["year"], p["etype"]) == ("1994", "T-COMBO")
           for c in p["candidates"] if c["省市"] == "02"]
-    got = {c["姓名"]: (c["當選"], c["elected_authoritative"]) for c in kh}
-    check("高玉生：elcand 未標當選、權威值當選", got["高玉生"], ("N", "true"))
-    check("吳福祥：elcand 標當選、權威值未當選", got["吳福祥"], ("Y", "false"))
+    # ⚠️ 比對的是【來源註記】與【權威值】。`當選` 現在存的是權威值，
+    #    拿它跟自己比會恆真——那正是 elected-column-swap 要防的靜默失效。
+    got = {c["姓名"]: (c["當選註記"], c["當選"]) for c in kh}
+    check("高玉生：elcand 未標當選、權威值當選", got["高玉生"], ("", "Y"))
+    check("吳福祥：elcand 標當選、權威值未當選", got["吳福祥"], ("*", "N"))
 
     # 選舉區欄不一致的宣告必須涵蓋這些檔
     check("選舉區欄不一致的宣告",
@@ -1193,8 +1223,17 @@ def test_regression() -> None:
         check(f"{key} 全國投票率", round(100.0 * v / e, 2), want["投票率"])
         cands = [c for c in C
                  if c["選舉種類"] == etype and c["年度"] == year]
-        check(f"{key} 當選人數（含婦女保障）",
-              sum(1 for c in cands if c["當選"] == "Y"), want["當選人數"])
+        # ⚠️ 兩個釘死值分別對應**不同的欄位**，不可都讀 `當選`：
+        #    `當選人數`      = 來源認定（由 elcand 註記推導）
+        #    `當選人數_權威值` = 由 elctks 跨檔推導，現存於 `當選`
+        #    2005 兩檔正是這兩個數字不同的地方（20 vs 27、18 vs 30）。
+        #    若兩項都讀 `當選`，前者會恆等於後者，那個差異就再也看不見。
+        check(f"{key} 來源認定的當選人數（含婦女保障）",
+              sum(1 for c in cands if c["當選註記"] in ELECTED_MARKS),
+              want["當選人數"])
+        check(f"{key} 權威值當選人數（含婦女保障）",
+              sum(1 for c in cands if c["當選"] == "Y"),
+              want["當選人數_權威值"])
 
     # 版面：2022 與 2018 不同，靠自我驗證分辨。套錯會得到看似合理的錯誤席次。
     got_layout: dict[str, int] = {}
@@ -1291,6 +1330,17 @@ def test_regression() -> None:
           [2, 2])
     check("已知當選註記異常數", len(report["已知來源異常_當選註記"]),
           EXPECTED["known_elected_mark_anomalies"])
+    # 這份紀錄的全部價值在於「兩邊分別怎麼認定」。若兩個欄位取自同一來源，
+    # 它們會恆等，報告仍有 63 筆、長度檢查照樣通過，但已不含任何資訊。
+    # 依定義：能進到這份清單就是因為兩邊不一致，所以每一筆都必須相異。
+    ema = report["已知來源異常_當選註記"]
+    check("異常紀錄的兩側取自不同來源（由註記推導 ≠ 權威值）",
+          [a["由註記推導"] == a["權威值"] for a in ema], [False] * len(ema))
+    # 再從註記端獨立重算一次：紀錄裡的 `由註記推導` 必須真的等於註記的解讀，
+    # 而不是隨便一個與權威值相反的值。
+    check("由註記推導 與 elcand當選註記 相符",
+          [a["由註記推導"] == ("Y" if a["elcand當選註記"] in ("*", "!") else "N")
+           for a in ema], [True] * len(ema))
     check("已知投票數超過選舉人數異常數",
           len(report["已知來源異常_投票數超過選舉人數"]),
           EXPECTED["known_elector_anomalies"])

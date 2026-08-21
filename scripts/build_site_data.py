@@ -48,9 +48,9 @@ CANDIDATES_FILE = "cec-local-election-candidates-long.csv"
 #    （拔掉會讀的欄位須得到 SiteDataError；缺少不讀的欄位須能正常算完），
 #    不是用「清單裡有沒有某個字串」這種跟著程式一起改的斷言。
 #
-# ⚠️ 缺欄即中止，不套用預設值也不跳過該欄。最要緊的是 elected_authoritative：
-#    少了它會退回用 `當選`，而 `當選` 忠實反映來源錯誤——2005 縣市議員山原以
-#    `當選` 只算出 18 席（正確 30）、平原 20（正確 27）。那種錯誤不會報錯，
+# ⚠️ 缺欄即中止，不套用預設值也不跳過該欄。最要緊的是 `當選`：
+#    少了它會退回用 `當選註記`，而註記忠實反映來源錯誤——2005 縣市議員山原以
+#    註記只算出 18 席（正確 30）、平原 20（正確 27）。那種錯誤不會報錯，
 #    只會讓站台安靜地少 19 席。
 REQUIRED_COLUMNS = {
     SUMMARY_FILE: (
@@ -63,7 +63,7 @@ REQUIRED_COLUMNS = {
         "年度", "選舉種類", "檔別",
         "省市", "縣市", "選舉區", "鄉鎮市區", "行政區名稱",
         "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",
-        "當選註記", "elected_authoritative",
+        "當選註記", "當選",
         "admin_code_system",
     ),
 }
@@ -227,9 +227,9 @@ def build_index_data(summary: list[dict], cands: list[dict],
                      only_terms: list[str] | None = None) -> dict:
     """算出 `docs/index.html` 的 `DATA` 常數。
 
-    ⚠️ 所有與當選有關的數字一律取自 `elected_authoritative`，不用 `當選`。
-    `當選` 忠實反映來源錯誤——2005 縣市議員山原以 `當選` 只算出 18 席
-    （正確 30）、平原 20（正確 27）。用錯欄位站台會安靜地少 19 席。
+    ⚠️ 所有與當選有關的數字一律取自 `當選`——**它現在存放的是跨檔比對後的
+    權威值**，不是來源怎麼寫。來源的認定在 `當選註記`，用它計席次會少算：
+    2005 縣市議員山原只有 18 席（正確 30）、平原 20（正確 27）。
     """
     all_terms = terms(summary)
     keep = set(only_terms) if only_terms else set(all_terms)
@@ -263,14 +263,14 @@ def build_index_data(summary: list[dict], cands: list[dict],
                 per_year[year] = None
                 continue
             tot = totals[k]
-            won = [c for c in rows if c["elected_authoritative"] == "true"]
+            won = [c for c in rows if c["當選"] == "Y"]
             uses_town = any(not is_blank(c["鄉鎮市區"]) for c in rows)
             dists: dict[tuple, dict[str, int]] = {}
             for c in rows:
                 d = dists.setdefault(district_key(c, uses_town),
                                      {"cands": 0, "seats": 0})
                 d["cands"] += 1
-                if c["elected_authoritative"] == "true":
+                if c["當選"] == "Y":
                     d["seats"] += 1
             # 同額競選：該選舉區的候選人數等於當選人數
             unc = [d for d in dists.values() if d["cands"] == d["seats"]]
@@ -280,7 +280,7 @@ def build_index_data(summary: list[dict], cands: list[dict],
             for c in rows:
                 b = party_bucket(c)
                 party[b][1] += 1
-                if c["elected_authoritative"] == "true":
+                if c["當選"] == "Y":
                     party[b][0] += 1
 
             turnout = (float(_round_half_up(
@@ -329,7 +329,7 @@ def build_index_data(summary: list[dict], cands: list[dict],
 def site_mark(row: dict) -> str:
     """名錄顯示的當選註記。
 
-    ⚠️ 當選與否取自 `elected_authoritative`，**不是** `當選註記`——後者忠實反映
+    ⚠️ 當選與否取自 `當選`（權威值），**不是** `當選註記`——後者忠實反映
     來源錯誤（2005 兩檔與 1994 高雄市）。但婦女保障 `!` 與被排擠 `-` 這兩個
     區別只存在於 `當選註記`，權威值欄無法表達，故那兩個值原樣保留：
       - `!` 婦女保障當選 —— 是當選，保留 `!` 以便站台區別呈現
@@ -340,7 +340,7 @@ def site_mark(row: dict) -> str:
     mark = row["當選註記"]
     if mark in ("!", "-"):
         return mark
-    return "*" if row["elected_authoritative"] == "true" else ""
+    return "*" if row["當選"] == "Y" else ""
 
 
 def build_roster_data(summary: list[dict], cands: list[dict],

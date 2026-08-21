@@ -78,7 +78,7 @@
             "id": "legacy-2005-elcand-elected-mark-broken",
             "summary": "2005 縣市議員的 elcand 當選註記損壞",
             "scope": "2005 縣市議員／山原、2005 縣市議員／平原",
-            "detail": "逐選舉區三源比對：山原（30 區）elprof vs elctks 29 區相符、elprof vs elcand 僅 18 區；平原（17 區）elprof vs elctks 17 區全符、elprof vs elcand 僅 6 區。唯一不符的屏東縣第十六選區為同額競選未投票（elctks 無該區任何列），三源其實一致。1998／2002 兩檔完全一致，只有 2005 壞。elprof 的候選人數與 elcand 列數完全相符，故 elcand 其餘欄位沒問題。正確席次：山原 30、平原 27。處置：elcand 當選註記【原樣保留】，另立由 elctks 星號（同額競選由 elprof 當選人數補）推導的權威欄位，並配補償性檢查。不覆寫來源數字。",
+            "detail": "逐選舉區三源比對：山原（30 區）elprof vs elctks 29 區相符、elprof vs elcand 僅 18 區；平原（17 區）elprof vs elctks 17 區全符、elprof vs elcand 僅 6 區。唯一不符的屏東縣第十六選區為同額競選未投票（elctks 無該區任何列），三源其實一致。1998／2002 兩檔完全一致，只有 2005 壞。elprof 的候選人數與 elcand 列數完全相符，故 elcand 其餘欄位沒問題。正確席次：山原 30、平原 27。處置：elcand 當選註記【原樣保留】，另立由 elctks 星號（同額競選由 elprof 當選人數補）推導的權威欄位，並配補償性檢查。不覆寫來源數字。⚠️ 2026-08-21 起長表的 `當選` 欄改存【跨檔比對後的權威值】，來源的認定保留在 `當選註記` 與 `當選註記語意`；`elected_authoritative` 欄已移除（其值即現在的 `當選`），`elected_authoritative_basis` 更名為 `當選_依據`。同名欄位的語意在此變更前後不同：更早的修訂版中 `當選` 存的是來源認定。候選人長表的欄位數由 29 變 28，不可用位置索引取值。",
             "silent": false,
             "abortsExistingChecks": "會同時撞上現有的第 4 項驗證（elprof 當選人數 vs elcand 列數）與第 7 項（兩檔註記一致）——兩個驗證都正常運作、會直接中止建置。"
           },

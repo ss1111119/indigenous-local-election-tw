@@ -116,7 +116,7 @@ def cand_row(**kw) -> dict:
 
 # 合成情境：一屆（"2000"）、一種選舉（"TX"）、兩個選舉區、四位候選人。
 #
-# 刻意讓 `當選` 與 `elected_authoritative` **不一致**，且不一致的方向與 2005
+# 刻意讓 `當選註記`（來源怎麼寫）與 `當選`（權威值）**不一致**，方向與 2005
 # 縣市議員原住民兩檔相同——來源少標了當選人。四個人的設計使每一項席次相關
 # 指標在兩種取法下都得到不同的數字；只要有一項改用 `當選`，就會被抓到。
 #
@@ -145,19 +145,19 @@ def _mixed_cands() -> list[dict]:
     return [
         cand_row(**base, 選舉區="01", 號次="1", 姓名="甲", 政黨代號="1", 政黨名稱="中國國民黨",
                  性別="男", 年齡="50", 現任="N",
-                 當選註記="*", elected_authoritative="true",
+                 當選註記="*", 當選="Y",
                  行政區名稱="測試縣第01選舉區"),
         cand_row(**base, 選舉區="01", 號次="2", 姓名="乙", 政黨代號="16", 政黨名稱="民主進步黨",
                  性別="女", 年齡="40", 現任="Y",
-                 當選註記="", elected_authoritative="true",
+                 當選註記="", 當選="Y",
                  行政區名稱="測試縣第01選舉區"),
         cand_row(**base, 選舉區="02", 號次="1", 姓名="丙", 政黨代號="1", 政黨名稱="中國國民黨",
                  性別="女", 年齡="45", 現任="N",
-                 當選註記="", elected_authoritative="false",
+                 當選註記="", 當選="N",
                  行政區名稱="測試縣第02選舉區"),
         cand_row(**base, 選舉區="02", 號次="2", 姓名="丁", 政黨代號="777", 政黨名稱="某小黨",
                  性別="男", 年齡="60", 現任="Y",
-                 當選註記="", elected_authoritative="false",
+                 當選註記="", 當選="N",
                  行政區名稱="測試縣第02選舉區"),
     ]
 
@@ -166,7 +166,7 @@ def _mixed_cands() -> list[dict]:
 
 @reports
 def test_seats_from_authoritative() -> None:
-    print("\n[合成] 席次相關指標一律取自 elected_authoritative，不是 `當選`")
+    print("\n[合成] 席次相關指標一律取自 `當選`（權威值），不是 `當選註記`")
     print("       來源漏標一位當選人（與 2005 兩檔同一方向），"
           "每一項指標在兩種取法下都不同")
     d = build_index_data(_mixed_summary(), _mixed_cands())
@@ -200,7 +200,7 @@ def test_seats_from_authoritative() -> None:
 def test_no_winners_does_not_divide_by_zero() -> None:
     print("\n[合成] 有候選人但權威值零當選：perSeat 為 None 而非 0 或例外")
     print("       真實資料沒有這種組合，--check 永遠走不到這條分支")
-    cands = [dict(c, elected_authoritative="false", 當選註記="")
+    cands = [dict(c, 當選="N", 當選註記="")
              for c in _mixed_cands()]
     y = build_index_data(_mixed_summary(), cands)["types"][0]["years"][_TERM]
     check("seats", y["seats"], 0)
@@ -228,16 +228,20 @@ def test_site_mark_branches() -> None:
           "所以真實資料改壞也測不出來")
 
     def mark(note: str, auth: str) -> str:
-        return site_mark({"當選註記": note, "elected_authoritative": auth})
+        return site_mark({"當選註記": note, "當選": auth})
 
-    check("`!` 婦女保障當選 → 保留 !", mark("!", "true"), "!")
-    check("`-` 因婦女保障被排擠 → 保留 -", mark("-", "false"), "-")
-    check("`*` 且權威值當選 → *", mark("*", "true"), "*")
-    check("空白且權威值未當選 → 空白", mark("", "false"), "")
+    check("`!` 婦女保障當選 → 保留 !", mark("!", "Y"), "!")
+    check("`-` 因婦女保障被排擠 → 保留 -", mark("-", "N"), "-")
+    check("`*` 且權威值當選 → *", mark("*", "Y"), "*")
+    check("空白且權威值未當選 → 空白", mark("", "N"), "")
     check("空白但權威值當選 → *（2005 兩檔的修復方向）",
-          mark("", "true"), "*")
+          mark("", "Y"), "*")
     check("`*` 但權威值未當選 → 空白（1994 高雄市的修復方向）",
-          mark("*", "false"), "")
+          mark("*", "N"), "")
+    # ⚠️ 編碼是 `Y`／`N`。舊值 `true`／`false` 必須被當成「未當選」，
+    #    不可因為 "true" 是非空字串就誤判為當選——那會讓一個過期的
+    #    呼叫端安靜地全部算成當選。
+    check("舊編碼 'true' 不再被當成當選", mark("", "true"), "")
 
 
 # ------------------------------------------------------ 三、主序列旗標的傳遞
@@ -263,7 +267,7 @@ def test_main_sequence_flag_passthrough() -> None:
         cand_row(年度=_TERM, 選舉種類="T-CUSTOM", 省市="10", 縣市="001",
                  選舉區="01", 鄉鎮市區="000", 號次="1", 姓名="戊",
                  政黨代號="1", 政黨名稱="中國國民黨", 性別="男", 年齡="55", 現任="N",
-                 當選註記="*", elected_authoritative="true",
+                 當選註記="*", 當選="Y",
                  行政區名稱="測試縣第01選舉區",
                  admin_code_system="test", 檔別="city"),
     ]
@@ -461,7 +465,7 @@ def test_missing_column_aborts_at_header() -> None:
         check("完整的合成表可讀取（summary 列數）", len(summ), 1)
         check("完整的合成表可讀取（candidates 列數）", len(cands), 4)
 
-    for col in ("鄉鎮市區", "admin_code_system", "elected_authoritative",
+    for col in ("鄉鎮市區", "admin_code_system", "當選",
                 "政黨代號"):
         with tempfile.TemporaryDirectory() as td:
             d = Path(td)

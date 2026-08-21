@@ -204,6 +204,33 @@ MUTATIONS = [
      '        raise OracleError(\n            f"檔別 {label!r} 為全國單一檔',
      '        return "縣市議員"  # noqa\n    if False:\n        raise OracleError(\n            f"檔別 {label!r} 為全國單一檔'),
 
+    # ---- 當選註記的補償檢查 ----
+    #
+    # ⚠️ 這兩項的辨識力都來自真實資料裡的那 63 筆具名異常，不需要合成資料。
+    ("補償檢查改回比對兩個權威值（兩側同源後恆不成立，一筆都收不到）",
+     "build_local_election.py",
+     '            source_says_elected = c["當選註記"] in ELECTED_MARKS\n'
+     '            if (c["當選"] == "Y") != source_says_elected:',
+     '            if (c["當選"] == "Y") != (c["當選"] == "Y"):'),
+    # 第 4 項的當選人數那一半會恆等於 elprof，永不觸發、也不會報錯。
+    ("驗證4 的 n_win 改數權威值（elcand 損壞從此偵測不到，且無錯誤訊息）",
+     "build_local_election.py",
+     '        n_win = sum(1 for c in p["candidates"]\n'
+     '                    if c["當選註記"] in ELECTED_MARKS)',
+     '        n_win = sum(1 for c in p["candidates"] if c["當選"] == "Y")'),
+    # 報告會保有 63 筆、長度檢查照樣通過，但兩欄變成恆等、資訊歸零。
+    ("異常紀錄的兩側改讀同一欄（報告仍有 63 筆但不再含資訊）",
+     "build_local_election.py",
+     '                        "由註記推導": "Y" if source_says_elected else "N",',
+     '                        "由註記推導": c["當選"],'),
+    # 恆真同義反覆的偵測器：白名單清空後建置必須中止。
+    # 若仍通過，代表那個檢查早已失去對真實異常的辨識力。
+    ("當選註記異常的具名白名單被清空（那 63 筆應立刻變成中止）",
+     "build_local_election.py",
+     "KNOWN_ELECTED_MARK_ANOMALIES: dict[tuple, set] = {",
+     "KNOWN_ELECTED_MARK_ANOMALIES: dict[tuple, set] = {}\n"
+     "_UNUSED_ANOMALIES: dict[tuple, set] = {"),
+
     # ---- 年齡的未記載哨兵（判準由站台端搬到這裡）----
     #
     # ⚠️ 這些變異的辨識力來自 test_build_local_election.py 的合成斷言，

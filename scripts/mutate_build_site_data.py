@@ -47,15 +47,15 @@ COPIED = ("build_site_data.py", "test_build_site_data.py")
 MUTATIONS = [
     # ---- 席次取自權威值 ----
     ("index：當選與否改用來源註記 `當選註記 == '*'`",
-     'won = [c for c in rows if c["elected_authoritative"] == "true"]',
+     'won = [c for c in rows if c["當選"] == "Y"]',
      'won = [c for c in rows if c["當選註記"] == "*"]'),
     ("index：選舉區內的席次改用來源註記（同額競選會算錯）",
-     '                if c["elected_authoritative"] == "true":\n'
+     '                if c["當選"] == "Y":\n'
      '                    d["seats"] += 1',
      '                if c["當選註記"] == "*":\n'
      '                    d["seats"] += 1'),
     ("index：政黨當選數改用來源註記",
-     '                if c["elected_authoritative"] == "true":\n'
+     '                if c["當選"] == "Y":\n'
      '                    party[b][0] += 1',
      '                if c["當選註記"] == "*":\n'
      '                    party[b][0] += 1'),
@@ -63,7 +63,7 @@ MUTATIONS = [
      '    mark = row["當選註記"]\n'
      '    if mark in ("!", "-"):\n'
      '        return mark\n'
-     '    return "*" if row["elected_authoritative"] == "true" else ""',
+     '    return "*" if row["當選"] == "Y" else ""',
      '    return row["當選註記"]'),
     ("roster：`!` 不再原樣保留（婦女保障當選被寫成一般當選）",
      '    if mark in ("!", "-"):',
