@@ -525,13 +525,25 @@ SEMANTIC_LEVELS = {
 
 
 def check_manifest(actual_columns: dict[str, list[str]]) -> list[str]:
-    """比對 manifest 與實際輸出欄位，回傳問題清單。
+    """比對【地方公職】manifest 與實際輸出欄位，回傳問題清單。
 
     這個檢查是 manifest 不腐爛的唯一保證：新增欄位而未宣告 oracle 就會被擋下。
     """
+    return check_manifest_against(MANIFEST, actual_columns)
+
+
+def check_manifest_against(manifest: dict,
+                           actual_columns: dict[str, list[str]]) -> list[str]:
+    """同上，但 manifest 由呼叫端指定。
+
+    ⚠️ 抽出這一層是為了讓立委長表用同一套檢查邏輯，而**不必把立委的表
+       加進 MANIFEST**。`build_local_election.py` 會把 MANIFEST 逐項寫進
+       `validation-report.json`——往 MANIFEST 加東西會改動那個檔案，
+       違反「既有輸出位元組不變」。
+    """
     problems = []
     for table, cols in actual_columns.items():
-        declared = MANIFEST.get(table)
+        declared = manifest.get(table)
         if declared is None:
             problems.append(f"{table}：manifest 中沒有這張表")
             continue
@@ -603,3 +615,204 @@ def render_markdown() -> str:
             )
         out.append("")
     return "\n".join(out)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 原住民立法委員長表的欄位 oracle
+# ══════════════════════════════════════════════════════════════════════
+#
+# ⚠️ 這是**獨立於 MANIFEST 的第二份清單**，不是把立委的表加進 MANIFEST。
+#    build_local_election.py 會把 MANIFEST 逐項寫進 validation-report.json，
+#    往裡面加東西會改動那個既有產物、違反「既有輸出位元組不變」。
+
+_LEG_SHARED = {
+    "年度": dict(
+        provenance="project", structure="本專案指定的屆別標籤",
+        arithmetic=None, semantic="project-defined",
+        note="以投票年份標示。第 3-6 屆的來源資料夾以屆次命名，"
+             "對應年份 1995／1998／2001／2004 為本專案推定",
+    ),
+    "選舉種類": dict(
+        provenance="project", structure="本專案指定",
+        arithmetic=None, semantic="project-defined",
+        note="⚠️ L2／L3 是【本專案自訂】代碼，來源只以資料夾名稱區分。"
+             "刻意與地方公職議員的 T2／T3 區隔——兩者都叫平地／山地原住民，"
+             "但一個是議員、一個是立委，共用代碼會讓兩個資料集併看時無法分辨",
+    ),
+    "選舉種類名稱": dict(
+        provenance="project", structure="本專案指定",
+        arithmetic=None, semantic="project-defined", note=None,
+    ),
+    "admin_code_system": dict(
+        provenance="project", structure="由屆別推導",
+        arithmetic=None, semantic="project-defined",
+        note="⚠️ 三套系統：1995-2008／2012／2016+。2012 那一屆的縣市碼與其他兩期"
+             "都不同（宜蘭縣 1995 與 2020 皆為 002、2012 為 001，而 001 在 1995 是"
+             "臺北縣）。不同系統的列不可直接以代碼相接",
+    ),
+    "層級": dict(
+        provenance="project", structure="由補零規則推導",
+        arithmetic=None, semantic="official-doc",
+        note="依官方格式文件的補零規則判定。⚠️ 立委無「選舉區」層級——"
+             "該欄只是常數標記，實測 72 個來源檔無任何一列以它為最深層級",
+    ),
+    "省市": dict(provenance="official", structure="official-doc（欄位順序）",
+                arithmetic=None, semantic="official-doc", note=None),
+    "縣市": dict(provenance="official", structure="official-doc",
+                arithmetic=None, semantic="official-doc", note=None),
+    "選舉區": dict(
+        provenance="official", structure="official-doc", arithmetic=None,
+        semantic="official-doc",
+        note="⚠️ 原樣保留但【不帶選區意義】。取值由檔決定不是由屆別決定："
+             "elbase 恆為 00、elcand 恆為 01、elctks／elprof 在 2012 起 00 與 01 並存",
+    ),
+    "選舉區_語意": dict(
+        provenance="project", structure="由選舉種類推導",
+        arithmetic=None, semantic="project-defined",
+        note="九屆皆為「無選區意義（全國單一選區）」。逐列輸出而非省略——"
+             "省略等於要求讀者先讀文件才知道這一欄不能拿來分組",
+    ),
+    "鄉鎮市區": dict(provenance="official", structure="official-doc",
+                  arithmetic=None, semantic="official-doc", note=None),
+    "村里": dict(
+        provenance="official", structure="official-doc", arithmetic=None,
+        semantic="official-doc",
+        note="⚠️ 首碼可能是英文（2016／2020 的跨村里投開票所，官方格式文件明載）。"
+             "不可轉數值，也不可假設首碼為數字",
+    ),
+    "投開票所": dict(provenance="official", structure="official-doc",
+                  arithmetic=None, semantic="official-doc", note=None),
+    "行政區名稱": dict(
+        provenance="official", structure="elbase 對照", arithmetic=None,
+        semantic="official-table",
+        note="⚠️ 查表時【忽略選舉區欄】。elbase 該欄恆為 00 而 elprof／elctks "
+             "從 2012 起為 01，含進去會讓每屆 8,000 個以上單位查不到名稱",
+    ),
+    "縣市_正規化": dict(
+        provenance="project", structure="由 data/reference 的對照表換算",
+        arithmetic=None, semantic="project-defined",
+        note="⚠️ 五組升格改名為具名的多對一合併（高雄縣＋舊高雄市→高雄市等），"
+             "以現行行政區劃加總是正確語意，但無法區分合併前的縣與市——"
+             "要區分請用 行政區名稱 或原碼",
+    ),
+    "鄉鎮市區_正規化": dict(
+        provenance="project", structure="一律留空", arithmetic=None,
+        semantic="project-defined",
+        note="⚠️ 空字串代表【未正規化】，不是資料缺漏。鄉鎮市區碼跨屆重編"
+             "（秀林鄉 1995 為 011、2004 為 003、2020 為 110，而 011 在 2020 是別的鄉），"
+             "本專案沒有跨屆的權威對照。刻意不放原始碼——放了會讓 join 成功執行但對錯行政區",
+    ),
+}
+
+LEGISLATIVE_MANIFEST = {
+    "legislative_summary": {
+        **_LEG_SHARED,
+        "有效票": dict(provenance="official", structure="official-doc（idx6）",
+                     arithmetic="等於同單位 elctks 得票數總和（三處具名例外）",
+                     semantic="official-doc", note=None),
+        "無效票": dict(provenance="official", structure="official-doc（idx7）",
+                     arithmetic=None, semantic="official-doc", note=None),
+        "投票數": dict(provenance="official", structure="official-doc（idx8）",
+                     arithmetic="有效票＋無效票", semantic="official-doc", note=None),
+        "選舉人數": dict(provenance="official", structure="official-doc（idx9）",
+                      arithmetic=None, semantic="cross-population", note=None),
+        "人口數": dict(
+            provenance="official", structure="official-doc（idx10）",
+            arithmetic=None, semantic="official-doc",
+            note="⚠️ 只在鄉鎮市區以上有值；1995-2004 更只在縣市以上有值。"
+                 "細層級為 0 代表【該層級不適用】，不是人口為零",
+        ),
+        "候選人數": dict(
+            provenance="official", structure="由 detect_layout 逐檔偵測",
+            arithmetic="等於該檔 elcand 列數", semantic="official-doc",
+            note="⚠️ 版面不一致，必須逐檔偵測：2024 兩檔為「男女合計」、"
+                 "其餘十六檔為「合計在前」。依官方格式文件的欄位順序假設會在 2024 取錯",
+        ),
+        "當選人數": dict(
+            provenance="official", structure="由 detect_layout 逐檔偵測",
+            arithmetic="等於釘死的應選名額，也等於 當選 欄為 Y 的列數",
+            semantic="official-doc",
+            note="席次逐屆不同：1995 各 3、1998／2001／2004 各 4、2008 起各 3",
+        ),
+        "版面": dict(provenance="project", structure="由 detect_layout 偵測",
+                   arithmetic=None, semantic="project-defined", note=None),
+        "投票率_檔案": dict(
+            provenance="official", structure="official-doc（idx18）",
+            arithmetic=None, semantic="official-doc",
+            note="⚠️ 原樣保留，含來源錯誤：1998 山地立委有三列寫 0.00 而實際有投票數",
+        ),
+        "投票率_重算": dict(
+            provenance="project", structure="投票數除以選舉人數，四捨五入至小數 2 位",
+            arithmetic="100×投票數÷選舉人數", semantic="project-defined",
+            note="其餘 17 個檔逐列與 投票率_檔案 相符、零不符",
+        ),
+    },
+    "legislative_candidates": {
+        **{k: v for k, v in _LEG_SHARED.items()
+           if k not in ("層級", "投開票所")},
+        "號次": dict(provenance="official", structure="official-doc（idx5）",
+                   arithmetic=None, semantic="official-doc", note=None),
+        "姓名": dict(provenance="official", structure="official-doc（idx6）",
+                   arithmetic=None, semantic="official-doc", note="原樣，未正規化"),
+        "政黨代號": dict(provenance="official", structure="official-doc（idx7）",
+                     arithmetic=None, semantic="official-table",
+                     note="全部可在同檔 elpaty 內找到（實測十八檔零缺漏）"),
+        "政黨名稱": dict(provenance="official", structure="elpaty 對照",
+                     arithmetic=None, semantic="official-table", note=None),
+        "性別": dict(provenance="official", structure="official-doc（idx8）",
+                   arithmetic=None, semantic="official-doc", note="1:男 2:女"),
+        "年齡": dict(
+            provenance="project", structure="由 年齡_原始 經哨兵判定後留空或原值",
+            arithmetic=None, semantic="project-defined",
+            note="⚠️ 乾淨值：無資料留空，可直接 AVG。哨兵 99 涵蓋 1995／1998／2001／2004，"
+                 "那四屆 72 人全部是 99。**與地方公職的哨兵屆別不同**（只有 1998 重疊）",
+        ),
+        "年齡_原始": dict(
+            provenance="official", structure="official-doc（idx10）",
+            arithmetic=None, semantic="official-doc",
+            note="來源原值，含哨兵 99。官方格式文件：可能 0 或 99 表示無資料",
+        ),
+        "現任": dict(provenance="official", structure="official-doc（idx13）",
+                   arithmetic=None, semantic="official-doc", note="Y／N"),
+        "當選註記": dict(
+            provenance="official", structure="official-doc（idx14）",
+            arithmetic=None, semantic="official-doc",
+            note="⚠️ 來源原樣（已去除尾隨空白）。實測只出現 *、空白、空字串三種，"
+                 "無 ! 或 -。這一欄反映【來源怎麼寫】",
+        ),
+        "當選註記語意": dict(provenance="project", structure="由當選註記解碼",
+                       arithmetic=None, semantic="official-doc", note=None),
+        "當選": dict(
+            provenance="project", structure="由 elctks 跨檔推導",
+            arithmetic="為 Y 的列數等於 elprof 當選人數，也等於釘死的應選名額",
+            semantic="project-defined",
+            note="⚠️ 存放【權威判定】而非來源認定。實測十八檔與 當選註記 零不符——"
+                 "與地方公職 2005 的 63 筆損壞不同，這批目前沒有已知損壞。"
+                 "維持同一結構是因為檢查的價值在於來源將來變壞時會中止",
+        ),
+        "當選_依據": dict(
+            provenance="project", structure="推導時所取的 elctks 層級",
+            arithmetic=None, semantic="project-defined",
+            note="實測 163 列全部為 elctks_檔別合計",
+        ),
+    },
+    "legislative_votes": {
+        **_LEG_SHARED,
+        "號次": dict(provenance="official", structure="official-doc（idx6）",
+                   arithmetic=None, semantic="official-doc",
+                   note="號次集合與同檔 elcand 完全相同（實測十八檔）"),
+        "得票數": dict(provenance="official", structure="official-doc（idx7）",
+                    arithmetic="細層級加總等於檔別合計（四處具名例外）",
+                    semantic="official-doc", note=None),
+        "得票率": dict(
+            provenance="official", structure="official-doc（idx8）",
+            arithmetic=None, semantic="none",
+            note="⚠️ 原樣保留（已去除尾隨空白）。本專案【未】重算驗證此欄",
+        ),
+        "當選註記": dict(provenance="official", structure="official-doc（idx9）",
+                     arithmetic=None, semantic="official-doc",
+                     note="elctks 自己的註記，與 elcand 的是兩個獨立來源"),
+        "當選註記語意": dict(provenance="project", structure="由當選註記解碼",
+                       arithmetic=None, semantic="official-doc", note=None),
+    },
+}

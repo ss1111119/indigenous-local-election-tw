@@ -21,8 +21,10 @@ from __future__ import annotations
 import collections
 import csv
 import io
+import json
 import sys
 import zipfile
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +41,14 @@ from build_local_election import (  # noqa: E402
     ValidationError,
     ZIP_PATH,
     admin_level,
+    detect_layout,
     is_blank,
     read_csv,
     zip_names,
+)
+from oracles import (  # noqa: E402
+    LEGISLATIVE_MANIFEST,
+    check_manifest_against,
 )
 
 # 各來源檔的欄數。逐列檢查，只驗「至少幾欄」會讓多出來的欄位靜默通過。
@@ -196,6 +203,21 @@ FINEST_LEVEL_BY_TERM = {
     "2008": "投開票所", "2012": "投開票所", "2016": "投開票所",
     "2020": "投開票所", "2024": "投開票所",
 }
+
+# 每屆【實際輸出到】的最細層級。
+#
+# ⚠️ 這與 FINEST_LEVEL_BY_TERM 是**兩件不同的事**，不可合併成一個字典：
+#      FINEST_LEVEL_BY_TERM   = 來源檔應該達到多細（用來驗證來源沒有整批遺失）
+#      PUBLISHED_LEVEL_BY_TERM = 我們決定輸出到多細（用來排除已知不完整的層級）
+#
+#    2016 是唯一兩者不同的屆別：來源確實有投開票所層級，但那一層不完整——
+#    正式版有 1,402 個村里單位在 elctks 沒有對應列、50 個單位的有效票與
+#    elctks 加總不符，投開票所層級另有 4,396 個無對應。鄉鎮市區以上實測完全相符。
+#
+#    若把兩者合併成一個值，就得在「宣告來源到鄉鎮市區」（於是來源真的變粗時
+#    不會被抓到）與「宣告到投開票所」（於是不完整的列會流進輸出）之間二選一。
+#    兩個都不行，所以分成兩個宣告。
+PUBLISHED_LEVEL_BY_TERM = dict(FINEST_LEVEL_BY_TERM, **{"2016": "鄉鎮市區"})
 
 
 def check_finest_level(year: str, etype: str, stem: str,
@@ -362,15 +384,52 @@ def available_terms() -> list[str]:
     return list(TERMS)
 
 
+# 行政區代碼系統，具名到屆別。
+#
+# ⚠️ 三套系統，而且 **2012 那一屆的縣市編號與其他兩期都不同**：
+#      1995-2008  省市 03／04，23 個縣市，宜蘭縣 = 002
+#      2012       省市 06／07，17 個縣市，宜蘭縣 = 001   ← 五都升格後整組重編
+#      2016-2024  省市 09／10，16 個縣市，宜蘭縣 = 002   ← 內政部戶役政代碼
+#
+#    1995-2008 與 2016-2024 的縣市編號**恰好相同**，只有 2012 不同——
+#    這使得「抽兩屆比對就以為安全」特別容易發生。而 `001` 在 2012 是宜蘭縣、
+#    在 1995 是**臺北縣**：跨屆 join 會把兩者接在一起，成功執行且無錯誤訊息。
+#
+#    這一欄就是為了讓下游在 join 之前看得到這件事。不同 admin_code_system
+#    的列不可直接以代碼相接。
+ADMIN_CODE_SYSTEM_BY_TERM = {
+    "1995": "1995-2008", "1998": "1995-2008", "2001": "1995-2008",
+    "2004": "1995-2008", "2008": "1995-2008",
+    "2012": "2012",
+    "2016": "2016+", "2020": "2016+", "2024": "2016+",
+}
+
+# 三張長表共用的前綴欄位。順序在此定義一次，三處引用。
+_COMMON = (
+    "年度", "選舉種類", "選舉種類名稱", "admin_code_system",
+    "層級", "省市", "縣市", "選舉區", "選舉區_語意",
+    "鄉鎮市區", "村里", "投開票所", "行政區名稱",
+    "縣市_正規化", "鄉鎮市區_正規化",
+)
+
 # 候選人長表的欄序。列組裝一律照這個清單產生，不在別處各寫一份。
+# ⚠️ 候選人列沒有層級與投開票所（elcand 的第 6 欄是號次不是投開票所）。
 CANDIDATE_COLUMNS = (
-    "年度", "選舉種類", "選舉種類名稱",
+    "年度", "選舉種類", "選舉種類名稱", "admin_code_system",
     "省市", "縣市", "選舉區", "選舉區_語意", "鄉鎮市區", "村里", "行政區名稱",
     "縣市_正規化", "鄉鎮市區_正規化",
     "號次", "姓名", "政黨代號", "政黨名稱", "性別",
     "年齡", "年齡_原始", "現任",
     "當選註記", "當選註記語意", "當選", "當選_依據",
 )
+
+SUMMARY_COLUMNS = _COMMON + (
+    "有效票", "無效票", "投票數", "選舉人數", "人口數",
+    "候選人數", "當選人數", "版面",
+    "投票率_檔案", "投票率_重算",
+)
+
+VOTES_COLUMNS = _COMMON + ("號次", "得票數", "得票率", "當選註記", "當選註記語意")
 
 
 def source_paths(year: str, etype: str) -> dict[str, str]:
@@ -487,6 +546,7 @@ def build_candidates(year: str, etype: str, cand: list[list[str]],
             "年度": year,
             "選舉種類": etype,
             "選舉種類名稱": ELECTION_TYPES[etype],
+            "admin_code_system": ADMIN_CODE_SYSTEM_BY_TERM[year],
             "省市": r[0], "縣市": r[1], "選舉區": r[2],
             "選舉區_語意": district_meaning(year, etype),
             "鄉鎮市區": r[3], "村里": r[4],
@@ -594,6 +654,325 @@ def check_seat_total(year: str, etype: str, cand: list[dict],
         )
 
 
+# 縣市代碼對照表的路徑。
+#
+# ⚠️ 這是【輸入】，不是建置產物，所以放在 data/reference/ 而不是 data/processed/。
+#    HANDOFF.md 記過一次事故：地方公職的對照表放在 data/processed/，
+#    而「清空輸出目錄再重跑」這個很自然的動作會把它一起刪掉，然後建置失敗。
+COUNTY_CROSSWALK_PATH = ROOT / "data" / "reference" / \
+    "cec-legislative-county-crosswalk.csv"
+
+
+def load_county_crosswalk() -> dict[tuple[str, str, str], tuple[str, str, str]]:
+    """讀縣市代碼對照表：(代碼系統, 省市, 縣市) → (正規化省市, 正規化縣市, 名稱)。"""
+    if not COUNTY_CROSSWALK_PATH.exists():
+        raise ValidationError(
+            f"找不到縣市代碼對照表 {COUNTY_CROSSWALK_PATH}。"
+            f"它是輸入檔而非產物，入版控於 data/reference/。")
+    out = {}
+    with COUNTY_CROSSWALK_PATH.open(encoding="utf-8", newline="") as fh:
+        for r in csv.DictReader(fh):
+            out[(r["admin_code_system"], r["省市"], r["縣市"])] = (
+                r["正規化_省市"], r["正規化_縣市"], r["正規化_名稱"])
+    if not out:
+        raise ValidationError("縣市代碼對照表沒有任何資料列")
+    return out
+
+
+def normalise_geo(rows: list[dict], crosswalk: dict,
+                  used: set) -> None:
+    """就地填入 `縣市_正規化`；`鄉鎮市區_正規化` 一律留空。
+
+    ⚠️ **鄉鎮市區碼不做正規化，欄位留空。** 空字串代表「未正規化」，不是資料缺漏。
+       刻意不放原始碼：放了會讓 `(縣市, 鄉鎮市區)` 的 join 成功執行但**對錯行政區**。
+       實測秀林鄉的鄉鎮市區碼 1995 是 `011`、2004 是 `003`、2020 是 `110`，
+       而 `011` 在 2020 是別的鄉。本專案沒有跨屆的鄉鎮市區權威對照，
+       在有之前留空是唯一不會靜默出錯的做法。
+
+    ⚠️ 縣市層級以上的列（檔別合計）沒有縣市碼，正規化欄同樣留空。
+    """
+    for row in rows:
+        system, prov, county = row["admin_code_system"], row["省市"], row["縣市"]
+        if is_blank(prov) and is_blank(county):
+            continue                      # 檔別合計列，沒有縣市可正規化
+        key = (system, prov, county)
+        if key not in crosswalk:
+            raise ValidationError(
+                f"{row['年度']} {row['選舉種類']} 的縣市碼 {prov},{county}"
+                f"（代碼系統 {system}）不在對照表內。"
+                f"未具名的代碼不可靜默放行——它可能是新的代碼系統。")
+        cp, cc, _ = crosswalk[key]
+        row["縣市_正規化"] = f"{cp}{cc}"
+        used.add(key)
+
+
+# 正規化後允許「多個來源名稱對應到同一個鍵」的具名合併。
+#
+# ⚠️ 這五組是升格改名的**同一塊土地**：高雄縣＋舊高雄市→高雄市、臺北縣→新北市、
+#    臺中縣＋舊臺中市→臺中市、臺南縣＋舊臺南市→臺南市、桃園縣→桃園市。
+#    以現行行政區劃加總是正確的語意。
+#
+# ⚠️ 但**必須逐組具名**。若不具名而只寫「允許多對一」，哪天對照表寫錯把
+#    兩個不相干的縣市併在一起，加總會照樣執行、數字看起來完全合理。
+NAMED_COUNTY_MERGES = {
+    "64000": {"高雄市", "高雄縣"},
+    "65000": {"新北市", "臺北縣"},
+    "66000": {"臺中市", "臺中縣"},
+    "67000": {"臺南市", "臺南縣"},
+    "68000": {"桃園市", "桃園縣"},
+}
+
+
+def check_named_merges_only(rows: list[dict]) -> None:
+    """正規化鍵若對應到多個來源名稱，必須恰為具名的合併之一。
+
+    ⚠️ 比對的是【集合相等】不是【子集合】。只驗「不超出具名範圍」會讓
+       某個合併少掉一半（例如高雄縣不見了）而無人察覺。
+    """
+    # ⚠️ 只看【縣市層級】的列。更細層級的 `行政區名稱` 是鄉鎮市區名，
+    #    把它們一起看會讓每個縣的鍵都對應到一堆鄉鎮名而恆為多對一。
+    seen: dict[str, set] = collections.defaultdict(set)
+    for row in rows:
+        if row["層級"] == "直轄市縣市" and row["縣市_正規化"] and row["行政區名稱"]:
+            seen[row["縣市_正規化"]].add(row["行政區名稱"])
+    multi = {k: v for k, v in seen.items() if len(v) > 1}
+    if set(multi) != set(NAMED_COUNTY_MERGES):
+        raise ValidationError(
+            f"正規化後出現多對一的鍵為 {sorted(multi)}，具名的為 "
+            f"{sorted(NAMED_COUNTY_MERGES)}。多出的可能是對照表把不相干的"
+            f"縣市併在一起——加總會照常執行、數字看起來完全合理。")
+    for key, names in multi.items():
+        if names != NAMED_COUNTY_MERGES[key]:
+            raise ValidationError(
+                f"正規化鍵 {key} 對應到 {sorted(names)}，具名為 "
+                f"{sorted(NAMED_COUNTY_MERGES[key])}")
+
+
+# ═══ 具名來源瑕疵 ═══
+#
+# ⚠️ 四項的成因**全部已查明**，而且形態相同：**錯的一律是彙總列，細層級是對的**。
+#    因此檢查的方向是「以細層級為準核對彙總列」，不是反過來——反過來會把
+#    正確的細層級判成異常（例如把 2004 和平鄉那 58 票標記成鄉鎮市區資料有問題）。
+#
+# ⚠️ 不覆寫來源。四項都原樣輸出，只逐一具名並要求不符集合恰等於具名集合。
+
+# 一、1995 的檔別合計列在兩位候選人之間錯置 1 票。
+#     縣市加總與鄉鎮市區加總彼此一致且與檔別合計不同（二對一），
+#     九人合計則完全正確。已確認不影響當選名次。
+#     值為 {(屆別, 選舉種類): {號次: 檔別合計 − 細層級加總}}
+KNOWN_FILE_TOTAL_DRIFT = {
+    ("1995", "L2"): {"1": -1, "3": 1},   # 章仁香 少 1、莊金生 多 1
+    ("1995", "L3"): {"3": -1, "4": 1},   # 高揚昇 少 1、鍾思錦 多 1
+}
+
+# 二、elprof 有效票與 elctks 同單位加總不符的具名單位。
+#     值為 {(屆別, 選舉種類): {(省市, 縣市): elprof − elctks}}
+#     2004 那兩筆是同一件事：臺中縣和平鄉（03,006,021）的 58 票
+#     被計入彰化縣的縣市合計列。逐候選人差額 14/6/3/6/15/9/5 與該鄉票數吻合。
+KNOWN_VALID_VOTE_DRIFT = {
+    ("2001", "L2"): {("01", "000"): 22},    # 臺北市：林正二的縣市列少 22
+    ("2004", "L2"): {("03", "006"): 58,     # 臺中縣：少了和平鄉的 58 票
+                     ("03", "007"): -58},   # 彰化縣：多了那 58 票
+}
+
+# 三、投票率欄寫 0.00 但實際有投票數的具名列。
+#     值為 {(屆別, 選舉種類): {(省市, 縣市, 選舉區, 鄉鎮市區, 村里, 投開票所): 重算值}}
+KNOWN_ZERO_TURNOUT = {
+    ("1998", "L3"): {
+        ("03", "011", "00", "025", "0000", "0"): "66.67",   # 臺南縣南化鄉 2/3
+        ("04", "002", "00", "002", "0000", "0"): "25.00",   # 連江縣北竿鄉 1/4
+        ("04", "002", "00", "003", "0000", "0"): "100.00",  # 連江縣莒光鄉 1/1
+    },
+}
+
+
+def check_file_total_drift(year: str, etype: str,
+                           ctks: list[list[str]]) -> list[dict]:
+    """檔別合計列與細層級加總的差異，必須恰等於具名清單。"""
+    finest = FINEST_LEVEL_BY_TERM[year]
+    fine: dict[str, int] = collections.defaultdict(int)
+    total: dict[str, int] = {}
+    for r in ctks:
+        lv = admin_level(r[:6])
+        v = int(r[7].strip()) if r[7].strip() else 0
+        if lv == finest:
+            fine[r[6]] += v
+        elif lv == "檔別合計":
+            total[r[6]] = v
+    drift = {num: total[num] - fine.get(num, 0)
+             for num in total if total[num] != fine.get(num, 0)}
+    named = KNOWN_FILE_TOTAL_DRIFT.get((year, etype), {})
+    if drift != named:
+        raise ValidationError(
+            f"{year} {etype} 檔別合計與細層級加總的差異為 {drift}，"
+            f"具名為 {named}。多一筆代表出現未記錄的新異常，少一筆代表記錄過期。")
+    return [{"屆別": year, "選舉種類": etype, "號次": num,
+             "檔別合計減細層級加總": d} for num, d in sorted(named.items())]
+
+
+def check_valid_vote_drift(year: str, etype: str, prof: list[list[str]],
+                           ctks: list[list[str]]) -> list[dict]:
+    """elprof 有效票與 elctks 同單位加總的差異，必須恰等於具名清單。
+
+    ⚠️ 只比對**已輸出的層級**。2016 的村里以下不輸出，那一層的 50 筆不符
+       不在此檢查範圍內——它們是不輸出的理由，不是要具名放行的異常。
+    """
+    tks: dict[tuple, int] = collections.defaultdict(int)
+    for r in ctks:
+        if row_is_published(year, r[:6]):
+            tks[tuple(r[:6])] += int(r[7].strip()) if r[7].strip() else 0
+    drift = {}
+    for r in prof:
+        if not row_is_published(year, r[:6]):
+            continue
+        k = tuple(r[:6])
+        if k not in tks:
+            continue
+        want = int(r[6].strip()) if r[6].strip() else 0
+        if tks[k] != want:
+            drift[(r[0], r[1])] = drift.get((r[0], r[1]), 0) + want - tks[k]
+    named = KNOWN_VALID_VOTE_DRIFT.get((year, etype), {})
+    if drift != named:
+        raise ValidationError(
+            f"{year} {etype} 的 elprof 有效票與 elctks 加總差異為 {drift}，"
+            f"具名為 {named}。")
+    return [{"屆別": year, "選舉種類": etype, "省市": k[0], "縣市": k[1],
+             "elprof減elctks": d} for k, d in sorted(named.items())]
+
+
+def check_zero_turnout(year: str, etype: str,
+                       rows: list[dict]) -> list[dict]:
+    """投票率寫 0 但實際有投票數的列，必須恰等於具名清單。"""
+    found = {}
+    for r in rows:
+        electors = int(r["選舉人數"]) if r["選舉人數"] else 0
+        votes = int(r["投票數"]) if r["投票數"] else 0
+        if electors and votes and r["投票率_檔案"] in ("0.00", "0", ""):
+            found[(r["省市"], r["縣市"], r["選舉區"],
+                   r["鄉鎮市區"], r["村里"], r["投開票所"])] = r["投票率_重算"]
+    named = KNOWN_ZERO_TURNOUT.get((year, etype), {})
+    if found != named:
+        raise ValidationError(
+            f"{year} {etype} 投票率為 0 但有投票數的列為 {found}，具名為 {named}。")
+    return [{"屆別": year, "選舉種類": etype, "單位": list(k), "重算投票率": v}
+            for k, v in sorted(named.items())]
+
+
+def check_crosswalk_fully_used(crosswalk: dict, used: set) -> None:
+    """對照表不得有從未被使用的列。
+
+    ⚠️ 多餘的列代表記錄過期或代碼寫錯——兩者都會在下次來源變動時
+       讓錯的對照靜默生效。沿用地方公職既有的同一項紀律。
+    """
+    stale = set(crosswalk) - used
+    if stale:
+        raise ValidationError(
+            f"縣市代碼對照表有 {len(stale)} 列從未被使用：{sorted(stale)}")
+
+
+def row_is_published(year: str, codes: list[str]) -> bool:
+    """該列的層級是否進入輸出。
+
+    ⚠️ 2016 的正式版在村里以下不完整——1,402 個單位在 elctks 沒有對應列、
+       50 個單位的有效票與 elctks 加總不符，投開票所層級另有 4,396 個無對應。
+       鄉鎮市區以上實測完全相符。
+
+       決定：**不輸出已知不完整的數字**，而不是輸出後在文件裡加註。
+       文件加註的問題是：拿到 CSV 的人不會先讀文件，而那些數字看起來完全合理。
+
+       （`old/` 那份在細層級是自洽的，但它用的是本專案遇到的第四套代碼系統，
+       與任何其他屆都對不起來，為了一屆的細層級去建專用對照表不划算。）
+    """
+    want = PUBLISHED_LEVEL_BY_TERM[year]
+    return ADMIN_LEVELS.index(admin_level(codes)) <= ADMIN_LEVELS.index(want)
+
+
+def _geo(year: str, etype: str, codes: list[str],
+         names: dict[tuple, str]) -> dict:
+    """三張長表共用的前綴欄位。`codes` 為六碼行政區代碼。"""
+    prov, county, dist, town, village, station = codes[:6]
+    return {
+        "年度": year,
+        "選舉種類": etype,
+        "選舉種類名稱": ELECTION_TYPES[etype],
+        "admin_code_system": ADMIN_CODE_SYSTEM_BY_TERM[year],
+        "層級": admin_level(codes),
+        "省市": prov, "縣市": county,
+        "選舉區": dist, "選舉區_語意": district_meaning(year, etype),
+        "鄉鎮市區": town, "村里": village, "投開票所": station,
+        "行政區名稱": names.get((prov, county, town, village), ""),
+        "縣市_正規化": "",
+        "鄉鎮市區_正規化": "",
+    }
+
+
+def build_summary(year: str, etype: str, prof: list[list[str]],
+                  names: dict[tuple, str]) -> list[dict]:
+    """組裝選舉概況長表。
+
+    ⚠️ 候選人數與當選人數**必須經 detect_layout() 逐檔偵測**。官方格式文件記為
+       「候選合計, 當選合計, 男, 女」，但實測 2024 兩個檔是「男, 女, 合計」版面。
+       依文件假設會在 2024 拿到錯的數字，且不會報錯。
+    """
+    out = []
+    for r in prof:
+        if not row_is_published(year, r[:6]):
+            continue
+        n = [int(c.strip()) if c.strip().isdigit() else 0 for c in r]
+        layout, ncand, nwin = detect_layout(n)
+        electors, votes = n[9], n[8]
+        row = _geo(year, etype, r[:6], names)
+        row.update({
+            "有效票": r[6].strip(), "無效票": r[7].strip(),
+            "投票數": r[8].strip(), "選舉人數": r[9].strip(),
+            "人口數": r[10].strip(),
+            "候選人數": str(ncand), "當選人數": str(nwin),
+            "版面": layout,
+            "投票率_檔案": r[18].strip(),
+            "投票率_重算": (
+                str((Decimal(votes) * 100 / Decimal(electors)).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP))
+                if electors else ""),
+        })
+        out.append(row)
+    _check_columns(out, SUMMARY_COLUMNS, "summary")
+    return out
+
+
+def build_votes(year: str, etype: str, ctks: list[list[str]],
+                names: dict[tuple, str]) -> list[dict]:
+    """組裝候選人得票長表。"""
+    out = []
+    for r in ctks:
+        if not row_is_published(year, r[:6]):
+            continue
+        mark = r[9].strip()
+        if mark not in WIN_MARKS:
+            raise ValidationError(
+                f"{year} {etype} elctks 的當選註記 {r[9]!r} 不是官方定義的四個值之一")
+        row = _geo(year, etype, r[:6], names)
+        row.update({
+            "號次": r[6], "得票數": r[7].strip(), "得票率": r[8].strip(),
+            "當選註記": mark, "當選註記語意": WIN_MARKS[mark],
+        })
+        out.append(row)
+    _check_columns(out, VOTES_COLUMNS, "votes")
+    return out
+
+
+def _check_columns(rows: list[dict], want: tuple[str, ...], label: str) -> None:
+    """每一列的欄位集合必須恰等於宣告。多一欄少一欄都中止。
+
+    ⚠️ 「多一欄」尤其要擋：來源新增欄位時若整列複製，個資或未驗證的值會
+       靜默流進輸出，而沒有任何錯誤訊息。
+    """
+    for row in rows:
+        if set(row) != set(want):
+            raise ValidationError(
+                f"{label} 列的欄位集合不符："
+                f"多 {sorted(set(row) - set(want))}、少 {sorted(set(want) - set(row))}")
+
+
 def area_names(base: list[list[str]]) -> dict[tuple, str]:
     """由 elbase 建（省市, 縣市, 鄉鎮市區, 村里）→ 名稱的對照。
 
@@ -613,6 +992,178 @@ def area_names(base: list[list[str]]) -> dict[tuple, str]:
     return out
 
 
+def build_report(summary: list[dict], cands: list[dict], votes: list[dict],
+                 anomalies: dict[str, list], source_sha: str) -> dict:
+    """組裝驗證報告。
+
+    ⚠️ `當選人數` 與 `當選人數_權威值` **必須取自不同欄位**：
+       前者數 `當選註記`（來源怎麼寫）、後者數 `當選`（跨檔推導的權威值）。
+       兩者若同源會恆等，報告看起來完整卻不含任何資訊——地方公職那邊
+       正是這樣靜默失效過一次（見 elected-column-swap）。
+    """
+    by_key: dict[tuple, dict] = {}
+    for c in cands:
+        k = (c["年度"], c["選舉種類"])
+        e = by_key.setdefault(k, {"候選人數": 0, "當選人數": 0,
+                                  "當選人數_權威值": 0, "女性候選人數": 0,
+                                  "女性當選人數": 0})
+        e["候選人數"] += 1
+        if c["當選註記"] in ELECTED_MARKS:      # 來源怎麼寫
+            e["當選人數"] += 1
+        if c["當選"] == "Y":                    # 跨檔推導的權威值
+            e["當選人數_權威值"] += 1
+            if c["性別"] == "2":
+                e["女性當選人數"] += 1
+        if c["性別"] == "2":
+            e["女性候選人數"] += 1
+
+    for s in summary:
+        if s["層級"] != "檔別合計":
+            continue
+        e = by_key[(s["年度"], s["選舉種類"])]
+        e.update({
+            "選舉人數": int(s["選舉人數"]), "投票數": int(s["投票數"]),
+            "有效票": int(s["有效票"]), "無效票": int(s["無效票"]),
+            "投票率_檔案": s["投票率_檔案"], "投票率_重算": s["投票率_重算"],
+            "版面": s["版面"],
+        })
+
+    per_term = []
+    for (year, etype), e in sorted(by_key.items()):
+        per_term.append({
+            "年度": year, "選舉種類": etype,
+            "選舉種類名稱": ELECTION_TYPES[etype],
+            "應選名額_釘死值": SEATS_BY_TERM[year],
+            "admin_code_system": ADMIN_CODE_SYSTEM_BY_TERM[year],
+            "最細輸出層級": PUBLISHED_LEVEL_BY_TERM[year],
+            **e,
+        })
+
+    return {
+        "來源檔": ZIP_PATH.name,
+        "來源檔sha256": source_sha,
+        "涵蓋屆別": list(TERMS),
+        "選舉種類": ELECTION_TYPES,
+        "⚠️選舉種類代碼為本專案自訂": (
+            "L2／L3 不是中選會原始檔裡的代碼。來源只以資料夾名稱區分，"
+            "本專案以 L 前綴與地方公職議員的 T2／T3 區隔。"),
+        "各屆別選舉種類": per_term,
+        "已知來源瑕疵": {k: v for k, v in sorted(anomalies.items())},
+        "欄位oracle摘要": {
+            table: {
+                "欄數": len(fields),
+                "語意層分布": dict(collections.Counter(
+                    d["semantic"] for d in fields.values())),
+                "無算術oracle的欄數": sum(
+                    1 for d in fields.values() if not d["arithmetic"]),
+            } for table, fields in LEGISLATIVE_MANIFEST.items()
+        },
+        "列數": {"summary": len(summary), "candidates": len(cands),
+                "votes": len(votes)},
+    }
+
+
+def process_one(zf: zipfile.ZipFile, names: dict[str, str],
+                year: str, etype: str) -> dict:
+    """解析並驗證一個（屆別, 選舉種類），回傳其三張表的列與具名異常。
+
+    ⚠️ **這個函式的存在是為了讓測試能實跑管線。** 測試若只讀已建好的長表，
+       對原始碼變異一律無感——變異改的是程式碼、不會重建成品。本專案在
+       這件事上已經吃過三次虧（見 HANDOFF「驗證要能失敗」）。
+       main() 與測試都必須走這裡，不可各有一套流程。
+    """
+    paty = {r[0]: r[1] for r in load_source(zf, names, year, etype, "elpaty")}
+    base = load_source(zf, names, year, etype, "elbase")
+    names_map = area_names(base)
+    prof = load_source(zf, names, year, etype, "elprof")
+    ctks = load_source(zf, names, year, etype, "elctks")
+    cand_raw = load_source(zf, names, year, etype, "elcand")
+
+    for stem, rows in (("elbase", base), ("elcand", cand_raw),
+                       ("elctks", ctks), ("elprof", prof)):
+        check_district_values(year, etype, stem, rows)
+        if stem in ("elprof", "elctks"):
+            check_finest_level(year, etype, stem, rows)
+
+    cand = build_candidates(year, etype, cand_raw, paty, names_map)
+    derive_elected(year, etype, ctks, cand)
+    check_elected_agreement(year, etype, cand)
+
+    nat = [r for r in prof if all(is_blank(c) for c in r[:6])]
+    if len(nat) != 1:
+        raise ValidationError(
+            f"{year} {etype} elprof 的全國合計列有 {len(nat)} 筆，應恰為 1")
+    n = [int(c.strip()) if c.strip().isdigit() else 0 for c in nat[0]]
+    _, _, prof_seats = detect_layout(n)
+    check_seat_total(year, etype, cand, prof_seats)
+
+    summary = build_summary(year, etype, prof, names_map)
+    votes = build_votes(year, etype, ctks, names_map)
+
+    return {
+        "summary": summary, "candidates": cand, "votes": votes,
+        "elprof當選人數": prof_seats,
+        "anomalies": {
+            "檔別合計錯置": check_file_total_drift(year, etype, ctks),
+            "有效票與得票加總不符": check_valid_vote_drift(
+                year, etype, prof, ctks),
+            "投票率為零但有投票數": check_zero_turnout(year, etype, summary),
+        },
+    }
+
+
+def render_csv(rows: list[dict], cols: tuple[str, ...]) -> bytes:
+    """輸出 UTF-8-SIG 的 CSV，欄序固定、換行固定為 \\n。
+
+    ⚠️ 換行寫死為 `\\n`：Windows 上若讓 csv 模組用預設的 `\\r\\n`，
+       產出的位元組會與 Linux 不同，SHA-256 對照就失去意義。
+    """
+    buf = io.StringIO(newline="")
+    w = csv.DictWriter(buf, fieldnames=list(cols), lineterminator="\n",
+                       extrasaction="raise")
+    w.writeheader()
+    w.writerows(rows)
+    return buf.getvalue().encode("utf-8-sig")
+
+
+def gzip_bytes(payload: bytes) -> bytes:
+    """gzip 壓縮，**固定 mtime=0**。
+
+    ⚠️ 不固定 mtime 的話，同樣的輸入每次會產生不同的位元組——
+       gzip 標頭含時間戳。可重現性的斷言會因此變成擲骰子。
+       抽成函式是為了讓測試能直接驗這一點（測 write_outputs 要寫真檔）。
+    """
+    import gzip
+
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as fh:
+        fh.write(payload)
+    return buf.getvalue()
+
+
+def write_outputs(summary: list[dict], cand: list[dict],
+                  votes: list[dict]) -> dict[str, int]:
+    """寫出三張長表。"""
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    files = {
+        "cec-legislative-election-summary-long.csv.gz":
+            (render_csv(summary, SUMMARY_COLUMNS), True),
+        "cec-legislative-election-candidates-long.csv":
+            (render_csv(cand, CANDIDATE_COLUMNS), False),
+        "cec-legislative-election-votes-long.csv.gz":
+            (render_csv(votes, VOTES_COLUMNS), True),
+    }
+    sizes = {}
+    for name, (payload, compress) in files.items():
+        if compress:
+            payload = gzip_bytes(payload)
+        tmp = OUT_DIR / (name + ".tmp")
+        tmp.write_bytes(payload)
+        tmp.replace(OUT_DIR / name)
+        sizes[name] = len(payload)
+    return sizes
+
+
 def main() -> int:
     print("原住民立委長表建置")
     print(f"  來源：{ZIP_PATH}")
@@ -623,9 +1174,57 @@ def main() -> int:
         print(f"    {year}  應選 {SEATS_BY_TERM[year]} 席（每一選舉種類各自）")
 
     with zipfile.ZipFile(ZIP_PATH) as zf:
-        resolved = resolve_all_sources(zip_names(zf))
-    print(f"\n  來源路徑解析完成：{len(resolved)} 個（屆別, 選舉種類）、"
-          f"{len(resolved) * len(SOURCE_FILES)} 個檔全部存在")
+        names = zip_names(zf)
+        resolve_all_sources(names)
+        summary, cands, votes = [], [], []
+        anomalies: dict[str, list] = collections.defaultdict(list)
+        for year in TERMS:
+            for etype in ELECTION_TYPES:
+                part = process_one(zf, names, year, etype)
+                cands += part["candidates"]
+                summary += part["summary"]
+                votes += part["votes"]
+                for kind, items in part["anomalies"].items():
+                    anomalies[kind] += items
+                print(f"    {year} {etype}  候選 {len(part['candidates']):>3}"
+                      f"  當選 {part['elprof當選人數']}"
+                      f"  最細輸出層級 {PUBLISHED_LEVEL_BY_TERM[year]}")
+
+    crosswalk = load_county_crosswalk()
+    used: set = set()
+    for rows in (summary, cands, votes):
+        normalise_geo(rows, crosswalk, used)
+    check_crosswalk_fully_used(crosswalk, used)
+    check_named_merges_only(summary)
+    print(f"\n  縣市正規化：對照表 {len(crosswalk)} 列全部使用到")
+
+    problems = check_manifest_against(LEGISLATIVE_MANIFEST, {
+        "legislative_summary": list(SUMMARY_COLUMNS),
+        "legislative_candidates": list(CANDIDATE_COLUMNS),
+        "legislative_votes": list(VOTES_COLUMNS),
+    })
+    if problems:
+        raise ValidationError(
+            "欄位 oracle 清單與實際輸出不符：" + "；".join(problems))
+    print(f"\n  欄位 oracle：三張表共 "
+          f"{sum(len(v) for v in LEGISLATIVE_MANIFEST.values())} 欄全部已宣告")
+
+    import hashlib
+    source_sha = hashlib.sha256(ZIP_PATH.read_bytes()).hexdigest()
+    report = build_report(summary, cands, votes, anomalies, source_sha)
+    (OUT_DIR / "legislative-validation-report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+
+    sizes = write_outputs(summary, cands, votes)
+    print(f"\n  輸出 {len(summary):,} / {len(cands):,} / {len(votes):,} 列"
+          f"（summary / candidates / votes）")
+    for name, size in sizes.items():
+        print(f"    {name}  {size:,} bytes")
+    print("\n  具名來源瑕疵（原樣輸出，不覆寫）：")
+    for kind, items in sorted(anomalies.items()):
+        print(f"    {kind}: {len(items)} 筆")
+    print("  所有自我驗證通過。")
     return 0
 
 
