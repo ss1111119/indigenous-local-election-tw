@@ -31,8 +31,12 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_age_valid_column_in_output")
 
 MUTATIONS = [
+    # ⚠️ 字串必須唯一。`"T-COMBO": "直轄市議員` 在 oracles.py 出現兩次
+    #    （CUSTOM_ELECTION_TYPES 與 _FIXED_OFFICE），故帶上完整名稱。
     ("自訂代碼去掉連字號（變成兩字元、與官方代碼無法分辨）",
-     "oracles.py", '"T-COMBO": "直轄市議員', '"TC": "直轄市議員'),
+     "oracles.py",
+     '"T-COMBO": "直轄市議員(原住民，未分平地／山地)選舉",',
+     '"TC": "直轄市議員(原住民，未分平地／山地)選舉",'),
     ("主序列改成一律 true（1994 與合併類別會混進折線）",
      "oracles.py", "return etype not in CUSTOM_ELECTION_TYPES", "return True"),
     ("1998 與 2002 標成同一套代碼系統",
@@ -105,10 +109,14 @@ MUTATIONS = [
      "build_local_election.py",
      '    key = (year, etype, code)',
      '    key = (year, etype, code) if False else (year, "T2", code)'),
+    # ⚠️ 這一行在 summary／candidates／votes 三處列組裝各出現一次，
+    #    故帶上後一行以指定 summary 那一處。
     ("鄉鎮市區_正規化 直接放原始碼（偽裝成標準鍵的毒藥）",
      "build_local_election.py",
-     '"鄉鎮市區_正規化": "" if town_local else r[3],',
-     '"鄉鎮市區_正規化": r[3],'),
+     '"鄉鎮市區_正規化": "" if town_local else r[3],\n'
+     '            "有效票": valid,',
+     '"鄉鎮市區_正規化": r[3],\n'
+     '            "有效票": valid,'),
     ("TOWN_CODES_FILE_LOCAL 漏掉 2005（2005 縣市碼全域但鄉鎮市區碼仍重編）",
      "build_local_election.py",
      '    ("2005", "T2"), ("2005", "T3"),\n}',
@@ -155,18 +163,26 @@ MUTATIONS = [
      "oracles.py",
      '    "T-COMBO": "直轄市議員(原住民，未分平地／山地)選舉",',
      ""),
+    # ⚠️ 這三個鍵在 KNOWN_* 與 DISTRICT_COLUMN_INCONSISTENT 兩張表都出現，
+    #    且 elctks 的 {"01"} 在四個直轄市檔各出現一次。全部帶上後一行以指定。
     ("選舉區欄不一致的宣告漏掉 1994 平原2",
      "build_local_election.py",
-     '    ("1994", "T-PRV2", "平原2"): {',
-     '    ("1994", "T-PRV2", "_never"): {'),
+     '    ("1994", "T-PRV2", "平原2"): {\n'
+     '        "elbase": {"00"}, "elcand": {"02"},',
+     '    ("1994", "T-PRV2", "_never"): {\n'
+     '        "elbase": {"00"}, "elcand": {"02"},'),
     ("選舉區欄不一致的宣告漏掉 2006 直轄市",
      "build_local_election.py",
-     '    ("2006", "T-COMBO", "直轄市"): {',
-     '    ("2006", "T-COMBO", "_never"): {'),
-    ("選舉區欄的允許值宣告錯（elctks 的 01 改宣告成 00）",
+     '    ("2006", "T-COMBO", "直轄市"): {\n'
+     '        "elbase": {"00"}, "elcand": {"00"},',
+     '    ("2006", "T-COMBO", "_never"): {\n'
+     '        "elbase": {"00"}, "elcand": {"00"},'),
+    ("選舉區欄的允許值宣告錯（1994 直轄市的 elctks 01 改宣告成 00）",
      "build_local_election.py",
-     '"elprof": {"00"}, "elctks": {"01"},',
-     '"elprof": {"00"}, "elctks": {"00"},'),
+     '    ("1994", "T-COMBO", "直轄市"): {\n'
+     '        "elbase": {"00"}, "elcand": {"00"}, "elprof": {"00"}, "elctks": {"01"},',
+     '    ("1994", "T-COMBO", "直轄市"): {\n'
+     '        "elbase": {"00"}, "elcand": {"00"}, "elprof": {"00"}, "elctks": {"00"},'),
     ("選舉區欄的允許值檢查被拿掉",
      "build_local_election.py",
      "            if got != allowed_dist[kind]:",
@@ -175,10 +191,15 @@ MUTATIONS = [
      "build_local_election.py",
      "                if got_sum != up[\"有效票\"]:",
      "                if False:"),
+    # ⚠️ `if up is None:` 出現兩次：一次在寶山鄉補償檢查裡（後接 continue）、
+    #    一次在孤兒單位這裡（後接 raise）。原本的字串一直改到前者，
+    #    也就是這個變異從來沒測過它描述的東西。帶上後一行以指定。
     ("孤兒單位的父單位不存在時不中止",
      "build_local_election.py",
-     "                if up is None:",
-     "                if False:"),
+     "                if up is None:\n"
+     "                    raise ValidationError(",
+     "                if False:\n"
+     "                    raise ValidationError("),
     ("驗證7 的鍵不套用選舉區正規化（四個直轄市檔等於什麼都沒驗）",
      "build_local_election.py",
      "            if drop_district:\n                k = (k[0], k[1], \"00\") + tuple(k[3:])\n            return (*k, row[\"號次\"])",
@@ -320,8 +341,16 @@ def main() -> int:
         prepare()   # 與基準對照用同一份複製邏輯，兩邊的檔案清單不會各自漂移
         target = MUT / fname
         src = target.read_text(encoding="utf-8")
-        if old not in src:
-            print(f"{i}. ★ 變異字串找不到，變異測試本身壞了：{desc}")
+        # ⚠️ 必須【恰好出現一次】。只驗「有沒有出現」會讓不唯一的字串
+        #    靜默改到第一個出現的地方——那未必是描述所指的那一處。
+        #    實測 2026-08-21：59 項裡有 6 項字串不唯一，其中「孤兒單位的
+        #    父單位不存在」用的 `if up is None:` 出現兩次，一直在改寶山鄉
+        #    補償檢查的 continue，而不是它描述的那一行。
+        #    **變異測試自己測錯地方，比漏網更難察覺**——它會顯示為
+        #    「偵測到」或「漏網」，但兩者都與描述無關。
+        n = src.count(old)
+        if n != 1:
+            print(f"{i}. ★ 變異字串出現 {n} 次（須恰為 1），變異測試本身壞了：{desc}")
             rc = 1
             continue
         target.write_text(src.replace(old, new, 1), encoding="utf-8")
