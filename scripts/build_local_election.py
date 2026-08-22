@@ -617,6 +617,12 @@ COUNTY_CROSSWALK_PATH = (
     ROOT / "data" / "reference" / "cec-county-code-crosswalk-1998-2002.csv"
 )
 
+# 鄉鎮市區層級的對照表。由 scripts/build_town_crosswalk.py 產生後入版控，
+# 但建置每次都重新驗證每一列——對照表若與來源脫節，中止而非沿用舊值。
+TOWN_CROSSWALK_PATH = (
+    ROOT / "data" / "reference" / "cec-town-code-crosswalk-1998-2005.csv"
+)
+
 # 需要經 crosswalk 換算縣市代碼的屆別，值為同屆「區域」檔的資料夾。
 COUNTY_CROSSWALK_YEARS = {
     "1998": "1998縣市議員/區域",
@@ -649,6 +655,43 @@ TOWN_CODES_FILE_LOCAL = {
     ("1998", "T2"), ("1998", "T3"),
     ("2002", "T2"), ("2002", "T3"),
     ("2005", "T2"), ("2005", "T3"),
+}
+
+# 四個開頭少一個字的鄉鎮名稱。鍵是（屆別, 選舉種類, 縣市名稱, 原始名稱），
+# 值是（目標名稱, 目標鄉鎮代碼, 預期使用次數）。
+#
+# ⚠️ 鍵必須含屆別與選舉種類：2002 T3 與 2005 T3 都有「麻里鄉」。鍵只到
+#    （縣市名稱, 原始名稱）會讓一筆 alias 同時套用到兩屆。本案兩屆的目標
+#    相同（都是太麻里鄉、都是 009），但那是巧合不是保證。
+#
+# ⚠️ 【不可】改用字串通則。實測兩種通則都會出錯：
+#    - 「長度超過三字就被截」：2002 山原整份檔最長就是 3 字（三個四字名全被
+#      截），但 2005 山原保留了三地門鄉與阿里山鄉，只截太麻里鄉。
+#    - 「去掉開頭一字」：2002／2005 平原檔各有 5 個合法的兩字名（東區、
+#      南區之類的市轄區），通則會在它們身上製造偽陽性。
+#    通則失效時是【靜默錯配】——把 A 鄉的票算到 B 鄉頭上；具名清單失效時
+#    是【中止】。這個資料集是封閉的歷史資料，異常可窮舉。
+# 各檔的鄉鎮市區正規化目標。一律是同屆「縣市議員（區域）」檔——它涵蓋
+# 全部 23 縣市。「鄉鎮市長」檔只涵蓋 18 個（缺直轄市與省轄市），會落空。
+TOWN_CROSSWALK_TARGETS = {
+    "1998": "1998縣市議員/區域",
+    "2002": "2002縣市議員/區域",
+    "2005": "2005縣市議員/區域",
+}
+
+# 各檔的鄉鎮市區單位數。實作前的完整普查值，不是估計。
+# 數量不符代表來源換版，對照表必須重新產生而不是繼續沿用。
+EXPECTED_TOWN_COUNTS = {
+    ("1998", "T2"): 177, ("1998", "T3"): 226,
+    ("2002", "T2"): 211, ("2002", "T3"): 226,
+    ("2005", "T2"): 224, ("2005", "T3"): 226,
+}
+
+TOWN_NAME_ALIASES = {
+    ("2002", "T3", "嘉義縣", "里山鄉"): ("阿里山鄉", "018", 1),
+    ("2002", "T3", "屏東縣", "地門鄉"): ("三地門鄉", "026", 1),
+    ("2002", "T3", "臺東縣", "麻里鄉"): ("太麻里鄉", "009", 1),
+    ("2005", "T3", "臺東縣", "麻里鄉"): ("太麻里鄉", "009", 1),
 }
 
 # 各檔的欄數（依官方格式文件 voteData/選舉資料庫格式.odt）。
@@ -890,9 +933,21 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
                     f"忽略該欄的前提是它只有已查明的錯置形態。"
                 )
 
-    # 鄉鎮市區代碼是否為檔內重編（無法跨檔比對）。是則正規化欄留空，
-    # 不放原始碼進去——見 TOWN_CODES_FILE_LOCAL 的說明。
+    # 鄉鎮市區代碼是否為檔內重編（無法直接跨檔比對）。是則經對照表換算成
+    # 同屆區域檔的代碼——見 TOWN_CODES_FILE_LOCAL 與 TOWN_CROSSWALK_PATH。
     town_local = (year, etype) in TOWN_CODES_FILE_LOCAL
+    town_crosswalk: dict[tuple[str, str, str, str], str] = {}
+    county_names_by_code: dict[str, str] = {}
+    n_town_norm = n_town_alias = 0
+    if town_local:
+        town_crosswalk = load_town_crosswalk()
+        for b in base:
+            if admin_level(list(b[:5]) + [""]) == "直轄市縣市":
+                county_names_by_code[b[0] + b[1]] = b[5]
+        n_town_norm, n_town_alias = verify_town_crosswalk(
+            zf, names, year, etype, label, base, town_crosswalk,
+            county_names_by_code,
+        )
 
     def norm_county(prov: str, county: str) -> str:
         """該列的縣市正規化代碼。不需換算的屆別直接回傳原碼。"""
@@ -903,6 +958,34 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             raise ValidationError(
                 f"{label} 出現 elbase 的縣市層級沒有列出的縣市代碼 "
                 f"{prov + county}，無法正規化"
+            )
+        return got
+
+    def norm_town(prov: str, county: str, town: str) -> str:
+        """該列的鄉鎮市區正規化代碼。
+
+        - 代碼非檔內重編的檔：原碼直接回傳（既有行為）。
+        - 檔內重編的六個檔：鄉鎮層級查對照表；鄉鎮以上（代碼為 0）
+          回傳原碼 `000`，與其他檔一致。
+        - 查不到即【中止】，不回傳空字串。空字串在本欄代表「整個檔不做
+          鄉鎮正規化」（T-COMBO 與 1994 省議員），不可拿來表示「這一筆對不上」。
+        """
+        if not town_local:
+            return town
+        if is_blank(town):
+            return town
+        county_name = county_names_by_code.get(prov + county)
+        if county_name is None:
+            raise ValidationError(
+                f"{label} 的 elbase 縣市層級沒有列出縣市代碼 {prov + county}，"
+                f"無法查鄉鎮市區對照表"
+            )
+        got = town_crosswalk.get((year, etype, county_name, town))
+        if got is None:
+            raise ValidationError(
+                f"{label} {county_name} 的鄉鎮市區代碼 {town} 不在對照表內。"
+                f"對照表由 scripts/build_town_crosswalk.py 產生，"
+                f"來源換版後須重新產生；不可改為留空放行。"
             )
         return got
 
@@ -934,7 +1017,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
             "行政區名稱": area.get(tuple(r[:5])),
             "縣市_正規化": norm_county(r[0], r[1]),
-            "鄉鎮市區_正規化": "" if town_local else r[3],
+            "鄉鎮市區_正規化": norm_town(r[0], r[1], r[3]),
             "有效票": valid, "無效票": invalid, "投票數": voted,
             "選舉人數": electors,
             "人口數": r[10],                                 # 原樣保留字串
@@ -971,7 +1054,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "鄉鎮市區": r[3], "村里": r[4],
             "行政區名稱": area.get(tuple(r[:5])),
             "縣市_正規化": norm_county(r[0], r[1]),
-            "鄉鎮市區_正規化": "" if town_local else r[3],
+            "鄉鎮市區_正規化": norm_town(r[0], r[1], r[3]),
             "號次": r[5],
             "姓名": r[6],
             "政黨代號": r[7],
@@ -1024,7 +1107,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
             "行政區名稱": area.get(tuple(r[:5])),
             "縣市_正規化": norm_county(r[0], r[1]),
-            "鄉鎮市區_正規化": "" if town_local else r[3],
+            "鄉鎮市區_正規化": norm_town(r[0], r[1], r[3]),
             "號次": r[6],
             "得票數": int(r[7]),
             "得票率": r[8],
@@ -1036,6 +1119,8 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
         "file_total": file_total, "label": label, "etype": etype, "year": year,
         "name_missing": area.missing, "name_missing_keys": len(area.missing_keys),
         "crosswalk_used": crosswalk_used,
+        "town_normalised": n_town_norm,
+        "town_via_alias": n_town_alias,
     }
 
 
@@ -1060,6 +1145,40 @@ def load_county_crosswalk() -> dict[tuple[str, str, str], tuple[str, str]]:
             out[key] = (row["county_name"], row["regional_code"])
     if not out:
         raise ValidationError("縣市代碼對照表沒有任何資料列")
+    return out
+
+
+def load_town_crosswalk() -> dict[tuple[str, str, str, str], str]:
+    """讀鄉鎮市區代碼對照表。
+
+    鍵為（屆別, 選舉種類, 縣市名稱, 本地鄉鎮代碼），值為目標鄉鎮代碼。
+
+    ⚠️ 目標鍵也要驗唯一。只驗來源鍵的話，兩個本地鄉鎮指向同一個目標會
+    靜默通過——那會讓兩個鄉鎮的票在下游被合併，而所有加總仍然平衡。
+    """
+    if not TOWN_CROSSWALK_PATH.exists():
+        raise ValidationError(f"找不到鄉鎮市區代碼對照表 {TOWN_CROSSWALK_PATH}")
+    out: dict[tuple[str, str, str, str], str] = {}
+    seen_targets: dict[tuple[str, str, str, str], tuple] = {}
+    with TOWN_CROSSWALK_PATH.open(encoding="utf-8-sig", newline="") as fh:
+        for i, row in enumerate(csv.DictReader(fh), start=2):
+            key = (row["屆別"], row["選舉種類"], row["縣市名稱"],
+                   row["本地鄉鎮代碼"])
+            if key in out:
+                raise ValidationError(
+                    f"鄉鎮市區代碼對照表第 {i} 列的鍵 {key} 重複"
+                )
+            tkey = (row["屆別"], row["選舉種類"], row["縣市名稱"],
+                    row["目標鄉鎮代碼"])
+            if tkey in seen_targets:
+                raise ValidationError(
+                    f"鄉鎮市區代碼對照表第 {i} 列的目標 {tkey} 已被 "
+                    f"{seen_targets[tkey]} 用掉——兩個本地鄉鎮不得對到同一個目標"
+                )
+            seen_targets[tkey] = key
+            out[key] = row["目標鄉鎮代碼"]
+    if not out:
+        raise ValidationError("鄉鎮市區代碼對照表沒有任何資料列")
     return out
 
 
@@ -1116,6 +1235,137 @@ def regional_county_names(zf, names, folder: str) -> dict[str, str]:
     if not out:
         raise ValidationError(f"同屆區域檔 {folder} 沒有任何縣市層級列")
     return out
+
+
+def regional_town_names(zf, names, folder: str) -> dict[tuple[str, str, str], str]:
+    """讀同屆「區域」檔的鄉鎮市區代碼→名稱。鍵為（省市, 縣市, 鄉鎮市區）。
+
+    ⚠️ elbase 的 5 碼是（省市, 縣市, **選舉區**, 鄉鎮市區, 村里）。
+    第 3 碼是選舉區不是鄉鎮市區——索引弄錯會讀出選區名稱而不是鄉鎮名稱。
+
+    引號旗標由內容判定，不寫死。2005 區域檔與 1998／2002 的版面不同。
+    """
+    path = f"votedata/votedata/voteData/{folder}/elbase.csv"
+    if path not in names:
+        raise ValidationError(f"壓縮檔內找不到 {path}")
+    quoted = zf.read(names[path])[:200].lstrip().startswith(b'"')
+    rows = read_csv(zf, names, path, COLS["elbase"], quoted, KEY_COLS["elbase"])
+    out: dict[tuple[str, str, str], str] = {}
+    for r in rows:
+        if r[4].strip("0"):
+            continue
+        if r[1].strip("0") and r[3].strip("0"):
+            out.setdefault((r[0], r[1], r[3]), r[5])
+    if not out:
+        raise ValidationError(f"同屆區域檔 {folder} 沒有任何鄉鎮市區層級列")
+    return out
+
+
+def verify_town_crosswalk(
+    zf, names, year: str, etype: str, label: str,
+    base: list[list[str]], crosswalk: dict[tuple[str, str, str, str], str],
+    county_names_by_code: dict[str, str],
+) -> tuple[int, int]:
+    """由來源重新推導鄉鎮市區對照，並與版控中的對照表逐列比對。
+
+    對照表是**產生的**，不是人工逐列確認的。若只在建置時查表，
+    來源換版後對照表會安靜地過期。這裡每次建置都重新推導一次：
+    對照表與來源脫節即中止，不沿用舊值。
+
+    ⚠️ 這也是 alias 兩條檢查唯一能真正失敗的地方。對照表已把 alias 解開了，
+    只查表的話，alias 宣告錯了建置也不會有反應——那是一條永遠不會失敗的檢查。
+
+    回傳（鄉鎮數, 經 alias 解析數）。
+    """
+    ref_folder = TOWN_CROSSWALK_TARGETS[year]
+    ref_towns = regional_town_names(zf, names, ref_folder)
+    ref_counties = regional_county_names(zf, names, ref_folder)
+
+    # 目標端以（縣市名稱, 鄉鎮名稱）建索引。同一鍵出現兩次即中止——
+    # 「恰好一個候選」不可以是靠運氣得到的。
+    by_name: dict[tuple[str, str], list[tuple[str, str, str]]] = {}
+    for key, town_name in ref_towns.items():
+        county_name = ref_counties.get(key[0] + key[1])
+        if county_name is None:
+            continue
+        by_name.setdefault((county_name, town_name), []).append(key)
+    for (county_name, town_name), hits in sorted(by_name.items()):
+        if len(hits) > 1:
+            raise ValidationError(
+                f"{label} 的目標檔 {ref_folder} 在 {county_name} 內有兩個名為 "
+                f"{town_name} 的鄉鎮市區（代碼 {sorted(k[2] for k in hits)}）——"
+                f"以名稱配對的前提不成立"
+            )
+
+    # 來源端的鄉鎮市區（去重，同一鄉鎮可能分屬多個選舉區）
+    src_towns: dict[tuple[str, str, str], str] = {}
+    for r in base:
+        if r[4].strip("0"):
+            continue
+        if r[1].strip("0") and r[3].strip("0"):
+            src_towns.setdefault((r[0], r[1], r[3]), r[5])
+
+    alias_used: dict[tuple[str, str, str, str], int] = {}
+    seen_targets: dict[tuple[str, str, str], tuple[str, str, str]] = {}
+    for key, town_name in sorted(src_towns.items()):
+        county_name = county_names_by_code.get(key[0] + key[1])
+        if county_name is None:
+            raise ValidationError(
+                f"{label} 的 elbase 縣市層級沒有列出縣市代碼 {key[0] + key[1]}"
+            )
+        alias = TOWN_NAME_ALIASES.get((year, etype, county_name, town_name))
+        lookup_name = alias[0] if alias else town_name
+        hits = by_name.get((county_name, lookup_name), [])
+        if not hits:
+            raise ValidationError(
+                f"{label} {county_name}-{town_name} 在 {ref_folder} 查無同名"
+                f"鄉鎮市區。若是名稱被截斷，須加入具名 alias；"
+                f"不可用字串通則推斷，也不可留空放行。"
+            )
+        target = hits[0]
+        if alias is not None:
+            if target[2] != alias[1]:
+                raise ValidationError(
+                    f"{label} {county_name}-{town_name} 的 alias 宣告目標代碼 "
+                    f"{alias[1]}，但 {alias[0]} 在 {ref_folder} 的代碼是 "
+                    f"{target[2]}"
+                )
+            akey = (year, etype, county_name, town_name)
+            alias_used[akey] = alias_used.get(akey, 0) + 1
+        if target in seen_targets:
+            raise ValidationError(
+                f"{label} 兩個本地鄉鎮市區對到同一個目標 {target}："
+                f"{seen_targets[target][2]} 與 {key[2]}——"
+                f"合併兩個鄉鎮不會破壞任何加總，因此不會有別的跡象"
+            )
+        seen_targets[target] = key
+
+        got = crosswalk.get((year, etype, county_name, key[2]))
+        if got != target[2]:
+            raise ValidationError(
+                f"{label} {county_name}-{town_name}（本地 {key[2]}）由來源推導"
+                f"應對到 {target[2]}，但對照表寫的是 {got!r}。"
+                f"對照表已與來源脫節，請重新執行 scripts/build_town_crosswalk.py。"
+            )
+
+    # alias 的使用次數必須恰好等於宣告值。「有被用到」不足以證明它套在
+    # 該套的地方——多套一次代表某個合法名稱被誤判為截斷。
+    for akey, (_, _, expect_n) in TOWN_NAME_ALIASES.items():
+        if akey[0] != year or akey[1] != etype:
+            continue
+        got_n = alias_used.get(akey, 0)
+        if got_n != expect_n:
+            raise ValidationError(
+                f"{label} 的 alias {akey} 實際使用 {got_n} 次，宣告 {expect_n} 次"
+            )
+
+    expected = EXPECTED_TOWN_COUNTS[(year, etype)]
+    if len(src_towns) != expected:
+        raise ValidationError(
+            f"{label} 的鄉鎮市區數為 {len(src_towns)}，宣告值為 {expected}。"
+            f"來源可能換版——請重新普查後更新 EXPECTED_TOWN_COUNTS 並重新產生對照表。"
+        )
+    return len(src_towns), sum(alias_used.values())
 
 
 def derive_elected_authoritative(
@@ -1798,6 +2048,10 @@ def cross_validate(parts: list[dict], report: list[dict],
             "投票率_重算": recomputed,
             "投票率逐列驗證數": turnout_checked,
             "逐一單位對帳數": len(votes_by_area),
+            # 鄉鎮市區代碼經對照表換算的單位數，以及其中靠具名 alias
+            # 解開名稱截斷的筆數。代碼非檔內重編的檔兩者皆為 0。
+            "鄉鎮市區正規化數": p["town_normalised"],
+            "經alias解析數": p["town_via_alias"],
             "版面": ft["版面"],
             # 註記分布一律寫進報告。本專案曾宣稱「資料中未出現 '-'」而未實際清點，
             # 擴充屆別後才發現 2014／2018 本來就有。分布攤開就無法再靜默漂移。

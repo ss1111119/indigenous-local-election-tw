@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import collections
+import contextlib
 import copy
 import csv
 import gzip
 import io
 import json
 import sys
+import tempfile
 import zipfile
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -46,6 +49,7 @@ from oracles import (  # noqa: E402
     POPULATION_NOT_APPLICABLE,
     population_applicability,
 )
+import build_local_election  # noqa: E402
 from build_local_election import (  # noqa: E402
     COLS,
     COUNTY_CROSSWALK_YEARS,
@@ -59,7 +63,14 @@ from build_local_election import (  # noqa: E402
     YEARS,
     WIN_MARKS,
     COUNTY_CROSSWALK_PATH,
+    TOWN_CROSSWALK_PATH,
+    TOWN_CROSSWALK_TARGETS,
+    TOWN_NAME_ALIASES,
+    EXPECTED_TOWN_COUNTS,
     ValidationError,
+    load_town_crosswalk,
+    regional_town_names,
+    verify_town_crosswalk,
     check_age_sentinel,
     valid_age,
     ZIP_PATH,
@@ -566,11 +577,62 @@ def _synthetic_zip(pop_total: str, pop_county: str, pop_town: str,
         zf.writestr(_PRE + "elpaty.csv", "999,無黨籍及未經政黨推薦\n")
         # 同屆「區域」檔——換算的權威清單。刻意只放縣市層級需要的那一列，
         # 外加一個不相關的縣市，證明查的是代碼而不是「唯一那一列」。
+        # 同屆「區域」檔——縣市與鄉鎮兩個層級的權威清單。
+        # 鄉鎮列的代碼刻意與本地檔不同（本地 010 → 區域 020），
+        # 這樣「有沒有真的換算」才看得出來。
         zf.writestr("votedata/votedata/voteData/r/elbase.csv",
                     "00,000,00,000,0000,合計\n"
                     "01,008,00,000,0000,南投縣\n"
+                    "01,008,01,020,0000,測試鄉\n"
                     "01,010,00,000,0000,嘉義縣\n")
     return zipfile.ZipFile(buf)
+
+
+# 合成壓縮檔用的鄉鎮對照列：(縣市名稱, 本地碼, 鄉鎮名稱, 目標碼)
+_SYN_TOWNS_DEFAULT = [("南投縣", "010", "測試鄉", "020")]
+
+
+@contextlib.contextmanager
+def _synthetic_town_env(year: str, rows=None):
+    """把鄉鎮市區正規化的三項輸入指向合成資料。
+
+    ⚠️ process_one 對 TOWN_CODES_FILE_LOCAL 內的檔會由來源重新推導對照表，
+    所以合成壓縮檔也必須提供區域檔的鄉鎮列、一份對應的對照表、
+    以及相符的宣告數。少任何一項建置都會（正確地）中止——
+    那是刻意的：對照表與來源脫節時不可沿用舊值。
+    """
+    rows = _SYN_TOWNS_DEFAULT if rows is None else rows
+    tmp = Path(tempfile.mkdtemp()) / "town.csv"
+    tmp.write_text(
+        "屆別,選舉種類,縣市名稱,本地鄉鎮代碼,本地鄉鎮名稱,目標鄉鎮代碼,目標鄉鎮名稱\n"
+        + "".join(f"{year},T3,{c},{lc},{n},{tc},{n}\n"
+                 for c, lc, n, tc in rows),
+        encoding="utf-8")
+    real_target = TOWN_CROSSWALK_TARGETS.get(year)
+    real_path = build_local_election.TOWN_CROSSWALK_PATH
+    real_count = EXPECTED_TOWN_COUNTS.get((year, "T3"))
+    # 合成檔沒有那些被截斷的鄉鎮，故該屆的 alias 宣告要一併移開——
+    # 留著的話「宣告 1 次、實際 0 次」會（正確地）中止。
+    real_aliases = {k: v for k, v in TOWN_NAME_ALIASES.items()
+                    if k[0] == year and k[1] == "T3"}
+    for k in real_aliases:
+        del TOWN_NAME_ALIASES[k]
+    TOWN_CROSSWALK_TARGETS[year] = "r"
+    build_local_election.TOWN_CROSSWALK_PATH = tmp
+    EXPECTED_TOWN_COUNTS[(year, "T3")] = len(rows)
+    try:
+        yield
+    finally:
+        if real_target is None:
+            TOWN_CROSSWALK_TARGETS.pop(year, None)
+        else:
+            TOWN_CROSSWALK_TARGETS[year] = real_target
+        build_local_election.TOWN_CROSSWALK_PATH = real_path
+        if real_count is None:
+            EXPECTED_TOWN_COUNTS.pop((year, "T3"), None)
+        else:
+            EXPECTED_TOWN_COUNTS[(year, "T3")] = real_count
+        TOWN_NAME_ALIASES.update(real_aliases)
 
 
 @reports
@@ -593,7 +655,8 @@ def test_process_one_legacy_decimals() -> None:
     YEARS["2002"] = {"quoted": False, "parts": {}}
     COUNTY_CROSSWALK_YEARS["2002"] = "r"       # 指向合成的區域檔
     try:
-        p = process_one(zf, names, "2002", "T3", "city", "t")
+        with _synthetic_town_env("2002"):
+            p = process_one(zf, names, "2002", "T3", "city", "t")
     finally:
         YEARS["2002"] = real_year
         COUNTY_CROSSWALK_YEARS["2002"] = real_regional
@@ -606,8 +669,12 @@ def test_process_one_legacy_decimals() -> None:
     check("原始縣市代碼原樣保留", [r["縣市"] for r in S], ["000", "007", "007"])
     check("用過的對照表鍵被記錄",
           sorted(p["crosswalk_used"]), [("2002", "T3", "01007")])
-    check("鄉鎮市區_正規化 留空（2002 山原的鄉鎮市區碼是檔內重編）",
-          {r["鄉鎮市區_正規化"] for r in S}, {""})
+    # 端到端驗證鄉鎮市區 crosswalk 接線：合成的區域檔把 測試鄉 放在 020，
+    # 本地檔放在 010。若換算沒發生，這裡會是 {'000', '010'}。
+    check("鄉鎮市區代碼已換算成區域檔代碼",
+          {r["鄉鎮市區_正規化"] for r in S}, {"000", "020"})
+    check("鄉鎮列的原碼未被覆寫（來源值原樣保留）",
+          {r["鄉鎮市區"] for r in S if not is_blank(r["鄉鎮市區"])}, {"010"})
     check("人口數是字串未轉型", isinstance(S[0]["人口數"], str), True)
     check("檔別合計的小數原樣保留", S[0]["人口數"], "206740.121634792")
     check("縣市層級的小數原樣保留", S[1]["人口數"], "49115.2145361076")
@@ -650,7 +717,11 @@ def test_elected_authoritative() -> None:
                     "00,000,00,000,0000,合計\n"
                     "01,013,00,000,0000,屏東縣\n"
                     "01,013,11,000,0000,第11選舉區\n"
-                    "01,013,16,000,0000,第16選舉區\n")
+                    "01,013,16,000,0000,第16選舉區\n"
+                    # elctks 用到的鄉鎮必須也在 elbase——真實資料實測
+                    # 六個檔的 elprof／elctks 鄉鎮碼皆不超出 elbase。
+                    "01,013,11,001,0000,甲鄉\n"
+                    "01,013,16,033,0000,乙鄉\n")
         # 選舉區 11：兩位候選人，1 席；選舉區 16：一位候選人，1 席
         def prof(codes, nc, nw):
             return (",".join(codes) + ",1794,133,1927,2259,50000"
@@ -675,6 +746,13 @@ def test_elected_authoritative() -> None:
             ctks_row(["01", "013", "16", "033", "0000", "0"], "1", "1794", "*"),
         ]) + "\n")
         zf.writestr(_PRE + "elpaty.csv", "999,無黨籍及未經政黨推薦\n")
+        # 同屆「區域」檔：鄉鎮市區正規化的目標。本地的 001／033 在這裡是
+        # 002／034——換算若沒發生，下面的斷言會看到原碼。
+        zf.writestr("votedata/votedata/voteData/r/elbase.csv",
+                    "00,000,00,000,0000,合計\n"
+                    "01,013,00,000,0000,屏東縣\n"
+                    "01,013,11,002,0000,甲鄉\n"
+                    "01,013,16,034,0000,乙鄉\n")
     zf = zipfile.ZipFile(buf)
     names = zip_names(zf)
 
@@ -684,7 +762,10 @@ def test_elected_authoritative() -> None:
     real_year = YEARS["2005"]
     YEARS["2005"] = {"quoted": False, "parts": {}}
     try:
-        p = process_one(zf, names, "2005", "T3", "city", "t")
+        with _synthetic_town_env("2005",
+                                 [("屏東縣", "001", "甲鄉", "002"),
+                                  ("屏東縣", "033", "乙鄉", "034")]):
+            p = process_one(zf, names, "2005", "T3", "city", "t")
     finally:
         YEARS["2005"] = real_year
 
@@ -958,8 +1039,33 @@ def test_legacy_terms() -> None:
     check("被換算的列數（2005 應為 0）", changed,
           {"2005-T2": 0, "2005-T3": 0, "2002-T2": 207, "2002-T3": 148,
            "1998-T2": 169, "1998-T3": 148})
-    check("六個檔的鄉鎮市區_正規化全為空",
-          {s["鄉鎮市區_正規化"] for p in parts for s in p["summary"]}, {""})
+    # 鄉鎮市區代碼正規化。這一欄在 2026-08-22 之前對這六個檔一律留空；
+    # 現在改為換算成同屆區域檔的代碼，留空即代表建置沒有做該做的事。
+    check("六個檔的鄉鎮市區_正規化都不留空",
+          sum(1 for p in parts for s in p["summary"]
+              if s["鄉鎮市區_正規化"] == ""), 0)
+    check("鄉鎮以上的列填 000（與其他檔一致，不是空字串）",
+          {s["鄉鎮市區_正規化"] for p in parts for s in p["summary"]
+           if is_blank(s["鄉鎮市區"])}, {"000"})
+    town_units = {f"{p['year']}-{p['etype']}":
+                  len({(s["省市"], s["縣市"], s["鄉鎮市區"])
+                       for s in p["summary"] if not is_blank(s["鄉鎮市區"])})
+                  for p in parts}
+    check("逐檔的鄉鎮市區單位數", town_units,
+          {"1998-T2": 177, "1998-T3": 226, "2002-T2": 211,
+           "2002-T3": 226, "2005-T2": 224, "2005-T3": 226})
+    # ⚠️ 只驗「有值」不夠——把換算改成直接放原碼也會有值。
+    #    這一條釘死【真的被換掉】的單位數，總計 829。
+    town_changed = {f"{p['year']}-{p['etype']}":
+                    len({(s["省市"], s["縣市"], s["鄉鎮市區"])
+                         for s in p["summary"]
+                         if not is_blank(s["鄉鎮市區"])
+                         and s["鄉鎮市區_正規化"] != s["鄉鎮市區"]})
+                    for p in parts}
+    check("代碼確實被換掉的單位數", town_changed,
+          {"1998-T2": 139, "1998-T3": 195, "2002-T2": 99,
+           "2002-T3": 167, "2005-T2": 76, "2005-T3": 153})
+    check("換掉的單位合計 829", sum(town_changed.values()), 829)
 
 
 @reports
@@ -1138,7 +1244,8 @@ def test_age_valid_column_in_output() -> None:
         YEARS[year] = {"quoted": False, "parts": {}}
         COUNTY_CROSSWALK_YEARS[year] = "r"
         try:
-            p = process_one(zf, zip_names(zf), year, "T3", "city", "t")
+            with _synthetic_town_env(year):
+                p = process_one(zf, zip_names(zf), year, "T3", "city", "t")
         finally:
             YEARS[year] = real_year
             if real_regional is None:
@@ -1462,6 +1569,220 @@ def aborts_with(label: str, mutate, phrase: str) -> None:
     failures.append(label)
 
 
+TOWN_PROBE = ("2002", "T3", "city", "2002縣市議員/山原")
+
+
+def _town_fixture(zf, names):
+    """取 2002 山原的 base、對照表與縣市名稱對照，供各項探測共用。
+
+    用 2002 T3 是因為它是四筆 alias 中的三筆所在，且整份檔的鄉鎮名稱
+    都被截到 3 字——名稱配對的最壞情況。
+    """
+    year, etype, _, sub = TOWN_PROBE
+    path = f"votedata/votedata/voteData/{sub}/elbase.csv"
+    quoted = zf.read(names[path])[:200].lstrip().startswith(b'"')
+    base = read_csv(zf, names, path, COLS["elbase"], quoted,
+                    KEY_COLS["elbase"])
+    crosswalk = load_town_crosswalk()
+    county_names = {}
+    for b in base:
+        if admin_level(list(b[:5]) + [""]) == "直轄市縣市":
+            county_names[b[0] + b[1]] = b[5]
+    return base, crosswalk, county_names
+
+
+@reports
+def test_town_crosswalk() -> None:
+    """鄉鎮市區代碼的跨檔正規化。
+
+    ⚠️ 這一組必須能在乾淨資料上失敗。對照表已把 alias 解開了，
+    若建置只查表，alias 的兩條檢查會是永遠不會失敗的程式碼——
+    所以建置每次都由來源重新推導，這裡逐一確認那些推導檢查真的擋得住。
+    """
+    print("\n[單元] 鄉鎮市區代碼跨檔正規化")
+
+    # ---- 對照表本身 ----
+    real = load_town_crosswalk()
+    check("對照表 1,290 列", len(real), 1290)
+    check("代碼與本地不同者 829 列",
+          sum(1 for k, v in real.items() if k[3] != v), 829)
+    by_file = collections.Counter((k[0], k[1]) for k in real)
+    check("逐檔的鄉鎮市區數",
+          dict(sorted(by_file.items())),
+          {("1998", "T2"): 177, ("1998", "T3"): 226,
+           ("2002", "T2"): 211, ("2002", "T3"): 226,
+           ("2005", "T2"): 224, ("2005", "T3"): 226})
+    check("宣告值與對照表一致",
+          dict(sorted(EXPECTED_TOWN_COUNTS.items())), dict(sorted(by_file.items())))
+    check("對照表放在 data/reference/",
+          TOWN_CROSSWALK_PATH.parent.name, "reference")
+    check("對照表不在輸出目錄底下",
+          OUT in TOWN_CROSSWALK_PATH.parents, False)
+
+    # spec 的範例表：兩列可直接當測試值
+    check("範例：2002 T3 屏東縣 霧臺鄉 033 → 027",
+          real.get(("2002", "T3", "屏東縣", "033")), "027")
+    check("範例：2005 T2 花蓮縣 吉安鄉 004 → 004",
+          real.get(("2005", "T2", "花蓮縣", "004")), "004")
+
+    # ---- alias 常數 ----
+    check("alias 四筆", len(TOWN_NAME_ALIASES), 4)
+    check("alias 的鍵",
+          sorted(TOWN_NAME_ALIASES),
+          [("2002", "T3", "嘉義縣", "里山鄉"),
+           ("2002", "T3", "屏東縣", "地門鄉"),
+           ("2002", "T3", "臺東縣", "麻里鄉"),
+           ("2005", "T3", "臺東縣", "麻里鄉")])
+    # ⚠️ 2002 T3 與 2005 T3 都有「麻里鄉」。鍵若不含屆別與選舉種類，
+    #    一筆 alias 會同時套用到兩屆。
+    check("麻里鄉在兩屆各有一筆",
+          sum(1 for k in TOWN_NAME_ALIASES if k[3] == "麻里鄉"), 2)
+
+    # ---- 載入時的四種中止 ----
+    def with_csv(text):
+        tmp = Path(tempfile.mkdtemp()) / "cw.csv"
+        tmp.write_text(text, encoding="utf-8")
+        return tmp
+
+    head = ("屆別,選舉種類,縣市名稱,本地鄉鎮代碼,本地鄉鎮名稱,"
+            "目標鄉鎮代碼,目標鄉鎮名稱\n")
+    row_a = "2002,T3,屏東縣,033,霧臺鄉,027,霧臺鄉\n"
+    orig_path = build_local_election.TOWN_CROSSWALK_PATH
+    for label, text, phrase in (
+        ("載入：無資料列即中止", head, "沒有任何資料列"),
+        ("載入：本地鍵重複即中止",
+         head + row_a + "2002,T3,屏東縣,033,霧臺鄉,028,瑪家鄉\n", "重複"),
+        ("載入：目標鍵重複即中止",
+         head + row_a + "2002,T3,屏東縣,034,瑪家鄉,027,霧臺鄉\n",
+         "不得對到同一個目標"),
+    ):
+        build_local_election.TOWN_CROSSWALK_PATH = with_csv(text)
+        check_raises_msg(label, load_town_crosswalk, phrase)
+    build_local_election.TOWN_CROSSWALK_PATH = (
+        Path(tempfile.mkdtemp()) / "不存在.csv")
+    check_raises_msg("載入：檔案不存在即中止", load_town_crosswalk,
+                     "找不到鄉鎮市區代碼對照表")
+    build_local_election.TOWN_CROSSWALK_PATH = orig_path
+
+    # ---- 由來源重新推導時的五條檢查 ----
+    if not ZIP_PATH.exists():
+        skipped.append("test_town_crosswalk 的來源推導部分")
+        print("  SKIP  找不到原始壓縮檔，略過來源推導的探測")
+        return
+
+    year, etype, label_, sub = TOWN_PROBE
+    with zipfile.ZipFile(ZIP_PATH) as zf:
+        names = zip_names(zf)
+        base, crosswalk, county_names = _town_fixture(zf, names)
+
+        def run(mutate, phrase, label):
+            b = copy.deepcopy(base)
+            cw = dict(crosswalk)
+            restore = mutate(b, cw)
+            try:
+                check_raises_msg(
+                    label,
+                    lambda: verify_town_crosswalk(
+                        zf, names, year, etype, label_, b, cw, county_names),
+                    phrase)
+            finally:
+                if restore is not None:
+                    restore()
+
+        # 基準：未變異的輸入必須【不】中止，否則後面的「中止」不能歸因
+        got = verify_town_crosswalk(zf, names, year, etype, label_,
+                                    base, crosswalk, county_names)
+        check("基準：未變異的 2002 T3 通過且回傳（226, 3）", got, (226, 3))
+
+        def m_dupe_target(b, cw):
+            orig = build_local_election.regional_town_names
+
+            def patched(zf_, names_, folder):
+                out = orig(zf_, names_, folder)
+                keys = [k for k in out if (k[0], k[1]) == ("01", "010")]
+                if len(keys) >= 2:
+                    out[keys[1]] = out[keys[0]]
+                return out
+            build_local_election.regional_town_names = patched
+            return lambda: setattr(
+                build_local_election, "regional_town_names", orig)
+
+        run(m_dupe_target, "有兩個名為", "目標端同一縣市內同名即中止")
+
+        def m_one_to_one(b, cw):
+            seen = {}
+            for r in b:
+                if r[4].strip("0") or not (r[1].strip("0") and r[3].strip("0")):
+                    continue
+                k = (r[0], r[1])
+                if k in seen:
+                    r[5] = seen[k]
+                    return None
+                seen[k] = r[5]
+            return None
+
+        run(m_one_to_one, "對到同一個目標", "兩個本地鄉鎮對到同一目標即中止")
+
+        def m_unknown_name(b, cw):
+            for r in b:
+                if r[4].strip("0") or not (r[1].strip("0") and r[3].strip("0")):
+                    continue
+                r[5] = "火星鄉"
+                return None
+            return None
+
+        run(m_unknown_name, "查無同名", "目標端查無同名即中止")
+
+        def m_alias_count(b, cw):
+            key = ("2002", "T3", "嘉義縣", "里山鄉")
+            old = TOWN_NAME_ALIASES[key]
+            TOWN_NAME_ALIASES[key] = (old[0], old[1], 2)
+            return lambda: TOWN_NAME_ALIASES.__setitem__(key, old)
+
+        run(m_alias_count, "宣告 2 次", "alias 使用次數不符即中止")
+
+        def m_alias_target(b, cw):
+            key = ("2002", "T3", "嘉義縣", "里山鄉")
+            old = TOWN_NAME_ALIASES[key]
+            TOWN_NAME_ALIASES[key] = (old[0], "999", old[2])
+            return lambda: TOWN_NAME_ALIASES.__setitem__(key, old)
+
+        run(m_alias_target, "alias 宣告目標代碼", "alias 目標代碼不一致即中止")
+
+        def m_count(b, cw):
+            key = ("2002", "T3")
+            old = EXPECTED_TOWN_COUNTS[key]
+            EXPECTED_TOWN_COUNTS[key] = old + 1
+            return lambda: EXPECTED_TOWN_COUNTS.__setitem__(key, old)
+
+        run(m_count, "宣告值為", "鄉鎮市區數與宣告不符即中止")
+
+        def m_stale(b, cw):
+            cw[("2002", "T3", "嘉義縣", "018")] = "777"
+            return None
+
+        run(m_stale, "已與來源脫節", "對照表與來源脫節即中止")
+
+        # ---- 六個檔在鄉鎮市區以下沒有任何資料 ----
+        # 這一條若失敗，代表來源新增了更細的層級，鄉鎮層級的正規化不再足夠：
+        # 村里代碼若也是檔內重編的，正規化鄉鎮反而造出「看似能 join 實則錯置」。
+        for y, e, s in (("1998", "T2", "1998縣市議員/平原"),
+                        ("1998", "T3", "1998縣市議員/山原"),
+                        ("2002", "T2", "2002縣市議員/平原"),
+                        ("2002", "T3", "2002縣市議員/山原"),
+                        ("2005", "T2", "2005縣市議員/平原"),
+                        ("2005", "T3", "2005縣市議員/山原")):
+            deeper = 0
+            for stem in ("elbase", "elprof", "elctks"):
+                pth = f"votedata/votedata/voteData/{s}/{stem}.csv"
+                q = zf.read(names[pth])[:200].lstrip().startswith(b'"')
+                rows = read_csv(zf, names, pth, COLS[stem], q, KEY_COLS[stem])
+                deeper += sum(1 for r in rows if r[4].strip("0"))
+                if stem != "elbase":
+                    deeper += sum(1 for r in rows if r[5].strip("0"))
+            check(f"{y} {e} 在鄉鎮市區以下沒有資料", deeper, 0)
+
+
 @reports
 def test_unguarded_source_checks() -> None:
     """為那些在乾淨資料上永不觸發的守衛，各餵一份會觸發它的輸入。"""
@@ -1781,7 +2102,8 @@ def main() -> int:
                test_process_one_legacy_decimals,
                test_elected_authoritative,
                test_elected_authoritative_aborts,
-               test_county_crosswalk, test_legacy_terms,
+               test_county_crosswalk, test_town_crosswalk,
+               test_legacy_terms,
                test_custom_type_terms,
                test_valid_age, test_age_valid_column_in_output,
                test_oracles, test_regression,

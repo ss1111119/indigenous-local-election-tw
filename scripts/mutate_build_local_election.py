@@ -29,6 +29,7 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_elected or test_county_crosswalk or test_legacy_terms "
        "or test_custom_type_terms or test_regression or test_valid_age "
        "or test_age_valid_column_in_output "
+       "or test_town_crosswalk "
        "or test_unguarded_source_checks")
 
 MUTATIONS = [
@@ -90,10 +91,11 @@ MUTATIONS = [
      "build_local_election.py",
      "        if len(marks) > 1:",
      "        if False:"),
+    # ⚠️ `if not hits:` 在鄉鎮市區配對處也出現一次，故帶上前一行指定這一處。
     ("elctks 無列時靜默回傳未當選而不中止",
      "build_local_election.py",
-     "        if not hits:",
-     '        if not hits and False:'),
+     "        key = tuple(c[:5]) + (c[5],)\n        if not hits:",
+     "        key = tuple(c[:5]) + (c[5],)\n        if not hits and False:"),
     ("identity 改成無條件退回（未知縣市代碼會靜默通過）",
      "build_local_election.py",
      "    reg_name = regional.get(code)\n    if reg_name is not None and reg_name == local_name:\n        return county",
@@ -106,6 +108,43 @@ MUTATIONS = [
      "build_local_election.py",
      "    if reg_name is not None and reg_name == local_name:",
      "    if reg_name is not None:"),
+    # ---- 鄉鎮市區層級的正規化（六個檔內重編的檔）----
+    # ⚠️ 這五條的共同點是：拿掉之後建置仍會成功、輸出仍逐位元相同，
+    #    只有【由來源重新推導】那條路徑會安靜地失去辨識力。
+    ("目標端同一縣市內同名鄉鎮不再中止（名稱配對的前提未被驗證）",
+     "build_local_election.py",
+     "        if len(hits) > 1:\n"
+     "            raise ValidationError(\n"
+     "                f\"{label} 的目標檔 {ref_folder} 在 {county_name} 內有兩個名為 \"",
+     "        if False:\n"
+     "            raise ValidationError(\n"
+     "                f\"{label} 的目標檔 {ref_folder} 在 {county_name} 內有兩個名為 \""),
+    ("兩個本地鄉鎮對到同一目標不再中止（兩鄉鎮的票被合併，加總照樣平衡）",
+     "build_local_election.py",
+     "        if target in seen_targets:",
+     "        if False and target in seen_targets:"),
+    ("alias 使用次數不再檢查（宣告過期或誤套都靜默通過）",
+     "build_local_election.py",
+     "        if got_n != expect_n:",
+     "        if False and got_n != expect_n:"),
+    ("alias 的目標代碼不再與區域檔核對（alias 指錯地方也照樣用）",
+     "build_local_election.py",
+     "            if target[2] != alias[1]:",
+     "            if False and target[2] != alias[1]:"),
+    ("逐檔鄉鎮市區數不再檢查（來源換版後對照表過期也不會有人知道）",
+     "build_local_election.py",
+     "    if len(src_towns) != expected:",
+     "    if False and len(src_towns) != expected:"),
+    ("鄉鎮市區_正規化 改回一律留空（正規化整組失效）",
+     "build_local_election.py",
+     '"鄉鎮市區_正規化": norm_town(r[0], r[1], r[3]),\n'
+     '            "有效票": valid,',
+     '"鄉鎮市區_正規化": "",\n'
+     '            "有效票": valid,'),
+    ("對照表與來源脫節時不再中止（產生後就再也不驗）",
+     "build_local_election.py",
+     "        if got != target[2]:",
+     "        if False and got != target[2]:"),
     # ⚠️ 這一項守的不是資料，是「輸入不要放在輸出目錄」。改回去之後建置
     #    照樣成功、輸出逐位元相同——只有明寫的位置檢查會失敗。
     ("對照表搬回輸出目錄（清空輸出再重跑就會把輸入刪掉）",
@@ -118,14 +157,6 @@ MUTATIONS = [
      "build_local_election.py",
      '    key = (year, etype, code)',
      '    key = (year, etype, code) if False else (year, "T2", code)'),
-    # ⚠️ 這一行在 summary／candidates／votes 三處列組裝各出現一次，
-    #    故帶上後一行以指定 summary 那一處。
-    ("鄉鎮市區_正規化 直接放原始碼（偽裝成標準鍵的毒藥）",
-     "build_local_election.py",
-     '"鄉鎮市區_正規化": "" if town_local else r[3],\n'
-     '            "有效票": valid,',
-     '"鄉鎮市區_正規化": r[3],\n'
-     '            "有效票": valid,'),
     ("TOWN_CODES_FILE_LOCAL 漏掉 2005（2005 縣市碼全域但鄉鎮市區碼仍重編）",
      "build_local_election.py",
      '    ("2005", "T2"), ("2005", "T3"),\n}',
