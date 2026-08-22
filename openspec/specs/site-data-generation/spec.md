@@ -802,3 +802,138 @@ tests:
   - scripts/test_build_site_data.py
   - scripts/test_site_invariants.py
 -->
+
+---
+### Requirement: Constant-To-Long-Table Consistency Is Enforced, Not Merely Checkable
+The comparison between the embedded site constants and the long tables SHALL be executed by the test suite, not left to a command someone remembers to run. A difference that is not in the named-and-explained list SHALL fail the suite.
+
+#### Scenario: The bucketing logic changes but the site is not regenerated
+- **WHEN** a change to party identity mapping, seat attribution, or any other derivation alters a value the site already publishes
+- **THEN** the test suite SHALL fail naming the differing keys, so the site cannot stay on stale figures while the dataset moves on
+
+##### Example: the drift this would have caught on the day it appeared
+
+| Key | Site constant | Long tables | Consequence if unnoticed |
+| --- | ---: | ---: | --- |
+| `T2.2005.party.無黨籍[0]` | 0 | 7 | seven seats attributed to 「其他各政黨」 |
+| `T3.2005.party.無黨籍[0]` | 0 | 8 | eight seats attributed to 「其他各政黨」 |
+| `T3.1998.party.其他[0]` | 4 | 1 | inflated aggregate bucket |
+
+
+#### Scenario: A difference is intended
+- **WHEN** the generator legitimately adds keys the site does not yet carry, such as a newly introduced field
+- **THEN** those keys SHALL be listed as expected additions and SHALL NOT fail the suite, while any unlisted difference still does
+
+##### Example: intended additions versus drift
+
+| Difference | Listed as expected | Suite result |
+| --- | --- | --- |
+| new `mainSequence` field on every type | yes | passes |
+| new `types` array | yes | passes |
+| a seat count that changed value | no | fails, naming the key |
+
+<!-- @trace
+source: site-accessibility-baseline
+updated: 2026-08-22
+code:
+  - scratch/gen_anomalies.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_town_feasible.py
+  - scratch/probe_1994.py
+  - .spectra.yaml
+  - scratch/measure_2005.py
+  - scratch/review_q7.md
+  - data/processed/cec-legislative-election-candidates-long.csv
+  - scratch/review_q5.md
+  - CLAUDE.md
+  - scratch/verify_strip.py
+  - data/processed/cec-legislative-election-summary-long.csv.gz
+  - data/processed/cec-legislative-election-votes-long.csv.gz
+  - scratch/review_q2.md
+  - data/processed/legislative-validation-report.json
+  - docs/schema/oracles.md
+  - scratch/verify_11.py
+  - scratch/measure_2005g.py
+  - scratch/probe_anomalies.py
+  - scratch/review_q6.md
+  - scripts/palette_metrics.py
+  - scratch/measure_town_codes.py
+  - scratch/probe2.py
+  - scripts/build_legislative_election.py
+  - scratch/chk_cw.py
+  - scratch/chk1998t2.py
+  - scratch/measure_2005f.py
+  - scratch/verify_21.py
+  - docs/schema/cec-local-election.md
+  - scratch/zip_names.json
+  - scratch/measure_2005d.py
+  - scratch/inventory_legacy.py
+  - scratch/baseline/candidates.csv
+  - docs/roster.html
+  - data/processed/validation-report.json
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/probe4.py
+  - scratch/baseline/summary.csv
+  - scratch/list_zip.py
+  - scratch/review_question.md
+  - data/processed/cec-local-election-candidates-long.csv
+  - scripts/build_site_data.py
+  - docs/index.html
+  - scratch/expected.txt
+  - scratch/dryrun_manifest.py
+  - docs/schema/cec-legislative-election.md
+  - data/reference/cec-legislative-county-crosswalk.csv
+  - docs/三屆概況.md
+  - README.md
+  - scratch/measure_auth_existing.py
+  - scratch/probe_legacy_build.py
+  - scratch/review_q4.md
+  - scratch/probe7.py
+  - AGENTS.md
+  - scratch/verify_pop.py
+  - scratch/measure_2005e.py
+  - scratch/verify_review.py
+  - scripts/mutate_build_legislative_election.py
+  - scratch/probe5.py
+  - scratch/measure_2005b.py
+  - scratch/verify_21c.py
+  - scratch/verify_crosswalk.py
+  - scratch/verify_identity.py
+  - GEMINI.md
+  - scratch/measure_pop.py
+  - scratch/verify_auth.py
+  - scratch/probe_districts.py
+  - HANDOFF.md
+  - scratch/add_legacy_sources.py
+  - scratch/measure_2005_towns.py
+  - scratch/probe_districts2.py
+  - scratch/verify_32.py
+  - scratch/gen_town_anom.py
+  - scratch/verify_33.py
+  - scratch/verify_pop2.py
+  - scripts/oracles.py
+  - scratch/measure_ws2.py
+  - scratch/measure_trunc.py
+  - scratch/baseline/votes.csv
+  - scripts/mutate_build_site_data.py
+  - scripts/build_local_election.py
+  - scratch/measure_2005c.py
+  - scratch/measure_pop2.py
+  - scratch/measure_whitespace.py
+  - data/sources.json
+  - scratch/strip_experiment.py
+  - scratch/probe6.py
+  - scratch/review_q3.md
+  - scratch/verify_claims.py
+  - scratch/add_defect7.py
+  - scratch/probe3.py
+  - data/reference/cec-county-code-crosswalk-1998-2002.csv
+  - scratch/gen_expected.py
+  - scripts/mutate_build_local_election.py
+  - data/processed/cec-county-code-crosswalk-1998-2002.csv
+tests:
+  - scripts/test_build_legislative_election.py
+  - scripts/test_build_local_election.py
+  - scripts/test_site_invariants.py
+  - scripts/test_build_site_data.py
+-->
