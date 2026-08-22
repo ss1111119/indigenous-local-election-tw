@@ -76,10 +76,8 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 
 ## 二、下一步（依優先序）
 
-1. **`historical-terms-1994-2006` 的 `## Purpose` 仍是歸檔工具留下的 TBD 佔位文字。**
-   另兩份主 spec 已補實。
-2. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
-3. **`data/processed/cec-county-code-crosswalk-1998-2002.csv` 放錯位置**——
+1. **鄉鎮市區層級的跨檔正規化**（另案）。見下方地雷 2。
+2. **`data/processed/cec-county-code-crosswalk-1998-2002.csv` 放錯位置**——
    它是**輸入**（人工建立的對照表，`build_local_election.py:543` 由 `OUT_DIR` 讀入），
    不是建置產物，卻和產物放在同一個資料夾。
    「清空輸出目錄再重跑」這個很自然的動作會把它一起刪掉，然後建置失敗。

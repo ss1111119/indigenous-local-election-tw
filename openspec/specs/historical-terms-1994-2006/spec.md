@@ -2,7 +2,24 @@
 
 ## Purpose
 
-TBD - created by archiving change 'include-1994-2006-terms'. Update Purpose after archive.
+The dataset reaches back past 2009 to 1994, but the earlier terms are not simply
+more of the same series. Three things change: some categories are different
+institutions that happen to share a name, the administrative code scheme is
+renumbered between terms, and one term's files cover a category that no longer
+exists. This capability governs which historical records join the comparable
+series and which are carried but held apart.
+
+The distinction is by institution, not by date. The 1998, 2002, and 2005 mountain
+and plain indigenous county councilors are the same office as the later terms and
+belong to the main sequence. The 1994 provincial councilors and the combined
+indigenous city councilor category are not, and they carry custom election type
+codes so no query can reach them by asking for T2 or T3.
+
+Whether a record is comparable is therefore a property of the record, declared in
+the output as `is_main_sequence` and `admin_code_system`, rather than something a
+reader is expected to infer from the year. A reader who sums a column without
+filtering gets a wrong answer either way; the flags make the wrong answer
+detectable instead of invisible.
 
 ## Requirements
 
