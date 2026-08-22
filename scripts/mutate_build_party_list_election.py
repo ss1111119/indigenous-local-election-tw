@@ -201,6 +201,17 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
 ]
 
 
+# 每個被變異的檔各一個【必定會被抓到】的變異。
+# 它若沒被抓到，代表該檔的副本沒有生效——針對它的變異全部無意義，
+# 而那會偽裝成「測試涵蓋不足」。
+CANARIES: tuple[tuple[str, str, str], ...] = (
+    ("build_party_list_election.py",
+     "TERMS = tuple(TERM_FOLDERS)", "TERMS = ()"),
+    ("oracles.py",
+     '    "party_list_seats": {', '    "_canary_gone": {'),
+)
+
+
 def fresh_copies() -> Path:
     """把要用的檔複製到 _mut/，回傳測試檔的路徑。"""
     shutil.rmtree(MUT, ignore_errors=True)
@@ -246,6 +257,34 @@ def main() -> int:
         for b in broken:
             print("   " + b)
         return 1
+
+    # ⚠️ Canary：一個【必定】會被抓到的變異。它若也「漏網」，代表副本
+    #    根本沒被載入——變異測試自己壞了，而那會偽裝成「測試全面失效」。
+    #
+    #    實測發生過：測試檔寫 `sys.path.insert(0, ROOT / "scripts")`，
+    #    從 _mut/ 執行時指回真正的 scripts/，36 個變異全部漏網而基準通過。
+    #    沒有 canary 的話，那份報告看起來像測試寫壞了，不像工具壞了。
+    # ⚠️ **每個被變異的檔各一個 canary。** 只驗一個檔不夠：
+    #    實測 build_party_list_election.py 的 canary 通過，但 oracles.py 的
+    #    變異全部無效——因為前者的 sys.path 把【真正的】scripts/ 插到最前面，
+    #    它之後 import 的 oracles 就載入原版了。單一 canary 看不出這件事。
+    for filename, old, new in CANARIES:
+        test_path = fresh_copies()
+        if not apply_to_copy(filename, old, new):
+            print(f"★ {filename} 的 canary 字串不唯一，變異測試本身壞了")
+            shutil.rmtree(MUT, ignore_errors=True)
+            return 1
+        crc, cout = run_pytest(test_path)
+        if crc == 0:
+            print(f"★ CANARY（{filename}）沒被偵測到——該檔的副本沒有生效，"
+                  f"針對它的變異全部無意義。")
+            print("   檢查 sys.path：測試檔與【被測模組】都必須用 "
+                  "Path(__file__).parent，不是 ROOT/'scripts'——"
+                  "後者會把真正的 scripts/ 插到最前面。")
+            print(cout[-1200:])
+            shutil.rmtree(MUT, ignore_errors=True)
+            return 1
+        print(f"canary（{filename}）→ 必定會被抓到的變異確實被抓到 ✓")
 
     test_path = fresh_copies()
     base_rc, base_out = run_pytest(test_path)

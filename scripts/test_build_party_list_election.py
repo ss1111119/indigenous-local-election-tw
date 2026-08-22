@@ -24,7 +24,13 @@ from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+# ⚠️ 必須是【本檔所在的目錄】，不是 ROOT/"scripts"。
+#    變異測試把副本放在 _mut/ 執行，寫成 ROOT/"scripts" 會指回真正的
+#    scripts/，於是變異過的副本【根本沒被載入】——36 個變異全部「漏網」
+#    而基準通過，看起來像測試全面失效，實際是量測工具自己壞了。
+#    既有的 test_build_local_election.py 與 test_build_legislative_election.py
+#    都用這一行，我沒照抄。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import build_party_list_election as P  # noqa: E402
 from build_local_election import ValidationError, zip_names  # noqa: E402
@@ -302,6 +308,18 @@ def test_manifest() -> None:
     if actual:
         check("manifest 與輸出逐欄相符",
               check_manifest_against(PARTY_LIST_MANIFEST, actual), [])
+    # ⚠️ #35：manifest 檢查原本寫在 main() 裡，測試碰不到，
+    #    把它拿掉的變異會漏網。已抽成 check_output_manifests()，這裡直接測它。
+    if actual:
+        P.check_output_manifests(
+            {t: [dict.fromkeys(c, "") ] for t, c in actual.items()})
+        print("  PASS  check_output_manifests 對實際輸出通過")
+        bad_tables = {t: [dict.fromkeys(c + ["多餘欄"], "")]
+                      for t, c in actual.items()}
+        check_raises_msg("輸出多一欄時 check_output_manifests 即中止",
+                         lambda: P.check_output_manifests(bad_tables),
+                         "欄位 oracle 宣告與實際輸出不符")
+
     # 多一欄要被抓到
     if "party_list_seats" in actual:
         problems = check_manifest_against(
@@ -458,6 +476,18 @@ def test_party_and_seats() -> None:
     finally:
         P.KNOWN_PARTY_CODE_DRIFT = old_list
 
+    # ⚠️ 數量與清單是【兩個必須互相一致的宣告】。只斷言
+    #    len(清單) == 宣告數 是宣告對宣告，拿掉數量檢查照樣通過——
+    #    實測那個變異就是這樣漏的。要測它必須把宣告數改錯。
+    old_n = P.EXPECTED_DRIFT_COUNT
+    P.EXPECTED_DRIFT_COUNT = 8
+    try:
+        check_raises_msg("漂移代號的宣告數改錯即中止",
+                         lambda: P.check_party_code_drift(tables),
+                         "宣告 8 個")
+    finally:
+        P.EXPECTED_DRIFT_COUNT = old_n
+
     for year in P.TERMS:
         stats = P.check_seat_allocation(year, sources[year]["elretks"])
         check(f"{year} 當選人數合計為 34", stats["當選人數"], 34)
@@ -477,6 +507,25 @@ def test_party_and_seats() -> None:
            "2016": ("100.0002", "100.0000"),
            "2020": ("100.0003", "100.0000"),
            "2024": ("100.0000", "100.0001")})
+
+    # ⚠️ #18：得票率合計與具名值的核對。上面那條「具名值 == 字面表」
+    #    是宣告對宣告，拿掉檢查照樣通過。要測它必須改【來源】而不改宣告。
+    rows18 = [list(r) for r in sources["2024"]["elretks"]]
+    rows18[0][P.R_STAGE1] = str(Decimal(rows18[0][P.R_STAGE1]) + Decimal("1"))
+    check_raises_msg("來源的得票率合計改變而宣告未改即中止",
+                     lambda: P.check_seat_allocation("2024", rows18),
+                     "宣告為")
+
+    # ⚠️ #20：elretks 的統計與宣告的核對。同理，要改宣告才測得到。
+    old_retks = dict(P.EXPECTED_RETKS["2024"])
+    P.EXPECTED_RETKS["2024"] = {**old_retks, "candidates": old_retks["candidates"] + 1}
+    try:
+        check_raises_msg("elretks 的統計宣告改錯即中止",
+                         lambda: P.check_seat_allocation(
+                             "2024", sources["2024"]["elretks"]),
+                         "elretks 的統計為")
+    finally:
+        P.EXPECTED_RETKS["2024"] = old_retks
 
     # 殘差超過捨入上界：宣告與來源一致，只有上界那條能擋
     rows = [list(r) for r in sources["2024"]["elretks"]]
@@ -543,6 +592,15 @@ def test_shares_and_denominator() -> None:
     bad = [k for k, v in shares.items() if v["p"] != ""
            and not (Decimal(0) <= Decimal(v["p"]) <= Decimal(1))]
     check("p 皆落在 [0,1]", bad, [])
+
+    # ⚠️ #26：q 必須由【投票數】算出，不是選舉人數。兩者不等，
+    #    而先前沒有任何斷言碰過 q 的值——把 q 改成 p 完全不會被抓到。
+    #    這裡釘死「兩者相異的所數」：q 若改用選舉人數，全部會相等。
+    pq = [(v["p"], v["q"]) for v in shares.values()
+          if v["p"] != "" and v["q"] != ""]
+    differ = sum(1 for a, b in pq if Decimal(a) != Decimal(b))
+    check("2024 有 p 與 q 的所數", len(pq), 17685)
+    check("其中 p ≠ q 的所數（q 若誤用選舉人數會變成 0）", differ, 11121)
 
 
 @reports

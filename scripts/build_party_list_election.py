@@ -28,7 +28,13 @@ from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+# ⚠️ 必須是【本檔所在的目錄】，不是 ROOT/"scripts"。
+#    變異測試把副本放在 _mut/ 執行；寫成 ROOT/"scripts" 會把【真正的】
+#    scripts/ 插到 sys.path 最前面，於是本檔之後 import 的 oracles 與
+#    build_local_election 全部載入原版——針對它們的變異永遠不會生效。
+#    既有的 build_local_election.py 與 build_legislative_election.py
+#    都用這一行，我沒照抄。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from build_local_election import (  # noqa: E402
     ValidationError,
@@ -874,6 +880,23 @@ def check_no_personal_data(tables: dict[str, list[dict]]) -> None:
                     )
 
 
+def check_output_manifests(tables: dict[str, list[dict]]) -> None:
+    """三張官方表的欄位必須與 PARTY_LIST_MANIFEST 逐欄相符。
+
+    ⚠️ 抽成函式而不寫在 main() 裡：寫在 main() 的話測試碰不到它，
+       把它拿掉的變異會漏網——實測就是這樣漏的。
+    """
+    problems = check_manifest_against(
+        PARTY_LIST_MANIFEST,
+        {name: list(rows[0].keys())
+         for name, rows in tables.items()
+         if name != "indigenous_party_preference_bounds" and rows},
+    )
+    if problems:
+        raise ValidationError(
+            "欄位 oracle 宣告與實際輸出不符：\n  " + "\n  ".join(problems))
+
+
 def build_summary_rows(year: str, prof: list[list[str]],
                        shares: dict[tuple[str, ...], dict]) -> list[dict]:
     """政黨票的選舉概況長表。投開票所層級的列另帶 p／q。"""
@@ -1076,15 +1099,7 @@ def main() -> None:
     }
     check_no_personal_data(tables)
 
-    problems = check_manifest_against(
-        PARTY_LIST_MANIFEST,
-        {name: list(rows[0].keys())
-         for name, rows in tables.items()
-         if name != "indigenous_party_preference_bounds"},
-    )
-    if problems:
-        raise ValidationError(
-            "欄位 oracle 宣告與實際輸出不符：\n  " + "\n  ".join(problems))
+    check_output_manifests(tables)
 
     commit_outputs(OUT_DIR, {
         "cec-party-list-summary-long.csv.gz":
