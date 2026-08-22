@@ -28,7 +28,8 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_oracles or test_read_csv or test_population or test_process_one "
        "or test_elected or test_county_crosswalk or test_legacy_terms "
        "or test_custom_type_terms or test_regression or test_valid_age "
-       "or test_age_valid_column_in_output")
+       "or test_age_valid_column_in_output "
+       "or test_unguarded_source_checks")
 
 MUTATIONS = [
     # ⚠️ 字串必須唯一。`"T-COMBO": "直轄市議員` 在 oracles.py 出現兩次

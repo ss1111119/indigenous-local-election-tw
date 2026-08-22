@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import csv
 import gzip
 import io
@@ -53,6 +54,8 @@ from build_local_election import (  # noqa: E402
     KEY_COLS,
     ELECTED_MARKS,
     ELECTION_TYPES,
+    KNOWN_ELECTOR_ANOMALIES,
+    KNOWN_TOWN_ASSIGNMENT_ANOMALIES,
     YEARS,
     WIN_MARKS,
     ValidationError,
@@ -60,6 +63,7 @@ from build_local_election import (  # noqa: E402
     valid_age,
     ZIP_PATH,
     admin_level,
+    area_key,
     cross_validate,
     derive_elected_authoritative,
     detect_layout,
@@ -1350,6 +1354,413 @@ def test_regression() -> None:
 
 
 
+# ═══════════════════════════════════════════════════════════════════
+# 無測試守衛的合成髒資料
+#
+# ⚠️ 這一組存在的理由，用一句話講：**那些守衛在乾淨資料上永遠不觸發，
+#    所以把它們改成 `if False:` 之後 pytest 全綠、建置通過、輸出位元組不變。**
+#
+#    2026-08-22 插樁量測九個判斷式在完整建置中的行為：到達 1–20 次、
+#    條件成立 0 次。它們不是死碼（全部執行過），是「這批資料剛好沒發生」。
+#    刪掉任何一個，下次來源變壞時就沒人擋。
+#
+# ⚠️ **只斷言「有拋出 ValidationError」不夠。** 中止的路徑不只一條，
+#    專責檢查會被別的檢查掩護——實測第 44 項的第一版合成輸入就是被更早的
+#    「候選人複合鍵重複」擋下的。所以 aborts_with() 一律要比對
+#    **只有目標檢查會輸出的字串**。
+# ═══════════════════════════════════════════════════════════════════
+_PARTS_CACHE: dict[tuple, list] = {}
+
+# 探測用的屆別。刻意挑小檔，秒級完成。
+#
+# 1998／2005 的 T2／T3：涵蓋寶山鄉（投票數 > 選舉人數）與配錯選舉區、跨區移動。
+# 1998 的 T-COMBO：**孤兒單位那三條檢查只在 CTKS_DEEPER_THAN_PROF 內的檔跑**，
+#   而那個集合只有 1998／2002 的 T-COMBO 直轄市檔。不加它，41／42／45
+#   三條的合成輸入會靜默地什麼都沒觸發——因為整段程式根本不執行。
+# 1994 的 T-COMBO：第 43 項唯一能觀察到「正規化有沒有生效」的檔——
+#   它同時在 DISTRICT_COLUMN_INCONSISTENT 與 KNOWN_ELECTED_MARK_ANOMALIES
+#   內，有 2 筆具名的註記不一致。不做正規化時那 2 筆會看不見。
+PROBE_PARTS = (("1994", "T-COMBO"),
+               ("1998", "T2"), ("1998", "T3"), ("1998", "T-COMBO"),
+               ("2005", "T2"), ("2005", "T3"))
+
+
+def probe_parts() -> list | None:
+    """取得探測用的真實 parts。找不到原始壓縮檔時回傳 None。"""
+    if not ZIP_PATH.exists():
+        return None
+    key = PROBE_PARTS
+    if key not in _PARTS_CACHE:
+        out = []
+        with zipfile.ZipFile(ZIP_PATH) as zf:
+            names = zip_names(zf)
+            for year, etype in PROBE_PARTS:
+                for label, sub in YEARS[year]["parts"][etype].items():
+                    out.append(process_one(zf, names, year, etype, label, sub))
+        _PARTS_CACHE[key] = out
+    return _PARTS_CACHE[key]
+
+
+def part_of(parts: list, year: str, etype: str) -> dict:
+    """取出指定（屆別, 選舉種類）的 part。"""
+    return next(p for p in parts if (p["year"], p["etype"]) == (year, etype))
+
+
+def check_raises_msg(label: str, fn, phrase: str) -> None:
+    """斷言 fn 丟出 ValidationError 且訊息含 phrase。
+
+    ⚠️ 與既有的 check_raises 不同：那個只驗型別。中止的路徑不只一條時，
+       只驗型別會讓專責檢查被別的檢查掩護而假通過。
+    """
+    try:
+        fn()
+    except ValidationError as exc:
+        if phrase in str(exc):
+            print(f"  PASS  {label}")
+        else:
+            print(f"  FAIL  {label}（中止了，但訊息不含 {phrase!r}）"
+                  f"\n          實際：{str(exc)[:110]}")
+            failures.append(label)
+        return
+    print(f"  FAIL  {label}（沒有中止）")
+    failures.append(label)
+
+
+def aborts_with(label: str, mutate, phrase: str) -> None:
+    """深拷貝 parts、套用 mutate、跑 cross_validate，斷言中止且訊息含 phrase。
+
+    `phrase` 必須是**只有目標檢查會輸出的字串**——只驗有沒有中止，
+    會讓專責檢查被別的檢查掩護而假通過。
+    """
+    parts = probe_parts()
+    if parts is None:
+        return
+    ps = copy.deepcopy(parts)
+    if mutate(ps) is None:
+        check(label, "找不到可改的位置", "已套用合成缺陷")
+        return
+    try:
+        cross_validate(ps, [], [], [], [], [])
+    except ValidationError as exc:
+        if phrase in str(exc):
+            print(f"  PASS  {label}")
+        else:
+            print(f"  FAIL  {label}（中止了，但訊息不含 {phrase!r}）"
+                  f"\n          實際：{str(exc)[:110]}")
+            failures.append(label)
+        return
+    print(f"  FAIL  {label}（沒有中止）")
+    failures.append(label)
+
+
+@reports
+def test_unguarded_source_checks() -> None:
+    """為那些在乾淨資料上永不觸發的守衛，各餵一份會觸發它的輸入。"""
+    print("\n[單元] 無測試守衛的合成髒資料")
+    parts = probe_parts()
+    if parts is None:
+        print("  SKIP  找不到原始壓縮檔")
+        skipped.append("unguarded_source_checks")
+        return
+
+    # ⚠️ 基準：未改動的 parts 必須【不】中止。少了這一步，後續每一個
+    #    「中止」都可能來自 parts 本身有問題，而不是我們合成的缺陷。
+    try:
+        cross_validate(copy.deepcopy(parts), [], [], [], [], [])
+        print("  PASS  基準：未改動的 parts 通過 cross_validate")
+    except ValidationError as exc:
+        check("基準：未改動的 parts 通過 cross_validate",
+              f"中止：{str(exc)[:80]}", "通過")
+        return
+
+    def m_elector(ps):
+        """30：未具名的單位投票數 > 選舉人數。"""
+        p = part_of(ps, "1998", "T3")
+        allow = KNOWN_ELECTOR_ANOMALIES.get(
+            (p["year"], p["etype"], p["label"]), set())
+        for s in p["summary"]:
+            if (admin_level(area_key(s)) == "鄉鎮市區"
+                    and area_key(s) not in allow and s["選舉人數"]):
+                s["投票數"] = s["選舉人數"] + 1
+                return s
+        return None
+
+    aborts_with("30 未具名單位的投票數 > 選舉人數", m_elector, "投票數")
+
+    # ── 33：具名單位的上層級也異常 ─────────────────────────────────
+    #
+    # ⚠️ 第一版合成輸入【被第 30 項攔截】：我把縣市層級列改成投票數超過
+    #    選舉人數，但那一列不在具名清單內，所以 #30 先中止，訊息是
+    #    「投票數 N > 選舉人數 M」而不是「其上層級」。#33 根本沒執行到。
+    #
+    #    要到達 #33，那一列必須【也】是具名的——否則 #30 一定先擋下。
+    #    所以這裡臨時把上層級加進具名清單。語意上這正是 #33 要守的情況：
+    #    「即使該單位已具名放行，它的彙總值也不准被污染」。
+    key98 = ("1998", "T3", "city")
+    named = KNOWN_ELECTOR_ANOMALIES.get(key98, set())
+    upper_key = None
+    if named:
+        k = next(iter(named))
+        upper_key = (k[0], k[1], "00", "000", "0000", "0")
+
+    def m_elector_upper(ps):
+        p = part_of(ps, "1998", "T3")
+        for s in p["summary"]:
+            if area_key(s) == upper_key and s["選舉人數"]:
+                s["投票數"] = s["選舉人數"] + 1
+                return s
+        return None
+
+    if upper_key is None:
+        check("33 具名異常單位的上層級也異常", "具名清單是空的", "有具名單位")
+    else:
+        KNOWN_ELECTOR_ANOMALIES[key98] = named | {upper_key}
+        try:
+            aborts_with("33 具名異常單位的上層級也異常",
+                        m_elector_upper, "其上層級")
+        finally:
+            KNOWN_ELECTOR_ANOMALIES[key98] = named
+
+    # ── 31 / 34：鄉鎮市區配錯選舉區的兩條相鄰檢查 ─────────────────
+    #
+    # 兩條都在具名的錯置選舉區上跑，且 31 先執行。要到達 34，合成輸入
+    # 必須【改代碼但不改值】——那正是 34 的註解所描述的情況：
+    # 「多的那一個若剛好與少的那一個同值，多重集合仍相同」。
+    def _misplaced_part(ps):
+        """回傳（part, 具名的錯置選舉區集合）。"""
+        for p in ps:
+            anom = KNOWN_TOWN_ASSIGNMENT_ANOMALIES.get(
+                (p["year"], p["etype"], p["label"]))
+            if anom and anom.get("districts"):
+                return p, anom["districts"]
+        return None, None
+
+    def m_multiset(ps):
+        """31：把具名選舉區內某個鄉鎮市區的有效票改掉，使多重集合不同。"""
+        p, dists = _misplaced_part(ps)
+        if p is None:
+            return None
+        for s in p["summary"]:
+            if (s["層級"] == "鄉鎮市區"
+                    and area_key(s, with_station=False)[:3] in dists):
+                s["有效票"] = s["有效票"] + 1
+                return s
+        return None
+
+    def m_town_set(ps):
+        """34：把某個鄉鎮市區的【代碼】改掉但保留其值，多重集合因此不變。"""
+        p, dists = _misplaced_part(ps)
+        if p is None:
+            return None
+        for s in p["summary"]:
+            if (s["層級"] == "鄉鎮市區"
+                    and area_key(s, with_station=False)[:3] in dists):
+                s["鄉鎮市區"] = "999"      # 一個 elctks 不會有的代碼
+                return s
+        return None
+
+    aborts_with("31 具名選舉區的鄉鎮市區有效票多重集合不同",
+                m_multiset, "多重集合不相同")
+    aborts_with("34 鄉鎮市區代碼集合差異未具名",
+                m_town_set, "代碼集合差異未具名")
+
+    # ── 41 / 42 / 45：孤兒單位的三條檢查 ─────────────────────────
+    #
+    # ⚠️ 這三條【只在 CTKS_DEEPER_THAN_PROF 內的檔執行】（1998／2002 的
+    #    T-COMBO 直轄市）。若探測 parts 不含那個檔，合成輸入會靜默地
+    #    什麼都不觸發——整段程式根本不跑，而測試會顯示「沒有中止」。
+    ORPHAN = ("1998", "T-COMBO")
+
+    def _orphan_ctx(ps):
+        """回傳（part, 孤兒單位鍵清單）。
+
+        ⚠️ 必須【重現】cross_validate 的算法，不能近似：真實程式建鍵前會
+           先套 unit()——把 DISTRICT_COLUMN_INCONSISTENT 內的檔的選舉區欄
+           壓成 '00'。1998 T-COMBO 正在那個集合裡。第一版用原始 area_key，
+           算出來的「孤兒」其實是縣市層級列，三條探測全部打到別的檢查。
+        """
+        p = part_of(ps, *ORPHAN)
+        drop = (p["year"], p["etype"], p["label"]) in DISTRICT_COLUMN_INCONSISTENT
+
+        def unit(k):
+            return (k[0], k[1], "00") + tuple(k[3:]) if drop else k
+
+        prof = {unit(area_key(s)) for s in p["summary"]}
+        seen: dict[tuple, int] = {}
+        for v in p["votes"]:
+            k = unit(area_key(v))
+            seen[k] = seen.get(k, 0) + v["得票數"]
+        return p, [k for k in seen if k not in prof], unit
+
+    def m_orphan_sum(ps):
+        """41：孤兒層級的向上加總 ≠ 父單位有效票。"""
+        p, orphans, unit = _orphan_ctx(ps)
+        if not orphans:
+            return None
+        target = orphans[0]
+        for v in p["votes"]:
+            if unit(area_key(v)) == target:
+                v["得票數"] = v["得票數"] + 1
+                return v
+        return None
+
+    def m_orphan_parent(ps):
+        """42：孤兒單位的父單位從 elprof 消失。
+
+        ⚠️ 只從 elprof 移除父列【不夠】：那個鍵在 elctks 仍有列，於是父列
+           自己變成一個【淺層】孤兒，先觸發第 45 條（層級未深於 elprof）。
+           實測踩過。所以 elprof 與 elctks 兩邊都要移除該鍵，
+           讓真正的深層孤兒找不到父單位。
+        """
+        p, orphans, unit = _orphan_ctx(ps)
+        if not orphans:
+            return None
+        k = orphans[0]
+        pk = (k[0], k[1], "00", "000", "0000", "0")
+        before = len(p["summary"])
+        p["summary"] = [s for s in p["summary"] if unit(area_key(s)) != pk]
+        p["votes"] = [v for v in p["votes"] if unit(area_key(v)) != pk]
+        return None if len(p["summary"]) == before else pk
+
+    def m_orphan_shallow(ps):
+        """45：孤兒單位的層級不比 elprof 最深層級更深。
+
+        把 elprof 的最深層級往下推（補一列更深的），孤兒單位就不再更深。
+        """
+        p, orphans, _u = _orphan_ctx(ps)
+        if not orphans:
+            return None
+        k = orphans[0]
+        deeper = dict(p["summary"][0])
+        for col, val in zip(("省市", "縣市", "選舉區", "鄉鎮市區", "村里", "投開票所"), k):
+            deeper[col] = val
+        deeper["層級"] = admin_level(list(k))
+        deeper["有效票"] = 0
+        deeper["無效票"] = 0
+        deeper["投票數"] = 0
+        deeper["選舉人數"] = 0
+        p["summary"].append(deeper)
+        return deeper
+
+    aborts_with("41 孤兒層級的加總 ≠ 父單位有效票",
+                m_orphan_sum, "的得票加總")
+    aborts_with("42 孤兒單位的父單位不存在於 elprof",
+                m_orphan_parent, "不存在於 elprof")
+    aborts_with("45 孤兒單位的層級並未深於 elprof 最深層級",
+                m_orphan_shallow, "並未深於")
+
+    # ── 43：驗證 7 的鍵必須套用選舉區正規化 ───────────────────────
+    #
+    # ⚠️ 這一項與其他九項【形態不同】：它不是「拿掉檢查」，是讓檢查
+    #    **恆為空轉**。不做正規化時，elcand 的鍵（選舉區 00）與 elctks 的鍵
+    #    （選舉區 01）永遠對不上，`ctks_mark.get()` 全部回 None，
+    #    那一整段比對一次都不執行——【不會中止，所以「有沒有中止」測不到】。
+    #
+    # ⚠️ 這一項逼了三次才寫對，兩次都是【測到別的東西】：
+    #
+    #    第一版：在測試裡自己重寫了一遍 mark_key，斷言「套用正規化對得上 > 0、
+    #      不套用 = 0」。那測的是我自己的副本，改建置腳本對它毫無影響。
+    #      **測試不可重新實作被測邏輯。**
+    #    第二版：斷言 1994 T-COMBO 的 2 筆具名註記異常出現在 cross_validate
+    #      收集的清單裡。但那份清單是【驗證 4d（權威值比對）】產出的，
+    #      不是驗證 7——改 mark_key 一樣影響不到。
+    #
+    #    正解：合成一筆【不在具名清單內】的註記不一致，放進一個 drop_district
+    #    的檔。正確程式的 mark_key 會對上、發現不一致、因未具名而中止；
+    #    變異版的鍵對不上，marks 為 None，那一筆看不見，不會中止。
+    #    選 1998 T-COMBO——它是 drop_district 檔且【沒有】具名的註記異常，
+    #    所以任何不一致都必須立刻中止，不會被具名清單吸收。
+    def m_mark_key(ps):
+        """把 elctks 的當選註記由 `*` 換成 `!`——兩者都算當選。
+
+        ⚠️ 這個輸入逼了四次才寫對，前三次都被更早的檢查攔截：
+           1. 翻一筆 elcand 註記 → 改變當選人數，撞驗證 4（當選人數不符）。
+           2. 對調兩筆 elcand 註記 → 當選人數不變，但撞驗證 4d
+              （elcand 註記與權威值不一致）。
+           3. 兩者都是「當選與否」層次的改動，而 4d 就是比那個。
+           要到達驗證 7，改動必須【不影響當選與否】——4d 只看 Y/N，
+           驗證 7 比的是【註記字串本身】。`*` 與 `!` 都是當選，
+           所以 4d 通過、驗證 7 看到 {'!'} != {'*'} 而中止。
+
+        ⚠️ 這也說明驗證 7 的辨識範圍比看起來窄：它唯一獨有的能力，
+           是分辨兩個都代表當選的不同註記。
+        """
+        p = part_of(ps, "1998", "T-COMBO")
+        for c in p["candidates"]:
+            if c["當選註記"] != "*":
+                continue
+            ck = area_key(c, with_station=False)
+            for v in p["votes"]:
+                vk = area_key(v, with_station=False)
+                same = (vk[0], vk[1]) + tuple(vk[3:]) == (ck[0], ck[1]) + tuple(ck[3:])
+                if same and v["號次"] == c["號次"] and v["當選註記"] == "*":
+                    v["當選註記"] = "!"
+                    return v
+        return None
+
+    aborts_with("43 drop_district 檔的註記不一致必須被看見",
+                m_mark_key, "當選註記不一致")
+
+    # ── 44：忽略選舉區欄後候選人身分仍須唯一 ─────────────────────
+    #
+    # ⚠️ 這一條在 derive_elected_authoritative() 內，【不在 cross_validate 上】，
+    #    且只在 ignore_district=True 時執行，所以直接呼叫該函式。
+    #    它吃的是原始 CSV 列（list）而不是長表的 dict。
+    #
+    # ⚠️ 第一版合成輸入是「把兩位候選人的五個欄位設成相同」，結果被
+    #    cross_validate 更早的「候選人複合鍵重複」擋下——那條看的是含選舉區
+    #    的完整鍵。這裡改成直接呼叫，並讓兩人【只有選舉區欄不同】：
+    #    含選舉區時兩人不同（不會被複合鍵檢查抓到），去掉選舉區才重複。
+    dup_cand = [
+        ["01", "000", "01", "000", "0000", "1"] + [""] * 10,
+        ["01", "000", "02", "000", "0000", "1"] + [""] * 10,
+    ]
+    check_raises_msg(
+        "44 忽略選舉區欄後候選人身分不唯一",
+        lambda: derive_elected_authoritative(dup_cand, [], "合成檔",
+                                             ignore_district=True),
+        "候選人身分不唯一")
+    # 反向：含選舉區欄時兩人是不同的人，不得誤中止。
+    try:
+        derive_elected_authoritative(dup_cand, [], "合成檔",
+                                     ignore_district=False)
+        print("  FAIL  44 反向：不忽略選舉區時不該因身分重複中止"
+              "（應改為在 elctks 找不到列而中止）")
+        failures.append("44 反向")
+    except ValidationError as exc:
+        check("44 反向：不忽略選舉區時不因身分重複中止",
+              "候選人身分不唯一" in str(exc), False)
+
+    # ── 40：選舉區欄只能出現宣告的值 ─────────────────────────────
+    #
+    # ⚠️ 這一條在 process_one() 內（讀檔後、組裝前），也不在 cross_validate 上。
+    #
+    #    合成方式不是造假檔，而是【把宣告集合改錯】再對真實檔跑一次——
+    #    語意相同（宣告與實際不符即中止），但不必造四個互相一致的來源檔。
+    #    選 1998 T-COMBO 直轄市：只有 10 名候選人，秒級完成。
+    #
+    #    design 的 Open Questions 列了兩個選項（合成 zip／抽出檢查片段），
+    #    這是第三個：兩者都不必，且不動被測程式。
+    dist_key = ("1998", "T-COMBO", "直轄市")
+    saved_decl = DISTRICT_COLUMN_INCONSISTENT.get(dist_key)
+    if saved_decl is None:
+        check("40 選舉區欄出現未宣告的值", "找不到具名宣告", "有具名宣告")
+    else:
+        bogus = dict(saved_decl)
+        bogus["elctks"] = frozenset({"99"})     # 真實檔是 01，宣告成 99
+        DISTRICT_COLUMN_INCONSISTENT[dist_key] = bogus
+        try:
+            sub = YEARS["1998"]["parts"]["T-COMBO"]["直轄市"]
+            with zipfile.ZipFile(ZIP_PATH) as zf:
+                check_raises_msg(
+                    "40 選舉區欄出現未宣告的值",
+                    lambda: process_one(zf, zip_names(zf), "1998",
+                                        "T-COMBO", "直轄市", sub),
+                    "選舉區欄出現未宣告的值")
+        finally:
+            DISTRICT_COLUMN_INCONSISTENT[dist_key] = saved_decl
+
+
 def main() -> int:
     # 逐一執行；@reports 會在該組有失敗時丟 AssertionError，
     # 這裡吞掉以便跑完全部並一次列出所有失敗（pytest 則會逐組報失敗）。
@@ -1364,7 +1775,8 @@ def main() -> int:
                test_county_crosswalk, test_legacy_terms,
                test_custom_type_terms,
                test_valid_age, test_age_valid_column_in_output,
-               test_oracles, test_regression):
+               test_oracles, test_regression,
+               test_unguarded_source_checks):
         try:
             fn()
         except AssertionError:
