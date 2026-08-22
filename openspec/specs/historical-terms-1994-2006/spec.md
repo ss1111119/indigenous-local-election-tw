@@ -310,3 +310,111 @@ tests:
   - scripts/test_build_local_election.py
   - scratch/mutation_test.py
 -->
+
+---
+### Requirement: Town-Level Comparability Is Declared Per File, Not Assumed From The Term
+Whether a record can be joined to other files at township level is a property of the file, not of the year. The 1998, 2002, and 2005 indigenous county councilor files re-number their town codes per file and SHALL carry a resolved code in the normalized town column. The combined indigenous city councilor files and the 1994 provincial councilor files do not re-number theirs and SHALL carry their own code unchanged, because it is already the term's code.
+
+Once this capability applies, the normalized town column SHALL hold a value for every row of every file; no row SHALL carry an empty normalized town code. A reader SHALL be able to join on that column without first consulting a table of which files were fixed when.
+
+#### Scenario: Reading town-level comparability
+- **WHEN** a consumer needs to join a record to another file at township level
+- **THEN** the normalized town column SHALL be comparable across files of the same term regardless of which file the record came from, and SHALL NOT require the consumer to know whether that file re-numbered its codes
+
+#### Scenario: Six files gain town-level joinability
+- **WHEN** the 1998, 2002, and 2005 plain- and mountain-indigenous county councilor files are processed
+- **THEN** all of their township-level units SHALL carry a resolved normalized town code, and none SHALL be left empty
+
+#### Scenario: These files carry no sub-township rows
+- **WHEN** township-level normalization is applied to these six files
+- **THEN** it SHALL NOT be extended to village or polling-station codes, because those files contain no rows below township level and a normalization declared for a level with no data would be a check that can never fail
+
+<!-- @trace
+source: normalise-town-codes-1998-2005
+updated: 2026-08-22
+code:
+  - scratch/baseline/candidates.csv
+  - README.md
+  - scratch/chk1998t2.py
+  - scratch/review_question.md
+  - scratch/measure_pop.py
+  - scratch/baseline/votes.csv
+  - scratch/gen_anomalies.py
+  - scratch/expected.txt
+  - scratch/baseline/summary.csv
+  - scratch/probe_1994.py
+  - scratch/verify_pop2.py
+  - data/reference/cec-town-code-crosswalk-1998-2005.csv
+  - scratch/review_q4.md
+  - scratch/verify_32.py
+  - scratch/add_defect7.py
+  - scratch/measure_auth_existing.py
+  - scratch/verify_33.py
+  - docs/index.html
+  - scratch/verify_crosswalk.py
+  - scratch/measure_ws2.py
+  - GEMINI.md
+  - scratch/review_q3.md
+  - scratch/measure_2005e.py
+  - scratch/probe7.py
+  - scratch/review_q7.md
+  - scratch/dryrun_manifest.py
+  - scratch/verify_pop.py
+  - scratch/verify_11.py
+  - scratch/verify_strip.py
+  - scratch/measure_whitespace.py
+  - scratch/probe6.py
+  - scratch/verify_review.py
+  - scratch/list_zip.py
+  - scratch/verify_identity.py
+  - .spectra.yaml
+  - scratch/review_q6.md
+  - scratch/measure_2005g.py
+  - scratch/strip_experiment.py
+  - scratch/probe4.py
+  - scratch/inventory_legacy.py
+  - docs/三屆概況.md
+  - scratch/probe2.py
+  - scripts/build_local_election.py
+  - docs/schema/cec-local-election.md
+  - AGENTS.md
+  - scratch/measure_2005d.py
+  - scratch/measure_pop2.py
+  - scratch/verify_21.py
+  - scratch/verify_21c.py
+  - scratch/measure_2005c.py
+  - scratch/verify_auth.py
+  - scratch/measure_2005_towns.py
+  - scratch/probe_anomalies.py
+  - scratch/measure_trunc.py
+  - scratch/verify_claims.py
+  - data/processed/cec-local-election-votes-long.csv.gz
+  - data/processed/validation-report.json
+  - data/processed/cec-local-election-candidates-long.csv
+  - scratch/chk_cw.py
+  - scratch/review_q2.md
+  - scratch/zip_names.json
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/gen_expected.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_2005b.py
+  - scratch/probe_districts2.py
+  - scratch/probe5.py
+  - scratch/gen_town_anom.py
+  - scripts/build_town_crosswalk.py
+  - scratch/review_q5.md
+  - scratch/probe3.py
+  - scratch/measure_town_feasible.py
+  - CLAUDE.md
+  - scratch/measure_2005f.py
+  - scripts/mutate_build_local_election.py
+  - data/processed/cec-local-election-summary-long.csv.gz
+  - scratch/probe_legacy_build.py
+  - HANDOFF.md
+  - scratch/measure_town_codes.py
+  - scratch/add_legacy_sources.py
+  - scratch/measure_2005.py
+  - scratch/probe_districts.py
+tests:
+  - scripts/test_build_local_election.py
+-->

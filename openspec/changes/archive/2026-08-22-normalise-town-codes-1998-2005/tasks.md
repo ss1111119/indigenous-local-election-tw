@@ -6,7 +6,7 @@
 
 - [x] 2.1 在 `scripts/build_local_election.py` 加入 `TOWN_NAME_ALIASES` 具名常數，鍵為（屆別, 選舉種類, 縣市名稱, 原始名稱），值為（目標名稱, 目標鄉鎮代碼, 預期使用次數），共四筆，內容見 design 的「四筆截斷名稱」表：2002 T3 嘉義縣 里山鄉→阿里山鄉、2002 T3 屏東縣 地門鄉→三地門鄉、2002 T3 臺東縣 麻里鄉→太麻里鄉、2005 T3 臺東縣 麻里鄉→太麻里鄉。落實需求 `Truncated Town Names Are Named, Never Pattern-Matched` 與「決策 3：四筆截斷寫成具名 alias，不用任何字串通則」。⚠️ 鍵必須含屆別與選舉種類——2002 T3 與 2005 T3 都有「麻里鄉」，鍵只到縣市與名稱會讓一筆 alias 同時套用到兩屆。驗證方式：常數長度為 4；四個鍵的（屆別, 選舉種類）分別為三筆 2002 T3、一筆 2005 T3。
 - [x] 2.2 加入 `load_town_crosswalk()` 讀取 1.1 的 CSV，並在讀取時中止於：檔案不存在、無資料列、鍵重複、目標鍵重複。回傳鍵為（屆別, 選舉種類, 縣市名稱, 本地鄉鎮代碼）、值為目標鄉鎮代碼的 dict。驗證方式：對真實檔呼叫回傳 1,290 筆；以合成輸入分別觸發四種中止，各自的錯誤訊息可區別。
-- [x] 2.3 在 `process_one` 的鄉鎮市區正規化處，對 `TOWN_CODES_FILE_LOCAL` 內的六個檔改為查 2.2 的對照表填值，查不到即中止。既有四屆與其他檔的路徑不變。落實需求 `An Unresolved Town Is An Abort, Not An Empty Cell` 與「決策 4：配不到就中止，不留空」，同時落實需求 `Town-Level Comparability Is Declared Per File, Not Assumed From The Term`——變更後為空字串的只剩 T-COMBO 與 1994 省議員檔。驗證方式：跑 `process_one` 於 1998 T3，該檔 226 個鄉鎮的 `鄉鎮市區_正規化` 皆非空；跑於 2022 T2，輸出與變更前相同；跑於 1998 T-COMBO，該欄仍填原碼不變——實測更正：T-COMBO 與 1994 省議員檔本來就不是空字串，變更前有空值的只有這六個 T2／T3 檔。
+- [x] 2.3 在 `process_one` 的鄉鎮市區正規化處，對 `TOWN_CODES_FILE_LOCAL` 內的六個檔改為查 2.2 的對照表填值，查不到即中止。既有四屆與其他檔的路徑不變。落實需求 `An Unresolved Town Is An Abort, Not An Empty Cell`、改寫既有需求 `Normalization Depth Is Limited To County Level`（更名為 `Normalization Depth Reaches Township, Not Below`——原名在本變更後已成假敘述），與「決策 4：配不到就中止，不留空」，同時落實需求 `Town-Level Comparability Is Declared Per File, Not Assumed From The Term`——變更後為空字串的只剩 T-COMBO 與 1994 省議員檔。驗證方式：跑 `process_one` 於 1998 T3，該檔 226 個鄉鎮的 `鄉鎮市區_正規化` 皆非空；跑於 2022 T2，輸出與變更前相同；跑於 1998 T-COMBO，該欄仍填原碼不變——實測更正：T-COMBO 與 1994 省議員檔本來就不是空字串，變更前有空值的只有這六個 T2／T3 檔。
 
 ## 3. 驗證
 

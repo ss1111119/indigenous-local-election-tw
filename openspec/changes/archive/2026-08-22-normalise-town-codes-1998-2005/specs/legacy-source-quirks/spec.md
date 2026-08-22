@@ -68,3 +68,48 @@ An empty normalized town column previously meant one thing only: that the projec
 #### Scenario: Resolution fails partway through a file
 - **WHEN** any town in a covered file cannot be resolved
 - **THEN** the build SHALL abort and SHALL NOT write an empty normalized value for that row, because a downstream reader cannot distinguish a deliberate blank from a failed lookup
+
+## RENAMED Requirements
+
+- FROM: `### Requirement: Normalization Depth Is Limited To County Level`
+- TO: `### Requirement: Normalization Depth Reaches Township, Not Below`
+
+## MODIFIED Requirements
+
+### Requirement: Normalization Depth Reaches Township, Not Below
+The system SHALL output the source administrative codes unchanged and SHALL add separate
+normalized columns. The county normalized column SHALL carry the same-term regional code.
+The town normalized column SHALL also carry the same-term regional code, resolved through
+the town crosswalk for files whose town codes are renumbered file-locally. Normalization
+now reaches township level; it SHALL NOT reach village or polling-station level, because
+the files that renumber their town codes contain no rows below township.
+
+The town normalized column SHALL NOT be empty for any file. Leaving it empty would make
+one representation carry two meanings — "this file needs no normalization" and "this row
+could not be resolved" — and a downstream reader cannot tell those apart.
+
+#### Scenario: Town codes are renumbered file-locally
+- **WHEN** processing the 1998, 2002, or 2005 mountain- or plain-indigenous county councilor
+  files, whose town codes are renumbered from `001` within each file
+- **THEN** the town normalized column SHALL carry the same-term regional file's town code,
+  and the source town column SHALL retain the file's own code unchanged
+
+#### Scenario: County codes became term-global before town codes did
+- **WHEN** processing 2005 files
+- **THEN** the county code SHALL need no crosswalk conversion, but the town code SHALL still
+  require it — "term-global from 2005" holds at county level only
+
+#### Scenario: Combined indigenous city councilor files
+- **WHEN** processing the 1994, 1998, 2002, or 2006 combined indigenous city councilor files,
+  whose county and town codes match the same-term city regional file exactly
+- **THEN** both normalized columns SHALL carry the source codes
+
+#### Scenario: Rows above township level
+- **WHEN** a row aggregates above township level, so its source town code is all zeros
+- **THEN** the town normalized column SHALL carry that same all-zero code, matching what
+  every other file emits for such rows, rather than being left empty
+
+#### Scenario: Normalization is not extended below township
+- **WHEN** considering village or polling-station level normalization for these files
+- **THEN** it SHALL NOT be added, because those files contain no rows at those levels and a
+  normalization declared for a level with no data is a rule that can never be exercised
