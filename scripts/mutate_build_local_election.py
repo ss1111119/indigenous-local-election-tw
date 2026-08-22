@@ -106,6 +106,14 @@ MUTATIONS = [
      "build_local_election.py",
      "    if reg_name is not None and reg_name == local_name:",
      "    if reg_name is not None:"),
+    # ⚠️ 這一項守的不是資料，是「輸入不要放在輸出目錄」。改回去之後建置
+    #    照樣成功、輸出逐位元相同——只有明寫的位置檢查會失敗。
+    ("對照表搬回輸出目錄（清空輸出再重跑就會把輸入刪掉）",
+     "build_local_election.py",
+     'COUNTY_CROSSWALK_PATH = (\n'
+     '    ROOT / "data" / "reference" / "cec-county-code-crosswalk-1998-2002.csv"\n'
+     ')',
+     'COUNTY_CROSSWALK_PATH = OUT_DIR / "cec-county-code-crosswalk-1998-2002.csv"'),
     ("對照表的鍵不含選舉種類（T2 的列會被 T3 用到）",
      "build_local_election.py",
      '    key = (year, etype, code)',

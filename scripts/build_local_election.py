@@ -610,7 +610,12 @@ KNOWN_ELECTED_MARK_ANOMALIES: dict[tuple, set] = {
 # 1998 山原 6/12、1998 平原 9/10、2002 山原 6/12、2002 平原 10/11。
 # 例：1998 平原檔的 01002 是桃園縣，區域檔的 01002 是宜蘭縣——跨檔 join 會
 # 【靜默對錯縣市】。處置見 design.md Decisions 第 3 點。
-COUNTY_CROSSWALK_PATH = OUT_DIR / "cec-county-code-crosswalk-1998-2002.csv"
+# ⚠️ 這是**輸入**（人工建立的對照表），不是建置產物。放在 OUT_DIR 底下時，
+#    「清空輸出目錄再重跑」這個很自然的動作會把它一起刪掉，然後建置失敗。
+#    立委那支從一開始就放 data/reference/，此處與之對齊。
+COUNTY_CROSSWALK_PATH = (
+    ROOT / "data" / "reference" / "cec-county-code-crosswalk-1998-2002.csv"
+)
 
 # 需要經 crosswalk 換算縣市代碼的屆別，值為同屆「區域」檔的資料夾。
 COUNTY_CROSSWALK_YEARS = {

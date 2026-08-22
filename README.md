@@ -229,7 +229,7 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 | `data/processed/cec-local-election-votes-long.csv.gz` | 1,751,190 | 候選人得票，最細到投開票所 |
 | `data/processed/validation-report.json` | — | 驗證結果與來源檔 SHA-256 |
 | `data/processed/cec-moi-crosswalk.csv` | 8,344 | 中選會↔內政部行政區代碼對照（`python scripts/build_crosswalk.py`）|
-| `data/processed/cec-county-code-crosswalk-1998-2002.csv` | 31 | 1998／2002 縣市代碼→同屆「區域」檔代碼（建置的**輸入**，非產出）|
+| `data/reference/cec-county-code-crosswalk-1998-2002.csv` | 31 | 1998／2002 縣市代碼→同屆「區域」檔代碼。**這是輸入不是產出**，故不放在 `data/processed/`——清空輸出目錄不會把它刪掉 |
 
 **目前範圍：1994、1998、2002、2005、2006、2009-2010、2014（103 年）、
 2018（107 年）、2022（111 年）九屆。**

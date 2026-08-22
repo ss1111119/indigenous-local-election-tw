@@ -58,6 +58,7 @@ from build_local_election import (  # noqa: E402
     KNOWN_TOWN_ASSIGNMENT_ANOMALIES,
     YEARS,
     WIN_MARKS,
+    COUNTY_CROSSWALK_PATH,
     ValidationError,
     check_age_sentinel,
     valid_age,
@@ -813,6 +814,14 @@ def test_county_crosswalk() -> None:
         "對照表的鍵含選舉種類（T3 查不到 T2 的列）",
         lambda: resolve_county_code("1998", "T3", "01", "005", "嘉義縣",
                                     cw, reg, "T", used))
+
+    # 對照表是【輸入】不是產物，不得放在輸出目錄底下。
+    # ⚠️ 這一條守的不是資料正確性，是「清空輸出目錄再重跑」不會把輸入刪掉。
+    #    放回 OUT_DIR 時建置與其餘測試全部照樣通過——這裡不擋就沒人擋。
+    check("對照表不在輸出目錄底下",
+          OUT in COUNTY_CROSSWALK_PATH.parents, False)
+    check("對照表放在 data/reference/",
+          COUNTY_CROSSWALK_PATH.parent.name, "reference")
 
     # 實際的對照表：只收代碼不同者，且鍵不重複
     real = load_county_crosswalk()
