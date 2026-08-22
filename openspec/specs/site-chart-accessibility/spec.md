@@ -2,7 +2,24 @@
 
 ## Purpose
 
-TBD - created by archiving change 'site-accessibility-baseline'. Update Purpose after archive.
+The published charts carry data in color: which series a bar belongs to, which
+party a slice represents. Color is therefore not decoration here — it is the
+encoding, and a reader who cannot separate two hues cannot read the number.
+
+This capability governs how that encoding is kept legible. It covers the four
+ways it silently fails: adjacent series that are distinguishable to normal
+vision but collapse under protan or deutan simulation; labels drawn inside a
+mark against a fill they were never measured against; values omitted from marks
+too small to hold them and reachable only by hovering, which excludes keyboard,
+screen reader, print, and forced-colors readers; and a dark theme derived by
+inverting the light one rather than stepped and measured on its own surface.
+
+The standing rule is that color separation is a measured quantity, not a design
+opinion. A palette is admissible because its pairwise distances were computed
+and recorded, in both themes and under both simulations — never because it looks
+distinct on the author's screen. Where a threshold is claimed, the measurement
+that establishes it SHALL be in the repository and re-runnable, so a later
+palette edit that quietly crosses the line turns a check red instead of shipping.
 
 ## Requirements
 
