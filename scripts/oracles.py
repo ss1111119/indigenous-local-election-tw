@@ -570,6 +570,147 @@ _LAYER_DESC = {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# 不分區政黨票（build_party_list_election.py）
+#
+# ⚠️ 另立一份而不加進 MANIFEST：MANIFEST 會被逐項寫進
+#    validation-report.json，動它會改動既有輸出。與 LEGISLATIVE_MANIFEST 同理。
+# ---------------------------------------------------------------------------
+
+_PL_SHARED = {
+    "屆別": dict(
+        provenance="project", structure="本專案指定的屆別標籤",
+        arithmetic=None, semantic="project-defined",
+        note="以投票年份標示。2012／2016／2020／2024 的來源資料夾與總統選舉合併",
+    ),
+    "省市": dict(provenance="official", structure="official-doc（idx0）",
+                arithmetic=None, semantic="official-doc", note=None),
+    "縣市": dict(provenance="official", structure="official-doc（idx1）",
+                arithmetic=None, semantic="official-doc", note=None),
+    "選舉區": dict(
+        provenance="official", structure="official-doc（idx2）",
+        arithmetic=None, semantic="official-doc",
+        note="⚠️ 這一欄在四個來源檔的用法不一致，且 2008 與 2012 起不同："
+             "elbase 恆為 00、elcand 恆為 01、elprof 2008 全為 00 而 2012 起"
+             "彙總列 00／明細列 01。**跨檔配對一律忽略這一欄**——不忽略的話"
+             "2008 有 22,555 個單位對不上。不分區是全國單一選區，這一欄不帶"
+             "選區意義",
+    ),
+    "鄉鎮市區": dict(provenance="official", structure="official-doc（idx3）",
+                    arithmetic=None, semantic="official-doc", note=None),
+    "村里": dict(provenance="official", structure="official-doc（idx4）",
+                arithmetic=None, semantic="official-doc", note=None),
+    "投開票所": dict(provenance="official", structure="official-doc（idx5）",
+                    arithmetic=None, semantic="official-doc", note=None),
+    "層級": dict(provenance="project", structure="由補零規則推導",
+                arithmetic=None, semantic="official-doc", note=None),
+}
+
+PARTY_LIST_MANIFEST = {
+    "party_list_summary": {
+        **_PL_SHARED,
+        "有效票": dict(
+            provenance="official", structure="official-doc（idx6）",
+            arithmetic="等於同單位各政黨得票數總和（五屆皆 0 筆不符）",
+            semantic="official-doc", note=None),
+        "無效票": dict(provenance="official", structure="official-doc（idx7）",
+                      arithmetic=None, semantic="official-doc", note=None),
+        "投票數": dict(
+            provenance="official", structure="official-doc（idx8）",
+            arithmetic="有效票 + 無效票", semantic="official-doc", note=None),
+        "選舉人數": dict(provenance="official", structure="official-doc（idx9）",
+                        arithmetic=None, semantic="official-doc", note=None),
+        "原住民可接": dict(
+            provenance="project", structure="由與原住民立委檔的配對推導",
+            arithmetic=None, semantic="project-defined",
+            note="⚠️ false 代表【所號兩檔對不上】，不代表沒有原住民選民。"
+                 "沒有原住民選民的所是 true 且 p=0——兩者由『該縣市反向缺口"
+                 "是否為 0』判定，見 缺席原因 欄",
+        ),
+        "缺席原因": dict(
+            provenance="project", structure="本專案分類",
+            arithmetic=None, semantic="project-defined",
+            note="空字串／該所無原住民選民／所號兩檔對不上／"
+                 "該所選舉人或投票數為 0",
+        ),
+        "p": dict(
+            provenance="project",
+            structure="(山原選舉人 + 平原選舉人) / 本檔選舉人數",
+            arithmetic="投開票所層級加總等於原住民立委的檔別合計",
+            semantic="project-defined",
+            note="⚠️ 選舉人佔比。**分層篩選用這個**，但算界限【不可】用它——"
+                 "界限的權重是投票者佔比 q",
+        ),
+        "q": dict(
+            provenance="project",
+            structure="(山原投票數 + 平原投票數) / 本檔投票數",
+            arithmetic=None, semantic="project-defined",
+            note="⚠️ 投票者佔比。**極限法的權重是這個**。與 p 的差來自兩張票"
+                 "的投票率不同；實測 ≥95% 層只差 0.4–1.6 個百分點，"
+                 "但差距小不是可以混用的理由——用錯的那個算出的界限"
+                 "仍然長得像界限",
+        ),
+        "原住民選舉人": dict(provenance="official",
+                            structure="山原 + 平原 elprof 的 idx9",
+                            arithmetic=None, semantic="official-doc", note=None),
+        "原住民投票數": dict(provenance="official",
+                            structure="山原 + 平原 elprof 的 idx8",
+                            arithmetic=None, semantic="official-doc", note=None),
+    },
+    "party_list_votes": {
+        **_PL_SHARED,
+        "政黨代號": dict(
+            provenance="official", structure="official-doc（elcand idx7）",
+            arithmetic=None, semantic="official-doc",
+            note="⚠️ **代號跨屆不穩定**：9 個代號在不同屆對到不同名稱。"
+                 "分桶鍵必須是（政黨代號, 政黨名稱）",
+        ),
+        "政黨名稱": dict(provenance="official", structure="elpaty idx1",
+                        arithmetic=None, semantic="official-table", note=None),
+        "號次": dict(provenance="official", structure="official-doc（idx6）",
+                    arithmetic=None, semantic="official-doc", note=None),
+        "得票數": dict(
+            provenance="official", structure="official-doc（idx7）",
+            arithmetic="同單位各政黨加總等於 elprof 的有效票",
+            semantic="official-doc", note=None),
+        "得票率": dict(
+            provenance="official", structure="official-doc（idx8）",
+            arithmetic=None, semantic="official-doc",
+            note="來源原值，本專案不重算也不覆寫"),
+    },
+    "party_list_seats": {
+        "屆別": _PL_SHARED["屆別"],
+        "政黨代號": dict(provenance="official", structure="elretks idx0",
+                        arithmetic=None, semantic="official-doc", note=None),
+        "政黨名稱": dict(provenance="official", structure="elpaty idx1",
+                        arithmetic=None, semantic="official-table", note=None),
+        "第一階段得票率": dict(
+            provenance="official", structure="official-doc（elretks idx1）",
+            arithmetic="逐屆合計與具名值相符，殘差不超過政黨數 × 0.00005",
+            semantic="official-doc",
+            note="⚠️ 合計【不是】恆為 100.0000——各黨比率四捨五入到小數 4 位，"
+                 "加總有捨入殘差。實測 2012 為 99.9998、2016 為 100.0002、"
+                 "2020 為 100.0003",
+        ),
+        "第二階段得票率": dict(
+            provenance="official", structure="official-doc（elretks idx2）",
+            arithmetic="同上", semantic="official-doc",
+            note="⚠️ 排除未達門檻的政黨後重算，**這個才是席次分配的依據**",
+        ),
+        "候選人數": dict(
+            provenance="official", structure="official-doc（elretks idx3）",
+            arithmetic=None, semantic="official-doc",
+            note="⚠️ 該黨名單的長度，**不是應選席次**。2024 兩者同為 34，"
+                 "誤讀不會有任何跡象——語意取自官方格式文件",
+        ),
+        "當選人數": dict(
+            provenance="official", structure="official-doc（elretks idx4）",
+            arithmetic="逐屆合計等於不分區應選席次 34",
+            semantic="official-doc", note=None),
+    },
+}
+
 def render_markdown() -> str:
     """由 manifest 生成文件。手寫一份會脫節，所以用生成的。"""
     out = [

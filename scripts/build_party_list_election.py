@@ -38,6 +38,10 @@ from build_local_election import (  # noqa: E402
     zip_names,
 )
 import build_legislative_election as LEG  # noqa: E402
+from oracles import (  # noqa: E402
+    PARTY_LIST_MANIFEST,
+    check_manifest_against,
+)
 
 ZIP_PATH = ROOT / "data" / "raw" / "cec-votedata.zip"
 OUT_DIR = ROOT / "data" / "processed"
@@ -840,6 +844,97 @@ def stratum_bounds(
     return rows
 
 
+
+# elrepm 中【絕不輸出】的欄位索引：出生日期、出生地、學歷。
+#
+# ⚠️ 實測五屆這三欄都有值，不是空欄。與 elcand 同類個資，
+#    本專案對 elcand 已有同樣的排除，此處沿用同一條紀律。
+PERSONAL_DATA_COLS = {4: "出生日期", 6: "出生地", 7: "學歷"}
+
+# 任何輸出的欄名都不得包含這些字樣。
+FORBIDDEN_COLUMN_WORDS = ("出生日期", "出生地", "學歷", "生日")
+
+
+def check_no_personal_data(tables: dict[str, list[dict]]) -> None:
+    """任何輸出的欄名集合都不得含個資衍生欄。
+
+    ⚠️ 這條守的不是「我這次沒寫進去」，是「以後也不會被加進去」。
+       elrepm 只讀不輸出，但它就在同一支腳本裡，欄位取用只差一個索引。
+    """
+    for name, rows in tables.items():
+        if not rows:
+            continue
+        for col in rows[0]:
+            for word in FORBIDDEN_COLUMN_WORDS:
+                if word in col:
+                    raise ValidationError(
+                        f"{name} 的欄位 {col!r} 含個資字樣 {word!r}。"
+                        f"elrepm 的出生日期／出生地／學歷一律不輸出——"
+                        f"與 elcand 同一條紀律。"
+                    )
+
+
+def build_summary_rows(year: str, prof: list[list[str]],
+                       shares: dict[tuple[str, ...], dict]) -> list[dict]:
+    """政黨票的選舉概況長表。投開票所層級的列另帶 p／q。"""
+    rows = []
+    for r in prof:
+        key = unit_key(r)
+        s = shares.get(key, {})
+        rows.append({
+            "屆別": year,
+            "省市": r[0], "縣市": r[1], "選舉區": r[2],
+            "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
+            "層級": LEG.admin_level(list(r[:6])),
+            "有效票": r[P_VALID], "無效票": r[P_INVALID],
+            "投票數": r[P_VOTED], "選舉人數": r[P_ELECTORS],
+            "原住民可接": s.get("原住民可接", ""),
+            "缺席原因": s.get("缺席原因", ""),
+            "p": s.get("p", ""), "q": s.get("q", ""),
+            "原住民選舉人": s.get("原住民選舉人", ""),
+            "原住民投票數": s.get("原住民投票數", ""),
+        })
+    return rows
+
+
+def build_votes_rows(year: str, ctks: list[list[str]],
+                     party_of_number: dict[str, tuple[str, str]]) -> list[dict]:
+    """逐所逐政黨的得票長表。"""
+    rows = []
+    for r in ctks:
+        key = party_of_number.get(r[T_NUM])
+        if key is None:
+            raise ValidationError(
+                f"{year} elctks 的號次 {r[T_NUM]} 在 elcand 找不到政黨")
+        code, name = key
+        rows.append({
+            "屆別": year,
+            "省市": r[0], "縣市": r[1], "選舉區": r[2],
+            "鄉鎮市區": r[3], "村里": r[4], "投開票所": r[5],
+            "層級": LEG.admin_level(list(r[:6])),
+            "政黨代號": code, "政黨名稱": name,
+            "號次": r[T_NUM], "得票數": r[T_VOTES], "得票率": r[8],
+        })
+    return rows
+
+
+def build_seats_rows(year: str, retks: list[list[str]],
+                     paty: dict[str, str]) -> list[dict]:
+    """逐屆逐政黨的席次表。兩個比率【原樣保留】，不重算。"""
+    rows = []
+    for r in retks:
+        rows.append({
+            "屆別": year,
+            "政黨代號": r[R_CODE],
+            "政黨名稱": paty.get(r[R_CODE], r[R_CODE]),
+            "第一階段得票率": r[R_STAGE1],
+            "第二階段得票率": r[R_STAGE2],
+            "候選人數": r[R_CANDIDATES],
+            "當選人數": r[R_SEATS],
+        })
+    return rows
+
+
 def emit_census(zf: zipfile.ZipFile, names: dict[str, str]) -> None:
     """由來源量出全部宣告值，印成可直接貼上的常數區塊。
 
@@ -932,6 +1027,9 @@ def main() -> None:
             return
         sources = {}
         bounds: list[dict] = []
+        summary: list[dict] = []
+        votes: list[dict] = []
+        seat_rows: list[dict] = []
         for year in TERMS:
             src = load_term(zf, names, year)
             sources[year] = src
@@ -960,6 +1058,9 @@ def main() -> None:
                                for c in src["elcand"]}
             bounds += stratum_bounds(year, src["elprof"], src["elctks"],
                                      shares, party_of_number)
+            summary += build_summary_rows(year, src["elprof"], shares)
+            votes += build_votes_rows(year, src["elctks"], party_of_number)
+            seat_rows += build_seats_rows(year, src["elretks"], paty)
 
     names_by_term = party_names_by_term(sources)
     drift = check_party_code_drift(names_by_term)
@@ -967,12 +1068,38 @@ def main() -> None:
     # ⚠️ 估計值與官方數字【分表】。這一份的每個數值欄都帶
     #    觀察_／下界_／上界_ 前綴，且每一列都帶產生它的範圍
     #    （門檻、所數、涵蓋率、p、q），下游不可能只讀到一個看似官方的欄位。
+    tables = {
+        "party_list_summary": summary,
+        "party_list_votes": votes,
+        "party_list_seats": seat_rows,
+        "indigenous_party_preference_bounds": bounds,
+    }
+    check_no_personal_data(tables)
+
+    problems = check_manifest_against(
+        PARTY_LIST_MANIFEST,
+        {name: list(rows[0].keys())
+         for name, rows in tables.items()
+         if name != "indigenous_party_preference_bounds"},
+    )
+    if problems:
+        raise ValidationError(
+            "欄位 oracle 宣告與實際輸出不符：\n  " + "\n  ".join(problems))
+
     commit_outputs(OUT_DIR, {
+        "cec-party-list-summary-long.csv.gz":
+            render_csv(summary, "cec-party-list-summary-long.csv.gz", True),
+        "cec-party-list-votes-long.csv.gz":
+            render_csv(votes, "cec-party-list-votes-long.csv.gz", True),
+        "cec-party-list-seats.csv":
+            render_csv(seat_rows, "cec-party-list-seats.csv"),
         "indigenous-party-preference-bounds.csv":
             render_csv(bounds, "indigenous-party-preference-bounds.csv"),
     })
-    print(f"寫出 indigenous-party-preference-bounds.csv（{len(bounds)} 列）")
-    print("讀檔、對帳與界限完成。")
+    print(f"\n輸出 {len(summary):,} / {len(votes):,} / {len(seat_rows)} 列"
+          f"（summary / votes / seats）"
+          f"，界限表 {len(bounds)} 列")
+    print("讀檔、對帳、界限與輸出完成。")
 
 
 if __name__ == "__main__":

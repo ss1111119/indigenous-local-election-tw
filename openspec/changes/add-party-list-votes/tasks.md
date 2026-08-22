@@ -24,8 +24,8 @@
 
 - [x] 4.1 實作 Duncan-Davis 極限法並輸出 `data/processed/indigenous-party-preference-bounds.csv`：門檻 `(0.95, 0.90, 0.80)` 以 `p` 篩所，逐屆 × 門檻 × 政黨輸出 `觀察_得票率`、`下界_原住民得票率`、`上界_原住民得票率`，以及 `門檻`、`所數`、`涵蓋原住民選舉人`、`涵蓋率`、`q`、`p`、`有效政黨票`。公式為 `下界 = max(0, (y - (1 - q)) / q)`、`上界 = min(1, y / q)`。落實需求 `An Estimate Ships With Bounds That Arithmetic Alone Establishes` 與 `Estimates Are Separated From Official Figures By Table And By Column Name`，以及「決策 1：輸出「觀察值＋極限」而不是單一估計值」、「決策 3：三個門檻都輸出，不挑一個」、「決策 4：估計值與官方數字分表分欄」。驗證方式：2024 ≥95% 層的中國國民黨為觀察 68.10%、界限 [67.13%, 70.17%]，與 spec 的範例表逐格相符；三個門檻的所數為 90／172／237、涵蓋率為 11.0%／20.7%／28.4%。
 - [x] 4.2 把界限接成建置時的守門員：斷言 `0 ≤ 下界 ≤ 觀察 ≤ 上界 ≤ 1`，任一違反即中止。落實情境 `Bounds contain the observation` 與「決策 5：極限法本身就是守門員」。⚠️ 這是估計值唯一能寫出「會失敗」的檢查——若權重誤用 `p`（決策 2）或公式寫錯，界限會與觀察值矛盾。驗證方式：把公式裡的 `q` 換成 `p`，斷言中止且訊息含違反的政黨與三個數值；把 `1 - q` 寫成 `1 + q`，同樣斷言中止。
-- [ ] 4.3 輸出三張官方數字表：`cec-party-list-summary-long.csv.gz`（投開票所層級，含 `p`／`q`／`原住民可接`）、`cec-party-list-votes-long.csv.gz`（逐所逐政黨得票）、`cec-party-list-seats.csv`（來自 `elretks`，兩個比率原樣保留）。並在 `scripts/oracles.py` 新增這三張表的欄位 manifest。⚠️ 不可動既有的 `MANIFEST`（`build_local_election.py` 會把它寫進 `validation-report.json`）。驗證方式：三份輸出的欄位與 manifest 逐欄相符；六張既有長表的 SHA-256 與變更前相同。
-- [ ] 4.4 個資排除：`elrepm` 只讀不輸出，並加一條檢查斷言任何輸出的欄名集合都不含出生日期／出生地／學歷衍生欄。落實需求 `Personal Data In The Party Representative File Is Never Output`。⚠️ 實測五屆的這三欄都有值，不是空欄。驗證方式：把 `elrepm` 的出生地加進某張表的欄位清單，斷言中止且訊息含該欄名。
+- [x] 4.3 輸出三張官方數字表：`cec-party-list-summary-long.csv.gz`（投開票所層級，含 `p`／`q`／`原住民可接`）、`cec-party-list-votes-long.csv.gz`（逐所逐政黨得票）、`cec-party-list-seats.csv`（來自 `elretks`，兩個比率原樣保留）。並在 `scripts/oracles.py` 新增這三張表的欄位 manifest。⚠️ 不可動既有的 `MANIFEST`（`build_local_election.py` 會把它寫進 `validation-report.json`）。驗證方式：三份輸出的欄位與 manifest 逐欄相符；六張既有長表的 SHA-256 與變更前相同。
+- [x] 4.4 個資排除：`elrepm` 只讀不輸出，並加一條檢查斷言任何輸出的欄名集合都不含出生日期／出生地／學歷衍生欄。落實需求 `Personal Data In The Party Representative File Is Never Output`。⚠️ 實測五屆的這三欄都有值，不是空欄。驗證方式：把 `elrepm` 的出生地加進某張表的欄位清單，斷言中止且訊息含該欄名。
 
 ## 5. 測試與變異
 
