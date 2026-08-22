@@ -376,7 +376,7 @@ R2 68→71→72、T1 841→843→841。
 已加 `@reports` 包裝，現在會正確報 `1 failed`。
 **測試數量再多，若失敗不會讓 runner 失敗，數量就沒有意義。**
 
-`python scripts/test_build_local_election.py` 跑 21 組、415 項檢查
+`python scripts/test_build_local_election.py` 跑 22 組、451 項檢查
 （單元＋整合＋迴歸）。**已用變異測試確認測試真的會失敗**，並因此抓到一個驗證本身的
 漏洞：`city`／`prv` 互斥檢查原本寫死只比對前兩份，分組寫錯也照樣通過，
 已改為組內全配對。**驗證通過不代表驗證有效。**
@@ -393,7 +393,7 @@ R2 68→71→72、T1 841→843→841。
 
 - `python scripts/mutate_build_site_data.py` —— 28 個變異（27 個 Python 端
   ＋ 1 個前端 `index.html`），**全數被偵測到**
-- `python scripts/mutate_build_local_election.py` —— 59 個變異，
+- `python scripts/mutate_build_local_election.py` —— 66 個變異，
   **全數被偵測到**（2026-08-22 實測，基準對照乾淨：未變異通過且無測試被跳過）
 
 ⚠️ 那 10 項曾經全是「把某條驗證拿掉」型的變異，共同點是**那些驗證在乾淨資料上

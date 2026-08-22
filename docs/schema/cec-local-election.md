@@ -432,7 +432,7 @@ votes 表只回答「某位候選人在某個地方拿到多少票」。
 
 ## 測試
 
-`python scripts/test_build_local_election.py`（也可用 pytest）跑 **415 項、21 組**：
+`python scripts/test_build_local_election.py`（也可用 pytest）跑 **451 項、22 組**：
 
 - **單元**：層級判定、版面偵測、CSV 讀取、關聯鍵正規化、當選權威值推導、
   年齡哨兵、縣市代碼三段式換算、自訂選舉種類代碼、人口數適用層級、
@@ -442,7 +442,7 @@ votes 表只回答「某位候選人在某個地方拿到多少票」。
   （列數、層級分布、逐種類全國數字、婦女保障席次）
 
 **每一條檢查都配一個變異，確認測試真的會失敗。**
-`python scripts/mutate_build_local_election.py` 跑 **59 個變異，全部被偵測**，
+`python scripts/mutate_build_local_election.py` 跑 **66 個變異，全部被偵測**，
 另含基準對照（未變異的副本必須通過、且不得有測試被跳過）
 與變異字串唯一性自我檢查。
 
