@@ -244,6 +244,10 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
 | `data/processed/cec-legislative-election-votes-long.csv.gz` | 1,697,134 | 候選人得票 |
 | `data/processed/legislative-validation-report.json` | — | 驗證結果與來源檔 SHA-256 |
 | `data/reference/cec-legislative-county-crosswalk.csv` | 69 | 三套縣市代碼系統的對照（建置的**輸入**，非產出）|
+| `data/processed/cec-party-list-summary-long.csv.gz` | 120,661 | 不分區政黨票的選舉概況，投開票所層級，含每所的原住民選民佔比 `p` 與投票者佔比 `q` |
+| `data/processed/cec-party-list-votes-long.csv.gz` | 1,848,890 | 逐所逐政黨得票 |
+| `data/processed/cec-party-list-seats.csv` | 98 | 逐屆逐政黨的兩階段得票率與席次（來源原值，不重算）|
+| `data/processed/indigenous-party-preference-bounds.csv` | 228 | ⚠️ **估計值，不是開票結果**——原住民政黨傾向的觀察值與數學界限。與官方數字**分表**，每個數值欄帶 `觀察_`／`下界_`／`上界_` 前綴 |
 
 涵蓋 1995、1998、2001、2004、2008、2012、2016、2020、2024 九屆的
 山地原住民（`L3`）與平地原住民（`L2`）立委，合計 60 席。
