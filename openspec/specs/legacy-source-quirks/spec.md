@@ -1884,3 +1884,106 @@ code:
 tests:
   - scripts/test_build_legislative_election.py
 -->
+
+---
+### Requirement: A Compensating Check Is Not Considered Tested Until An Input Exists That Trips It
+This capability's standing response to a source defect is a named exception plus a compensating check. A compensating check whose condition never becomes true on the available data is indistinguishable from one that has been deleted: the build passes, the output is byte-identical, and no test turns red. Every such check SHALL therefore have an input that makes its condition true and its abort observable. A check without one SHALL NOT be described as tested, in documentation or in commit messages.
+
+#### Scenario: A guard is disabled and nothing turns red
+- **WHEN** a compensating check is changed so that its condition can never be true
+- **THEN** at least one test SHALL fail, and the failure SHALL be attributable to that specific check rather than to a general build failure
+
+#### Scenario: A guard has never fired on the available data
+- **WHEN** a check's condition has not become true on any source file the project has processed
+- **THEN** this SHALL NOT be taken as evidence that the condition is impossible, and the check SHALL NOT be removed as dead code on that basis alone
+
+#### Scenario: Distinguishing "not yet triggered" from "cannot trigger"
+- **WHEN** deciding whether a check is redundant
+- **THEN** the decision SHALL rest on measurement of whether the branch is reached, not on reading the surrounding code, because a branch that executes but whose condition is false is reachable by definition
+
+#### Scenario: Another check intercepts the input first
+- **WHEN** an input intended to trip one check is caught by a different check earlier in the pipeline
+- **THEN** the test SHALL be treated as not yet covering its target, because an abort from elsewhere proves nothing about the check under test
+
+#### Scenario: A check is made vacuous rather than removed
+- **WHEN** a change makes a check's assertion always hold instead of removing the check
+- **THEN** the test SHALL assert on a value that the change alters, not on whether the build aborted, because a vacuous assertion aborts on nothing
+
+<!-- @trace
+source: test-unguarded-source-checks
+updated: 2026-08-22
+code:
+  - scratch/strip_experiment.py
+  - scratch/review_q2.md
+  - scratch/verify_21.py
+  - scratch/measure_pop2.py
+  - scratch/measure_town_feasible.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scripts/mutate_build_local_election.py
+  - scratch/verify_auth.py
+  - scratch/probe2.py
+  - scratch/verify_crosswalk.py
+  - scratch/expected.txt
+  - scratch/baseline/candidates.csv
+  - scratch/gen_town_anom.py
+  - scratch/measure_pop.py
+  - scratch/review_q6.md
+  - CLAUDE.md
+  - scratch/review_q5.md
+  - scratch/measure_2005e.py
+  - scratch/measure_2005.py
+  - HANDOFF.md
+  - scratch/probe_districts2.py
+  - scratch/measure_2005b.py
+  - scratch/probe3.py
+  - scratch/probe_districts.py
+  - scratch/measure_2005g.py
+  - scratch/probe4.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q3.md
+  - scratch/measure_ws2.py
+  - scratch/gen_expected.py
+  - scratch/measure_trunc.py
+  - scratch/verify_review.py
+  - scratch/probe7.py
+  - scratch/verify_claims.py
+  - scratch/probe5.py
+  - scratch/measure_whitespace.py
+  - scratch/verify_33.py
+  - scratch/measure_2005f.py
+  - scratch/inventory_legacy.json
+  - scratch/chk_cw.py
+  - scratch/baseline/votes.csv
+  - scratch/baseline/summary.csv
+  - scratch/list_zip.py
+  - scratch/review_q7.md
+  - scratch/verify_strip.py
+  - scratch/measure_auth_existing.py
+  - scratch/verify_identity.py
+  - scratch/chk1998t2.py
+  - scratch/verify_pop2.py
+  - scratch/gen_anomalies.py
+  - .spectra.yaml
+  - AGENTS.md
+  - scratch/dryrun_manifest.py
+  - scratch/add_defect7.py
+  - scratch/probe6.py
+  - scratch/probe_1994.py
+  - scratch/verify_11.py
+  - scratch/verify_pop.py
+  - scratch/measure_town_codes.py
+  - scratch/measure_2005c.py
+  - scratch/probe_legacy_build.py
+  - scratch/inventory_legacy.py
+  - scratch/zip_names.json
+  - scratch/verify_21c.py
+  - scratch/review_q4.md
+  - scratch/measure_2005d.py
+  - scratch/verify_32.py
+  - scratch/probe_anomalies.py
+  - scratch/add_legacy_sources.py
+  - scratch/review_question.md
+  - GEMINI.md
+tests:
+  - scripts/test_build_local_election.py
+-->
