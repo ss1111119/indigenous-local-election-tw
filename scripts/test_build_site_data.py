@@ -1095,6 +1095,130 @@ def test_existing_pages_still_reproduce() -> None:
         check(f"{name} 的屆別數", len(old["years"]), 9)
 
 
+
+# --------------------------------------------- 選舉期間的發布規則（本變更新增）
+
+@reports
+def test_publication_record_covers_every_page() -> None:
+    """發布判定紀錄必須涵蓋 docs/ 下每一個 HTML，兩個方向都驗。
+
+    ⚠️ 這條要擋的不是「判定寫錯」（那需要人看），而是
+       **「多了一頁，沒有人想起要判定」**——那是靜默的，而且必然會發生。
+    """
+    print("\n[真實] 發布判定紀錄的涵蓋（兩個方向）")
+    rec = ROOT / "docs" / "發布判定紀錄.md"
+    if not rec.exists():
+        print("  SKIP  找不到發布判定紀錄")
+        skipped.append("test_publication_record_covers_every_page")
+        return
+
+    check("基準通過", build_site_data.check_publication_record() is None, True)
+
+    orig = rec.read_text(encoding="utf-8")
+    tmp = Path(tempfile.mkdtemp()) / "rec.md"
+
+    print("\n       漏列一頁 → 中止並具名該檔")
+    tmp.write_text(re.sub(r"^\| `legislative\.html`.*\n", "", orig, flags=re.M),
+                   encoding="utf-8")
+    check_raises_msg("漏列 legislative.html",
+                     lambda: build_site_data.check_publication_record(tmp),
+                     "legislative.html")
+
+    print("\n       列了不存在的頁面 → 中止並具名該檔")
+    tmp.write_text(orig.replace(
+        "| `index.html` |",
+        "| `nosuch.html` | x | x | x | 2026-08-23 |\n| `index.html` |", 1),
+        encoding="utf-8")
+    check_raises_msg("列了不存在的 nosuch.html",
+                     lambda: build_site_data.check_publication_record(tmp),
+                     "nosuch.html")
+
+    print("\n       投票日未查證時，階段必須是較嚴的那一段")
+    tmp.write_text(orig.replace("| 投票日 | 2026-11-28（星期六） |",
+                                "| 投票日 | 未查證 |", 1)
+                       .replace("| **目前階段** | **選舉期間** |",
+                                "| **目前階段** | **選前** |", 1),
+                   encoding="utf-8")
+    check_raises_msg("未查證卻標成選前",
+                     lambda: build_site_data.check_publication_record(tmp),
+                     "較嚴的一段")
+
+    check("還原後仍通過",
+          build_site_data.check_publication_record() is None, True)
+
+
+@reports
+def test_current_term_notice_is_present_and_named() -> None:
+    """含歷史選舉數字的頁面必須帶本屆限定語，且檢查比對的是具名字串。
+
+    ⚠️ **這條的重點是「比對什麼」。** 頁尾本來就有 `更新：2026-08`，
+       所以用「頁面有沒有提到 2026」當判準的檢查，在限定語被刪掉之後
+       **照樣通過**。下面第二段就是把這件事寫成斷言。
+    """
+    print("\n[真實] 本屆限定語存在，且檢查比對的是具名字串")
+    page = ROOT / "docs" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到立委頁")
+        skipped.append("test_current_term_notice_is_present_and_named")
+        return
+    notice = build_site_data.CURRENT_TERM_NOTICE
+    orig = page.read_text(encoding="utf-8")
+    check("立委頁含 CURRENT_TERM_NOTICE", notice in orig, True)
+    check("限定語不是只寫個年份", len(notice) > 20, True)
+
+    print("\n       拿掉限定語 → 具名字串的檢查抓得到")
+    try:
+        page.write_text(orig.replace(notice, "", 1), encoding="utf-8")
+        check_raises_msg("缺少限定語即中止",
+                         build_site_data.check_publication_record,
+                         "legislative.html")
+
+        print("\n       同一份被改壞的頁面：改用「有沒有提到 2026」當判準就抓不到")
+        broken = page.read_text(encoding="utf-8")
+        check("被改壞的頁面仍含『2026』（頁尾的更新日期）", "2026" in broken, True)
+        check("所以年份判準在此為真、具名字串判準為假——兩者不等價",
+              ("2026" in broken, notice in broken), (True, False))
+    finally:
+        page.write_text(orig, encoding="utf-8")
+    check("還原後通過",
+          build_site_data.check_publication_record() is None, True)
+
+
+@reports
+def test_frozen_indicator_shape_does_not_grow() -> None:
+    """被凍結的指標，形狀不得長大。
+
+    ⚠️ 多一屆、多一個門檻都算擴充，**即使既有的每個數字都沒變**——
+       它擴大了這個指標所主張的範圍。
+    """
+    print("\n[真實] 政黨傾向界限的凍結形狀")
+    tables = _leg_tables()
+    if tables is None:
+        print("  SKIP  找不到界限表")
+        skipped.append("test_frozen_indicator_shape_does_not_grow")
+        return
+    bounds = tables[3]
+    built = build_bounds_data(bounds)
+    check("宣告的形狀", build_site_data.FROZEN_BOUNDS_SHAPE,
+          {"terms": 5, "thresholds": 3})
+    check("實際屆數", len(built["terms"]), 5)
+    check("實際門檻數", len(built["thresholds"]), 3)
+
+    print("\n       宣告值改成 6 屆 → 中止（模擬有人加了一屆）")
+    old = dict(build_site_data.FROZEN_BOUNDS_SHAPE)
+    build_site_data.FROZEN_BOUNDS_SHAPE["terms"] = 6
+    try:
+        check_raises_msg(
+            "形狀不符即中止",
+            lambda: build_site_data.check_frozen_indicator_shape(built),
+            "已凍結")
+    finally:
+        build_site_data.FROZEN_BOUNDS_SHAPE.clear()
+        build_site_data.FROZEN_BOUNDS_SHAPE.update(old)
+    check("還原後通過",
+          build_site_data.check_frozen_indicator_shape(built) is None, True)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -1118,7 +1242,10 @@ def main() -> int:
                test_legislative_required_column_aborts,
                test_bounds_constant_matches_csv,
                test_bounds_section_states_coverage_first,
-               test_existing_pages_still_reproduce):
+               test_existing_pages_still_reproduce,
+               test_publication_record_covers_every_page,
+               test_current_term_notice_is_present_and_named,
+               test_frozen_indicator_shape_does_not_grow):
         try:
             fn()
         except AssertionError:

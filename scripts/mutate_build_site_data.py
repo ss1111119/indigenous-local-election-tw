@@ -254,6 +254,23 @@ MUTATIONS = [
      '            "electors": int(r["涵蓋原住民選舉人"]),',
      '            "stations": int(r["涵蓋原住民選舉人"]),\n'
      '            "electors": int(r["所數"]),'),
+
+    # ---- 選舉期間的發布規則 ----
+    ("發布：拿掉「紀錄漏列頁面」的檢查（多一頁沒人判定也不會被發現）",
+     '    missing = sorted(on_disk - listed)',
+     '    missing = []'),
+    ("發布：拿掉「紀錄列了不存在頁面」的檢查（單向驗等於沒驗）",
+     '    phantom = sorted(listed - on_disk)',
+     '    phantom = []'),
+    ("發布：本屆限定語的檢查改成比對「2026」（頁尾本來就有，永遠通過）",
+     '        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):',
+     '        if "2026" not in page.read_text(encoding="utf-8"):'),
+    ("發布：凍結形狀的檢查被拿掉（指標可以無聲長大）",
+     '    if got != FROZEN_BOUNDS_SHAPE:',
+     '    if False:'),
+    ("發布：未查證時的從嚴預設被拿掉",
+     '    if "未查證" in text.split("## 逐頁判定")[0]:',
+     '    if False:'),
 ]
 
 # 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。
@@ -263,6 +280,13 @@ LEG_HTML_MUTATION = (
     '這樣的所<strong>全部位於原住民族地區的山地鄉</strong>',
     '這樣的所涵蓋 11.0% 的原住民選舉人，'
     '且<strong>全部位於原住民族地區的山地鄉</strong>')
+
+# 立委頁的第二個真檔變異：拿掉本屆限定語。
+LEG_NOTICE_MUTATION = (
+    "立委頁：拿掉本屆限定語（選舉期間保留歷史資料卻不標示）",
+    "        + `本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。`;",
+    "        ;")
+
 
 # 每個被變異的檔各一個 canary。
 #
@@ -390,6 +414,54 @@ def mutate_index_html() -> tuple[bool, str]:
     return mutate_real_html(HTML, *HTML_MUTATION)
 
 
+def prove_named_string_beats_year() -> tuple[bool, str]:
+    """證明「比對具名字串」比「比對 2026」有辨識力。
+
+    ⚠️ 這一項**不能用一般變異的方式驗**。把檢查改成比對「2026」之後，
+       基準是**通過**的（頁面本來就有 `更新：2026-08`），所以它看起來
+       像「沒被偵測到的變異」，實際上是那個寫法本身沒有辨識力。
+
+    要驗的是一對：
+      限定語被拿掉 + 具名字串的檢查 → 抓得到
+      限定語被拿掉 + 比對 2026 的檢查 → 抓不到  ← 這正是不能那樣寫的理由
+
+    與 @reports 承重驗證是同一種形狀。
+    """
+    if not git_is_clean(LEG_HTML):
+        return False, ("★ 跳過「具名字串 vs 年份」：docs/legislative.html 有未提交的改動")
+
+    desc, old, new = LEG_NOTICE_MUTATION
+    src = LEG_HTML.read_text(encoding="utf-8")
+    if src.count(old) != 1:
+        return False, f"★ 限定語字串在 legislative.html 出現 {src.count(old)} 次（需恰好 1 次）"
+
+    year_check = (
+        '        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):',
+        '        if "2026" not in page.read_text(encoding="utf-8"):')
+
+    try:
+        # (1) 限定語拿掉 + 具名字串的檢查
+        test_path = fresh_copies()
+        LEG_HTML.write_text(src.replace(old, new, 1), encoding="utf-8")
+        named_rc, named_out = run_pytest(test_path)
+        named_caught = named_rc != 0 and "INTERNALERROR" not in named_out
+
+        # (2) 限定語拿掉 + 檢查改成比對年份
+        test_path = fresh_copies()
+        apply_to_copy("build_site_data.py", *year_check)
+        year_rc, _ = run_pytest(test_path)
+    finally:
+        subprocess.run(["git", "checkout", "--", str(LEG_HTML)], cwd=ROOT,
+                       capture_output=True)
+
+    ok = named_caught and year_rc == 0
+    msg = (f"  限定語被拿掉 + 具名字串檢查 → rc={named_rc}"
+           f"（應非零）{'✓' if named_caught else ' ★'}\n"
+           f"  限定語被拿掉 + 比對『2026』 → rc={year_rc}"
+           f"（應為零，證明年份判準沒有辨識力）{'✓' if year_rc == 0 else ' ★'}")
+    return ok, msg
+
+
 def main() -> int:
     rc = 0
 
@@ -418,7 +490,8 @@ def main() -> int:
     #    但兩者都不算通過——把未驗證的項目算成通過，就是「靜默縮減涵蓋範圍」。
     skipped_msgs: list[str] = []
     for caught, msg in (mutate_index_html(),
-                        mutate_real_html(LEG_HTML, *LEG_HTML_MUTATION)):
+                        mutate_real_html(LEG_HTML, *LEG_HTML_MUTATION),
+                        mutate_real_html(LEG_HTML, *LEG_NOTICE_MUTATION)):
         print(msg)
         if not caught:
             if msg.lstrip().startswith("★ 跳過"):
@@ -449,6 +522,16 @@ def main() -> int:
             else:
                 rc = 1
                 print("       這一輪的所有結果都不算數：該檔沒有被讀到。")
+
+    # ---- 決策 5：具名字串 vs 年份（成對驗證，不是一般變異）----
+    print("\n[成對] 本屆限定語的檢查：具名字串 vs 比對「2026」")
+    ok_pair, msg_pair = prove_named_string_beats_year()
+    print(msg_pair)
+    if not ok_pair:
+        if msg_pair.lstrip().startswith("★ 跳過"):
+            skipped_msgs.append(msg_pair.strip())
+        else:
+            rc = 1
 
     # ---- @reports 承重驗證 ----
     print("\n[骨架] 驗證 @reports 是承重的，不是裝飾")

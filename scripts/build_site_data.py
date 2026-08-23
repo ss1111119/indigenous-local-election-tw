@@ -29,6 +29,7 @@ import csv
 import gzip
 import io
 import json
+import re
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
@@ -542,6 +543,92 @@ def build_legislative_data(summary: list[dict], cands: list[dict],
 # ⚠️ **三個都要出現在頁面上，不挑一個。** 挑一個等於替讀者決定
 #    「涵蓋率換精度」這個取捨要怎麼取——而那正是決定這個數字能不能
 #    外推到全體的東西。0.95 只涵蓋 11.0% 的原住民選舉人、0.80 涵蓋 28.4%。
+# ── 選舉期間的發布規則 ──────────────────────────────────────────────
+#
+# 規則在 openspec/specs/election-period-publication/spec.md，
+# 逐頁判定在 docs/發布判定紀錄.md。
+
+PUBLICATION_RECORD = ROOT / "docs" / "發布判定紀錄.md"
+
+# 保留的歷史資料必須明文說它不代表本屆。
+#
+# ⚠️ **檢查一律比對這個具名字串，不可比對「2026」。** 頁尾本來就有
+#    `更新：2026-08`，用年份當判準的檢查在標示被刪掉之後【照樣通過】——
+#    那正是本專案在變異測試上反覆踩到的「斷言的是別的東西」。
+CURRENT_TERM_NOTICE = (
+    "本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。"
+)
+
+# 判定為「含歷史選舉數字」而必須帶上 CURRENT_TERM_NOTICE 的頁面。
+#
+# ⚠️ 這份清單不是判定本身——判定在紀錄檔裡。這裡只列出「判定的後果是
+#    要標示」的那些頁面，讓檢查有東西可比。兩邊不一致時以紀錄檔為準。
+PAGES_REQUIRING_NOTICE = ("legislative.html",)
+
+# 被凍結的指標及其形狀。凍結的意思是**形狀不長大**，不只是數字不更新。
+FROZEN_BOUNDS_SHAPE = {"terms": 5, "thresholds": 3}
+
+
+def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
+    """發布判定紀錄必須涵蓋 docs/ 下每一個 HTML，兩個方向都驗。
+
+    ⚠️ 要擋的不是「判定寫錯」（那需要人看），而是**「多了一頁，
+       沒有人想起要判定」**。後者是靜默的，而且會隨時間必然發生。
+    """
+    if not record.exists():
+        raise SiteDataError(f"找不到發布判定紀錄 {record}")
+    text = record.read_text(encoding="utf-8")
+
+    listed = set(re.findall(r"^\| `([^`]+\.html)` \|", text, re.M))
+    on_disk = {p.name for p in (ROOT / "docs").glob("*.html")}
+
+    missing = sorted(on_disk - listed)
+    if missing:
+        raise SiteDataError(
+            f"這些已發布的頁面不在發布判定紀錄裡：{missing}。"
+            f"每一頁都必須有一次明文判定——見 {record.name}。"
+        )
+    phantom = sorted(listed - on_disk)
+    if phantom:
+        raise SiteDataError(
+            f"發布判定紀錄列了不存在的頁面：{phantom}。"
+            f"紀錄與 docs/ 必須兩個方向都對得上。"
+        )
+
+    if "| 投票日 |" not in text:
+        raise SiteDataError(f"{record.name} 缺少「投票日」欄位")
+    if "未查證" in text.split("## 逐頁判定")[0]:
+        phase = re.search(r"\| \*\*目前階段\*\* \| \*\*(.+?)\*\* \|", text)
+        if not phase or phase.group(1) != "選舉期間":
+            raise SiteDataError(
+                "投票日標為未查證時，目前階段必須是「選舉期間」（較嚴的一段）。"
+                "查證前不會誤放行，只會誤攔截。"
+            )
+
+    for name in PAGES_REQUIRING_NOTICE:
+        page = ROOT / "docs" / name
+        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):
+            raise SiteDataError(
+                f"{name} 判定為含歷史選舉數字，但頁面沒有本屆限定語。"
+                f"選舉期間保留的歷史資料必須明文標示不代表本屆。"
+            )
+
+
+def check_frozen_indicator_shape(bounds: dict) -> None:
+    """被凍結的指標，形狀不得長大。
+
+    ⚠️ 多一屆、多一個門檻都算擴充，**即使既有的每個數字都沒變**——
+       它擴大了這個指標所主張的範圍。
+    """
+    got = {"terms": len(bounds["terms"]), "thresholds": len(bounds["thresholds"])}
+    if got != FROZEN_BOUNDS_SHAPE:
+        raise SiteDataError(
+            f"政黨傾向界限已凍結，形狀不得改變："
+            f"宣告 {FROZEN_BOUNDS_SHAPE}、實際 {got}。"
+            f"解凍條件見 docs/發布判定紀錄.md（2026-12-04 公告當選人名單後）。"
+        )
+
+
 BOUNDS_THRESHOLDS = ("0.95", "0.90", "0.80")
 
 
@@ -583,8 +670,12 @@ def build_bounds_data(bounds: list[dict]) -> dict:
     for y in terms:
         for t in thresholds:
             rows[y][t].sort(key=lambda x: -x[1])
-    return {"terms": terms, "thresholds": thresholds,
-            "meta": meta, "rows": rows}
+    out = {"terms": terms, "thresholds": thresholds,
+           "meta": meta, "rows": rows}
+    # ⚠️ 在這裡呼叫，不是在 main()——任何取得 BOUNDS 的路徑都要經過凍結檢查。
+    #    只在 main() 檢查的話，測試與其他呼叫端拿到的是沒被檢查過的東西。
+    check_frozen_indicator_shape(out)
+    return out
 
 
 def site_mark(row: dict) -> str:
@@ -983,6 +1074,11 @@ def main() -> None:
         print(f"  {code:8s} {meta['name']:<22s} {flag}")
 
     report_other_bucket(cands)
+
+    # 發布判定紀錄的涵蓋檢查。⚠️ 放在最前面，且 --write 與 --check 都跑——
+    # 新增一頁卻沒有判定，要在寫任何檔案之前就中止。
+    check_publication_record()
+    print("✓ 發布判定紀錄涵蓋 docs/ 下每一個頁面")
 
     # 立委頁的兩個常數。三張立委長表與界限表只在這裡讀一次。
     #

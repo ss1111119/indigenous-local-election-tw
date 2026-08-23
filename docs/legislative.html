@@ -521,10 +521,17 @@ function tableFrom(el, head, rows){
       d.append(t);
 
       /* ⚠️ 限定語與數字必須在同一個可複製的區塊內——不是放在頁尾註腳。
-         讀者複製這一塊貼到別處時，限定語要跟著走。 */
+         讀者複製這一塊貼到別處時，限定語要跟著走。
+
+         ⚠️ CURRENT_TERM_NOTICE 也在這裡，理由相同。2026 年地方公職人員選舉
+            的選舉公告已於 2026-08-20 發布、投票日 2026-11-28，本頁上線時
+            已在選舉期間內——保留的歷史資料必須明文說它不代表本屆。
+            這段字串與 scripts/build_site_data.py 的 CURRENT_TERM_NOTICE
+            逐字相同，該處的檢查比對的就是它。 */
       const q = document.createElement("p"); q.className = "qual";
       q.textContent = `以上是這 ${m.stations} 個投開票所的數字，涵蓋 ${m.coverage.toFixed(1)}% 的原住民選舉人，`
-        + `不是全體原住民的政黨傾向。其餘 ${(100 - m.coverage).toFixed(1)}% 的原住民選舉人，同樣的算術給不出有用的界限。`;
+        + `不是全體原住民的政黨傾向。其餘 ${(100 - m.coverage).toFixed(1)}% 的原住民選舉人，同樣的算術給不出有用的界限。`
+        + `本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。`;
       d.append(q);
       box.append(d);
     });
