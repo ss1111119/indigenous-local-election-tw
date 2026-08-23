@@ -99,6 +99,27 @@ def delta_e(a: str, b: str, kind: str | None = None) -> float:
     return 100 * math.dist(oklab(la), oklab(lb))
 
 
+INK_FLOOR = 4.5
+
+
+def relative_luminance(color: str) -> float:
+    """WCAG 相對亮度。"""
+    r, g, b = hex_to_linear(color)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a: str, b: str) -> float:
+    """WCAG 對比值。
+
+    ⚠️ 這與上面的 ΔE 是**兩件事**：ΔE 量的是兩個色塊分不分得出來，
+       對比值量的是文字讀不讀得到。段內數字要的是後者——
+       兩個 ΔE 差很多的顏色，白字放上去照樣可能看不清楚。
+    """
+    la, lb = relative_luminance(a), relative_luminance(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 def adjacent_pairs(colors: list[str]) -> list[tuple[int, int]]:
     """系列順序上相接的兩個。"""
     return [(i, i + 1) for i in range(len(colors) - 1)]
@@ -141,6 +162,8 @@ def main() -> int:
     ap.add_argument("colors", help="以逗號分隔的十六進位色，依系列順序")
     ap.add_argument("--labels", help="以逗號分隔的系列名稱，數量須與顏色相同")
     ap.add_argument("--all-pairs", action="store_true", help="量所有配對，不只相鄰")
+    ap.add_argument("--inks", help="段內文字的墨色／填色配對，格式 墨/填,墨/填，"
+                                   "門檻 4.5:1")
     args = ap.parse_args()
 
     colors = [c.strip() for c in args.colors.split(",") if c.strip()]
@@ -155,10 +178,30 @@ def main() -> int:
         mark = "  ✗ " + "、".join(bad) if bad else ""
         print(f"{a + ' ↔ ' + b:<28}{n:>7.1f}{p:>9.1f}{d:>9.1f}{mark}")
     print()
-    if failures:
-        print(f"未過門檻：{len(failures)} 組（常人 ≥{NORMAL_FLOOR:.0f}、色盲 ≥{CVD_FLOOR:.0f}）")
+    ink_failures = []
+    if args.inks:
+        print(f"{'段內墨色 ↔ 填色':<28}{'對比':>7}")
+        for spec in args.inks.split(","):
+            spec = spec.strip()
+            if not spec:
+                continue
+            ink, fill = (s.strip() for s in spec.split("/"))
+            c = contrast(ink, fill)
+            bad = c < INK_FLOOR
+            if bad:
+                ink_failures.append((ink, fill, c))
+            print(f"{ink + ' on ' + fill:<28}{c:>7.2f}"
+                  + (f"  ✗ < {INK_FLOOR}" if bad else ""))
+        print()
+    if failures or ink_failures:
+        if failures:
+            print(f"未過門檻：{len(failures)} 組"
+                  f"（常人 ≥{NORMAL_FLOOR:.0f}、色盲 ≥{CVD_FLOOR:.0f}）")
+        if ink_failures:
+            print(f"段內墨色未過門檻：{len(ink_failures)} 組（≥{INK_FLOOR}:1）")
         return 1
-    print(f"全部通過（常人 ≥{NORMAL_FLOOR:.0f}、色盲 ≥{CVD_FLOOR:.0f}）")
+    print(f"全部通過（常人 ≥{NORMAL_FLOOR:.0f}、色盲 ≥{CVD_FLOOR:.0f}"
+          + (f"、段內墨色 ≥{INK_FLOOR}:1）" if args.inks else "）"))
     print("註：tritan 未實作，見本檔 docstring。")
     return 0
 

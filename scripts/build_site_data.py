@@ -38,6 +38,16 @@ DATA_DIR = ROOT / "data" / "processed"
 SUMMARY_FILE = "cec-local-election-summary-long.csv.gz"
 CANDIDATES_FILE = "cec-local-election-candidates-long.csv"
 
+# 原住民立委（九屆）。⚠️ 與地方公職是【不同母體】——中央職位、全國單一選區。
+# 站台上兩者必須分頁呈現，不可出現在同一份 types 清單或同一條折線。
+LEG_SUMMARY_FILE = "cec-legislative-election-summary-long.csv.gz"
+LEG_CANDIDATES_FILE = "cec-legislative-election-candidates-long.csv"
+LEG_VOTES_FILE = "cec-legislative-election-votes-long.csv.gz"
+
+# 不分區政黨票的界限表。⚠️ 這一份是【估計值】不是開票結果，
+# 且只涵蓋原住民族地區的高佔比投開票所——引用時必須帶涵蓋率。
+BOUNDS_FILE = "indigenous-party-preference-bounds.csv"
+
 # 本腳本實際會讀到的欄位，逐張表宣告。
 #
 # ⚠️ 這份清單必須**恰好等於**程式讀到的欄位集合，兩個方向都要對：
@@ -65,6 +75,23 @@ REQUIRED_COLUMNS = {
         "號次", "姓名", "政黨代號", "政黨名稱", "性別", "年齡", "現任",
         "當選註記", "當選",
         "admin_code_system",
+    ),
+    LEG_SUMMARY_FILE: (
+        "年度", "選舉種類", "選舉種類名稱", "層級",
+        "選舉人數", "投票數",
+    ),
+    LEG_CANDIDATES_FILE: (
+        "年度", "選舉種類", "號次", "姓名",
+        "政黨代號", "政黨名稱", "當選",
+    ),
+    LEG_VOTES_FILE: (
+        "年度", "選舉種類", "層級", "號次", "得票數",
+    ),
+    BOUNDS_FILE: (
+        "屆別", "門檻", "政黨代號", "政黨名稱", "所數",
+        "涵蓋原住民選舉人", "涵蓋率", "p_加權", "q_加權", "有效政黨票",
+        "觀察_得票數", "觀察_得票率",
+        "下界_原住民得票率", "上界_原住民得票率",
     ),
 }
 
@@ -105,6 +132,29 @@ def load_long_tables(data_dir: Path = DATA_DIR) -> tuple[list[dict], list[dict]]
     cands = read_long_table(data_dir / CANDIDATES_FILE,
                             REQUIRED_COLUMNS[CANDIDATES_FILE])
     return summary, cands
+
+
+def load_legislative_tables(
+    data_dir: Path = DATA_DIR,
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    """讀入立委三張長表與界限表。
+
+    回傳（summary, candidates, votes, bounds）。
+
+    ⚠️ 立委與地方公職是不同母體，這裡刻意用另一個載入函式而不是把檔名
+       加進 load_long_tables——同一個入口回傳兩個資料集，會讓後續程式
+       很容易把它們接在一起。
+    """
+    return (
+        read_long_table(data_dir / LEG_SUMMARY_FILE,
+                        REQUIRED_COLUMNS[LEG_SUMMARY_FILE]),
+        read_long_table(data_dir / LEG_CANDIDATES_FILE,
+                        REQUIRED_COLUMNS[LEG_CANDIDATES_FILE]),
+        read_long_table(data_dir / LEG_VOTES_FILE,
+                        REQUIRED_COLUMNS[LEG_VOTES_FILE]),
+        read_long_table(data_dir / BOUNDS_FILE,
+                        REQUIRED_COLUMNS[BOUNDS_FILE]),
+    )
 
 
 def terms(summary: list[dict]) -> list[str]:
@@ -326,6 +376,217 @@ def build_index_data(summary: list[dict], cands: list[dict],
     }
 
 
+
+# ── 立委的政黨分桶 ──────────────────────────────────────────────────
+#
+# ⚠️ **與地方公職的 PARTY_BUCKETS 是兩套，不可共用。** 直接沿用那三桶會讓
+#    親民黨 2001 年的 27.7%、無黨團結聯盟 2004 年的 26.0% 掉進「其他」——
+#    而那正是那兩屆的主要故事。
+#
+# ⚠️ 分桶鍵仍是（政黨代號, 政黨名稱）配對，不是只比名稱。
+#    無黨籍在來源有兩套不重疊的編碼（舊屆「無」、新屆「無黨籍及未經政黨推薦」），
+#    站台既有的分桶就是為此建立的。
+LEGISLATIVE_PARTY_BUCKETS = (
+    "中國國民黨", "民主進步黨", "親民黨", "無黨團結聯盟", "無黨籍",
+)
+
+# 來源的（政黨代號, 政黨名稱）→ 桶。九屆實測涵蓋 35 種配對，具名 9 種。
+#
+# ⚠️ **鍵是配對，不是名稱也不是代號**，與既有的 PARTY_IDENTITY_BUCKETS 同一個
+#    慣例。這批資料自己就有兩個反例：
+#
+#    - **代號 9 對到兩個不同政黨**：("9", "全國民主非政黨聯盟") 與
+#      ("9", "台灣吾黨")。只用代號會把兩者合併。
+#    - **同一政黨有兩個代號**：親民黨 3／90、無黨團結聯盟 7／106、
+#      民主進步黨 2／16。只用代號會把同一政黨拆成兩個。
+#
+# ⚠️ 無黨籍的兩套編碼（99／「無」與 999／「無黨籍及未經政黨推薦」）
+#    都歸同一桶。少了任何一個，某些屆的無黨籍會變成 0 而站台照樣畫得出來。
+LEGISLATIVE_IDENTITY_BUCKETS: dict[tuple[str, str], str] = {
+    ("1", "中國國民黨"): "中國國民黨",
+    ("2", "民主進步黨"): "民主進步黨",
+    ("16", "民主進步黨"): "民主進步黨",
+    ("3", "親民黨"): "親民黨",
+    ("90", "親民黨"): "親民黨",
+    ("7", "無黨團結聯盟"): "無黨團結聯盟",
+    ("106", "無黨團結聯盟"): "無黨團結聯盟",
+    ("99", "無"): "無黨籍",
+    ("999", "無黨籍及未經政黨推薦"): "無黨籍",
+}
+
+
+def legislative_bucket(row: dict) -> str:
+    """立委候選人的政黨桶。查不到就是『其他』，不猜。"""
+    return LEGISLATIVE_IDENTITY_BUCKETS.get(
+        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)
+
+
+def check_bucket_sets_differ() -> None:
+    """兩個分桶集合必須不相等。
+
+    ⚠️ 這條守的是「哪天有人把兩套合併成一套」。合併之後親民黨與
+       無黨團結聯盟會靜默地掉進『其他』，而站台照樣畫得出來。
+    """
+    if set(LEGISLATIVE_PARTY_BUCKETS) == set(PARTY_BUCKETS):
+        raise SiteDataError(
+            "立委與地方公職的分桶集合相同。兩者的政黨版圖不同——"
+            "合併成一套會讓只在其中一邊重要的政黨掉進『其他』"
+            "（親民黨 2001 年 27.7%、無黨團結聯盟 2004 年 26.0%）。"
+        )
+
+
+def build_legislative_data(summary: list[dict], cands: list[dict],
+                           votes: list[dict]) -> dict:
+    """立委頁的資料常數。
+
+    ⚠️ 席次一律取自 `當選`（跨檔推導的權威值），**不數 `當選註記`**。
+       註記忠實反映來源錯誤，而權威值是對帳過的。
+    """
+    check_bucket_sets_differ()
+
+    party_of = {(c["年度"], c["選舉種類"], c["號次"]): legislative_bucket(c)
+                for c in cands}
+
+    years = sorted({r["年度"] for r in summary})
+    types: dict[str, dict] = {}
+    for r in summary:
+        if r["層級"] != "檔別合計":
+            continue
+        t = types.setdefault(r["選舉種類"], {
+            "code": r["選舉種類"], "name": r["選舉種類名稱"], "years": {}})
+        y = t["years"].setdefault(r["年度"], {"electors": 0, "votes": 0})
+        y["electors"] += int(r["選舉人數"])
+        y["votes"] += int(r["投票數"])
+
+    # 席次與候選人數（由權威值 `當選` 計）
+    for c in cands:
+        y = types[c["選舉種類"]]["years"].setdefault(
+            c["年度"], {"electors": 0, "votes": 0})
+        y["cands"] = y.get("cands", 0) + 1
+        if c["當選"] == "Y":
+            y["seats"] = y.get("seats", 0) + 1
+
+    # 逐屆逐桶的得票（檔別合計層級，兩種類相加）
+    party_votes: dict[str, dict[str, int]] = {y: {} for y in years}
+    party_total: dict[str, int] = {y: 0 for y in years}
+    for v in votes:
+        if v["層級"] != "檔別合計":
+            continue
+        bucket = party_of.get((v["年度"], v["選舉種類"], v["號次"]))
+        if bucket is None:
+            raise SiteDataError(
+                f"{v['年度']} {v['選舉種類']} 號次 {v['號次']} "
+                f"在候選人長表找不到對應的政黨"
+            )
+        n = int(v["得票數"])
+        party_votes[v["年度"]][bucket] = \
+            party_votes[v["年度"]].get(bucket, 0) + n
+        party_total[v["年度"]] += n
+
+    buckets = list(LEGISLATIVE_PARTY_BUCKETS) + [OTHER_BUCKET]
+    parties = {
+        y: {b: _round_half_up(
+            Decimal(party_votes[y].get(b, 0)) * 100 / Decimal(party_total[y]),
+            "0.01") for b in buckets}
+        for y in years
+    }
+
+    # ⚠️ 無黨籍桶在每一屆都必須非零——來源有兩套編碼，漏掉任一個
+    #    會讓某些屆變成 0 而站台照樣畫得出來。
+    empty = [y for y in years if party_votes[y].get("無黨籍", 0) == 0]
+    if empty:
+        raise SiteDataError(
+            f"無黨籍桶在這些屆為 0：{empty}。"
+            f"來源有『無』與『無黨籍及未經政黨推薦』兩套不重疊的編碼，"
+            f"漏掉任一個都會讓某些屆歸零。"
+        )
+
+    for t in types.values():
+        for y, d in t["years"].items():
+            d["turnout"] = float(_round_half_up(
+                Decimal(d["votes"]) * 100 / Decimal(d["electors"]), "0.01"))
+
+    # 逐屆逐桶的席次。
+    #
+    # ⚠️ 一律由權威值 `當選` 計，與上面的席次同一個來源。
+    party_seats = {y: {b: 0 for b in buckets} for y in years}
+    for c in cands:
+        if c["當選"] == "Y":
+            party_seats[c["年度"]][legislative_bucket(c)] += 1
+
+    # 兩種類合計的投票率。山地與平地是兩個不重疊的選舉人母體，
+    # 相加得到的是「原住民立委選舉」整體，不是平均值——不可用兩個
+    # 投票率取平均，那會忽略兩邊選舉人數不同。
+    turnout = {}
+    for y in years:
+        e = sum(t["years"][y]["electors"] for t in types.values()
+                if y in t["years"])
+        n = sum(t["years"][y]["votes"] for t in types.values()
+                if y in t["years"])
+        turnout[y] = float(_round_half_up(
+            Decimal(n) * 100 / Decimal(e), "0.01"))
+
+    return {
+        "years": years,
+        "buckets": buckets,
+        "types": [types[k] for k in sorted(types)],
+        "parties": {y: {b: float(v) for b, v in parties[y].items()}
+                    for y in years},
+        "partySeats": party_seats,
+        "turnout": turnout,
+    }
+
+
+# 界限表的三個門檻，由寬到窄的涵蓋率。
+#
+# ⚠️ **三個都要出現在頁面上，不挑一個。** 挑一個等於替讀者決定
+#    「涵蓋率換精度」這個取捨要怎麼取——而那正是決定這個數字能不能
+#    外推到全體的東西。0.95 只涵蓋 11.0% 的原住民選舉人、0.80 涵蓋 28.4%。
+BOUNDS_THRESHOLDS = ("0.95", "0.90", "0.80")
+
+
+def build_bounds_data(bounds: list[dict]) -> dict:
+    """政黨傾向界限的頁面常數。
+
+    ⚠️ **涵蓋率是主資料，不是註腳。** 每個（屆別, 門檻）的涵蓋率與所數與
+       界限放在同一層，頁面才有辦法把它排在任何百分比之前。
+    """
+    thresholds = list(BOUNDS_THRESHOLDS)
+    terms = sorted({r["屆別"] for r in bounds})
+    meta: dict[str, dict] = {y: {} for y in terms}
+    rows: dict[str, dict] = {y: {t: [] for t in thresholds} for y in terms}
+    for r in bounds:
+        y, t = r["屆別"], r["門檻"]
+        if t not in thresholds:
+            raise SiteDataError(
+                f"界限表出現未宣告的門檻 {t!r}（已宣告 {thresholds}）"
+            )
+        meta[y][t] = {
+            "stations": int(r["所數"]),
+            "electors": int(r["涵蓋原住民選舉人"]),
+            "coverage": float(_round_half_up(
+                Decimal(r["涵蓋率"]) * 100, "0.1")),
+        }
+        rows[y][t].append([
+            r["政黨名稱"],
+            float(_round_half_up(Decimal(r["觀察_得票率"]) * 100, "0.01")),
+            float(_round_half_up(Decimal(r["下界_原住民得票率"]) * 100, "0.01")),
+            float(_round_half_up(Decimal(r["上界_原住民得票率"]) * 100, "0.01")),
+        ])
+
+    missing = [(y, t) for y in terms for t in thresholds if not rows[y][t]]
+    if missing:
+        raise SiteDataError(
+            f"界限表缺少這些（屆別, 門檻）組合：{missing}。"
+            f"三個門檻必須並列——少一個等於替讀者挑了一個。"
+        )
+    for y in terms:
+        for t in thresholds:
+            rows[y][t].sort(key=lambda x: -x[1])
+    return {"terms": terms, "thresholds": thresholds,
+            "meta": meta, "rows": rows}
+
+
 def site_mark(row: dict) -> str:
     """名錄顯示的當選註記。
 
@@ -532,6 +793,8 @@ def normalise_roster(d: dict) -> dict:
 DATA_MARKER = "const DATA = "
 ROSTER_MARKER = "const D = "
 ROSTER_MAIN_MARKER = "const MAIN = "
+LEG_MARKER = "const LEG = "
+BOUNDS_MARKER = "const BOUNDS = "
 
 
 def build_roster_main() -> dict[str, int]:
@@ -721,6 +984,19 @@ def main() -> None:
 
     report_other_bucket(cands)
 
+    # 立委頁的兩個常數。三張立委長表與界限表只在這裡讀一次。
+    #
+    # ⚠️ 這幾張表【不參與】既有兩頁的重現比對——它們是另一組母體。
+    #    詳見 docs/legislative.html 頂端的「這個頁面是什麼、不是什麼」。
+    _direct: dict[str, dict] = {}
+
+    def direct_values() -> dict[str, dict]:
+        if not _direct:
+            leg_s, leg_c, leg_v, leg_b = load_legislative_tables(args.data_dir)
+            _direct[LEG_MARKER] = build_legislative_data(leg_s, leg_c, leg_v)
+            _direct[BOUNDS_MARKER] = build_bounds_data(leg_b)
+        return _direct
+
     if args.diff_index:
         index_html = ROOT / "docs" / "index.html"
         old = read_embedded_constant(index_html, DATA_MARKER)
@@ -748,10 +1024,15 @@ def main() -> None:
             (ROOT / "docs" / "index.html", [(DATA_MARKER, build_index_data)]),
             (ROOT / "docs" / "roster.html", [(ROSTER_MARKER, build_roster_data),
                                              (ROSTER_MAIN_MARKER, None)]),
+            # 立委頁的兩個常數都不吃地方公職長表，走 direct 分支。
+            (ROOT / "docs" / "legislative.html", [(LEG_MARKER, "direct"),
+                                                  (BOUNDS_MARKER, "direct")]),
         ):
             data = html.read_bytes()
             for marker, builder in replacements:
-                if builder is None:      # MAIN 不吃長表，只由對照表投影
+                if builder == "direct":
+                    value = direct_values()[marker]
+                elif builder is None:    # MAIN 不吃長表，只由對照表投影
                     value = build_roster_main()
                 else:
                     only = (read_embedded_constant(html, marker)["years"]
@@ -810,6 +1091,24 @@ def main() -> None:
                 print(f"★ {html.name} 的位元組與現況不同"
                       f"（{len(html.read_bytes()):,} vs {len(rebuilt):,} bytes）——"
                       f"語意相同但編碼變了，例如政黨清單的排序改變")
+        # 立委頁：沒有「既有屆別」要重現（它是本變更新增的），
+        # 但「資料未變 → 檔案未變」這個不變量一樣要守——LEG 或 BOUNDS
+        # 過時了，頁面照樣畫得出來，沒有人會發現。
+        leg_html = ROOT / "docs" / "legislative.html"
+        if leg_html.exists():
+            rebuilt = leg_html.read_bytes()
+            for marker in (LEG_MARKER, BOUNDS_MARKER):
+                rebuilt = replace_constant_bytes(
+                    rebuilt, marker, direct_values()[marker], leg_html.name)
+            print()
+            if rebuilt != leg_html.read_bytes():
+                rc = 1
+                print(f"★ {leg_html.name} 的位元組與現況不同"
+                      f"（{len(leg_html.read_bytes()):,} vs {len(rebuilt):,} bytes）——"
+                      f"LEG 或 BOUNDS 未跟著長表重建")
+            else:
+                print(f"✓ {leg_html.name} 的 LEG 與 BOUNDS 與長表一致")
+
         if rc:
             raise SystemExit(rc)
 

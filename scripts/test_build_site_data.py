@@ -29,6 +29,7 @@ import csv
 import gzip
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -39,14 +40,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import build_site_data  # noqa: E402
 from build_site_data import (  # noqa: E402
+    BOUNDS_FILE,
+    BOUNDS_MARKER,
     CANDIDATES_FILE,
+    LEG_MARKER,
+    LEG_SUMMARY_FILE,
     REQUIRED_COLUMNS,
     SUMMARY_FILE,
     SiteDataError,
+    build_bounds_data,
     build_index_data,
+    build_legislative_data,
     build_roster_data,
     election_types,
+    load_legislative_tables,
     load_long_tables,
+    read_embedded_constant,
     site_mark,
 )
 
@@ -695,6 +704,309 @@ def test_independent_bucket_non_empty_every_term() -> None:
         check(f"{year} 的無黨籍候選人數", per_term.get(year), want)
 
 
+# ------------------------------------------------------- 立委頁（本變更新增）
+
+# 九屆的迴歸值。**由 build_legislative_data 實測後寫入，不是手抄**，
+# 且與 design 的普查表逐格對過（1995 國民黨 77.0、2024 國民黨 41.4／
+# 無黨籍 32.9／民進黨 22.5、投票率 57.9…61.4、國民黨席次 6/6/4…3）。
+LEG_YEARS = ["1995", "1998", "2001", "2004", "2008", "2012", "2016", "2020", "2024"]
+LEG_KMT_SHARE = [76.97, 71.54, 47.71, 40.64, 54.89, 51.52, 48.95, 48.1, 41.37]
+LEG_KMT_SEATS = [6, 6, 4, 4, 4, 4, 4, 3, 3]
+LEG_DPP_SEATS = [0, 0, 0, 1, 0, 0, 1, 2, 2]
+LEG_TURNOUT = [57.87, 55.58, 57.84, 48.77, 47.36, 61.99, 54.79, 65.57, 61.41]
+# 只在某幾屆重要的兩個桶。**這兩個數字就是立委頁不能沿用地方公職三桶的理由**：
+# 那三桶會讓它們掉進「其他」，而站台照樣畫得出來。
+LEG_PFP_2001 = 27.67
+LEG_NPSU_2004 = 26.03
+
+
+def check_raises_msg(name: str, fn, needle: str) -> None:
+    """必須中止，且錯誤訊息含 `needle`。
+
+    ⚠️ needle 要挑**只有這條檢查會輸出**的字串。挑一個到處都有的詞
+       （「中止」「欄位」），另一條檢查失敗時這裡照樣綠燈。
+    """
+    try:
+        fn()
+    except SiteDataError as exc:
+        if needle in str(exc):
+            print(f"  PASS  {name}")
+        else:
+            print(f"  FAIL  {name}（訊息不含 {needle!r}：{exc}）")
+            failures.append(name)
+        return
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL  {name}（丟出 {type(exc).__name__}: {exc}）")
+        failures.append(name)
+        return
+    print(f"  FAIL  {name}（沒有丟出例外）")
+    failures.append(name)
+
+
+def _leg_tables():
+    """讀立委四張表；缺檔回 None 讓呼叫端 SKIP。"""
+    if not (DATA_DIR / BOUNDS_FILE).exists():
+        return None
+    return load_legislative_tables()
+
+
+@reports
+def test_legislative_constants_regression() -> None:
+    """立委常數的迴歸值：九屆得票率、席次、投票率。"""
+    print("\n[真實] 立委常數的九屆迴歸值")
+    tables = _leg_tables()
+    if tables is None:
+        print("  SKIP  找不到立委長表")
+        skipped.append("test_legislative_constants_regression")
+        return
+    summ, cands, votes, _ = tables
+    leg = build_legislative_data(summ, cands, votes)
+
+    check("屆別九屆", leg["years"], LEG_YEARS)
+    for i, y in enumerate(LEG_YEARS):
+        check(f"{y} 國民黨得票率", leg["parties"][y]["中國國民黨"], LEG_KMT_SHARE[i])
+        check(f"{y} 國民黨席次", leg["partySeats"][y]["中國國民黨"], LEG_KMT_SEATS[i])
+        check(f"{y} 民進黨席次", leg["partySeats"][y]["民主進步黨"], LEG_DPP_SEATS[i])
+        check(f"{y} 合計投票率", leg["turnout"][y], LEG_TURNOUT[i])
+    check("2001 親民黨得票率（沿用三桶會消失）",
+          leg["parties"]["2001"]["親民黨"], LEG_PFP_2001)
+    check("2004 無黨團結聯盟得票率（沿用三桶會消失）",
+          leg["parties"]["2004"]["無黨團結聯盟"], LEG_NPSU_2004)
+
+
+@reports
+def test_bucket_sets_are_not_shared() -> None:
+    """兩個分桶集合必須不相等，合併成一套要中止。"""
+    print("\n[合成] 立委與地方公職的分桶集合不共用")
+    check("兩個集合不相等",
+          set(build_site_data.LEGISLATIVE_PARTY_BUCKETS)
+          != set(build_site_data.PARTY_BUCKETS), True)
+    check("立委有五個政黨桶", len(build_site_data.LEGISLATIVE_PARTY_BUCKETS), 5)
+    for b in ("親民黨", "無黨團結聯盟"):
+        check(f"{b} 是獨立的桶", b in build_site_data.LEGISLATIVE_PARTY_BUCKETS, True)
+
+    old = build_site_data.LEGISLATIVE_PARTY_BUCKETS
+    build_site_data.LEGISLATIVE_PARTY_BUCKETS = build_site_data.PARTY_BUCKETS
+    try:
+        check_raises_msg("合併成一套即中止",
+                         build_site_data.check_bucket_sets_differ,
+                         "合併成一套")
+    finally:
+        build_site_data.LEGISLATIVE_PARTY_BUCKETS = old
+    check("還原後基準通過",
+          build_site_data.check_bucket_sets_differ() is None, True)
+
+
+@reports
+def test_legislative_bucket_key_semantics() -> None:
+    """立委的分桶鍵一樣是 (代號, 名稱) 配對。
+
+    ⚠️ **非用合成資料不可，理由與地方公職那條相同。** 實測九屆的 35 組
+    （代號, 名稱）：唯一一個「同代號多名稱」是代號 `9`（全國民主非政黨聯盟／
+    台灣吾黨），而兩者都在對照表外、本來都歸「其他」。所以把鍵改成只用代號，
+    在現有真實資料上算出的結果**與正確實作完全相同**。
+    """
+    print("\n[合成] 立委分桶鍵是 (代號, 名稱) 配對")
+    def b(code: str, name: str) -> str:
+        return build_site_data.legislative_bucket(
+            {"政黨代號": code, "政黨名稱": name})
+
+    print("       正向：同一政黨的兩個代號都要歸位")
+    check("3／親民黨", b("3", "親民黨"), "親民黨")
+    check("90／親民黨（新屆代號）", b("90", "親民黨"), "親民黨")
+    check("7／無黨團結聯盟", b("7", "無黨團結聯盟"), "無黨團結聯盟")
+    check("106／無黨團結聯盟（新屆代號）", b("106", "無黨團結聯盟"), "無黨團結聯盟")
+    check("99／無（舊屆無黨籍）", b("99", "無"), "無黨籍")
+    check("999／無黨籍及未經政黨推薦", b("999", "無黨籍及未經政黨推薦"), "無黨籍")
+
+    print("\n       名稱相符代號不符 → 其他（擋下「只用名稱」）")
+    check("777／親民黨", b("777", "親民黨"), "其他")
+    check("777／無", b("777", "無"), "其他")
+
+    print("\n       代號相符名稱不符 → 其他（擋下「只用代號」與代號回退）")
+    check("3／某未知黨", b("3", "某未知黨"), "其他")
+    check("99／某未知黨", b("99", "某未知黨"), "其他")
+
+    print("\n       真實資料裡唯一的同代號多名稱：代號 9 的兩個政黨")
+    check("9／全國民主非政黨聯盟", b("9", "全國民主非政黨聯盟"), "其他")
+    check("9／台灣吾黨", b("9", "台灣吾黨"), "其他")
+
+
+@reports
+def test_legislative_independent_bucket_every_term() -> None:
+    """無黨籍桶九屆皆非零；漏掉舊編碼要中止。
+
+    ⚠️ 這條用真實資料。合成資料證明不了「對照表涵蓋了資料裡出現的
+       每一種無黨籍編碼」——那正是這條要守的。
+    """
+    print("\n[真實] 立委的無黨籍桶九屆皆非零")
+    tables = _leg_tables()
+    if tables is None:
+        print("  SKIP  找不到立委長表")
+        skipped.append("test_legislative_independent_bucket_every_term")
+        return
+    summ, cands, votes, _ = tables
+    leg = build_legislative_data(summ, cands, votes)
+    for y in LEG_YEARS:
+        check(f"{y} 無黨籍得票率 > 0", leg["parties"][y]["無黨籍"] > 0, True)
+
+    print("\n       拿掉舊編碼 ('99','無') → 1995–2004 歸零並中止")
+    old = dict(build_site_data.LEGISLATIVE_IDENTITY_BUCKETS)
+    del build_site_data.LEGISLATIVE_IDENTITY_BUCKETS[("99", "無")]
+    try:
+        check_raises_msg(
+            "漏掉一種無黨籍編碼即中止",
+            lambda: build_legislative_data(summ, cands, votes),
+            "兩套不重疊的編碼")
+    finally:
+        build_site_data.LEGISLATIVE_IDENTITY_BUCKETS.clear()
+        build_site_data.LEGISLATIVE_IDENTITY_BUCKETS.update(old)
+
+
+@reports
+def test_legislative_required_column_aborts() -> None:
+    """立委長表缺欄要在讀完標頭時中止，訊息含該欄名。"""
+    print("\n[真實] 立委長表的必要欄位檢查")
+    if not (DATA_DIR / LEG_SUMMARY_FILE).exists():
+        print("  SKIP  找不到立委長表")
+        skipped.append("test_legislative_required_column_aborts")
+        return
+    bogus = "這個欄位不存在"
+    old = REQUIRED_COLUMNS[LEG_SUMMARY_FILE]
+    REQUIRED_COLUMNS[LEG_SUMMARY_FILE] = old + (bogus,)
+    try:
+        check_raises_msg("宣告一個不存在的欄名即中止",
+                         load_legislative_tables, bogus)
+    finally:
+        REQUIRED_COLUMNS[LEG_SUMMARY_FILE] = old
+    check("還原後讀得回來", _leg_tables() is not None, True)
+
+
+@reports
+def test_bounds_constant_matches_csv() -> None:
+    """頁面的 BOUNDS 常數與界限 CSV 逐列相符。
+
+    ⚠️ 這裡**不呼叫 build_bounds_data 來當預期值**——那會變成拿同一段程式
+       比自己。CSV 在這條測試裡獨立重算一次。
+    """
+    print("\n[真實] BOUNDS 常數 vs 界限 CSV 逐列")
+    page = ROOT / "docs" / "legislative.html"
+    if not page.exists() or not (DATA_DIR / BOUNDS_FILE).exists():
+        print("  SKIP  找不到界限表或立委頁")
+        skipped.append("test_bounds_constant_matches_csv")
+        return
+    embedded = read_embedded_constant(page, BOUNDS_MARKER)
+
+    with open(DATA_DIR / BOUNDS_FILE, encoding="utf-8-sig", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    want: dict[tuple[str, str], dict[str, tuple]] = {}
+    meta: dict[tuple[str, str], tuple] = {}
+    for r in rows:
+        k = (r["屆別"], r["門檻"])
+        want.setdefault(k, {})[r["政黨名稱"]] = (
+            round(float(r["觀察_得票率"]) * 100, 2),
+            round(float(r["下界_原住民得票率"]) * 100, 2),
+            round(float(r["上界_原住民得票率"]) * 100, 2))
+        meta[k] = (int(r["所數"]), int(r["涵蓋原住民選舉人"]),
+                   round(float(r["涵蓋率"]) * 100, 1))
+
+    check("屆別集合", sorted(embedded["terms"]),
+          sorted({y for y, _ in want}))
+    check("門檻集合", sorted(embedded["thresholds"]),
+          sorted({t for _, t in want}))
+    bad_meta, bad_rows, n_rows = [], [], 0
+    for (y, t), parties in want.items():
+        m = embedded["meta"][y][t]
+        if (m["stations"], m["electors"], m["coverage"]) != meta[(y, t)]:
+            bad_meta.append((y, t, m, meta[(y, t)]))
+        got = {r[0]: (r[1], r[2], r[3]) for r in embedded["rows"][y][t]}
+        if set(got) != set(parties):
+            bad_rows.append((y, t, "政黨集合不同"))
+        for p, v in parties.items():
+            n_rows += 1
+            if got.get(p) != v:
+                bad_rows.append((y, t, p, got.get(p), v))
+    check("所數／涵蓋人數／涵蓋率逐組相符", bad_meta, [])
+    check("每一列的觀察值與上下界相符", bad_rows[:5], [])
+    check("比對過的列數", n_rows, len(rows))
+
+    print("\n       改動一個界限值 → 比對要抓得到（量測本身能失敗）")
+    mutated = {p: v for p, v in want[(embedded["terms"][-1],
+                                      embedded["thresholds"][0])].items()}
+    first = sorted(mutated)[0]
+    mutated[first] = (mutated[first][0] + 1.0,) + mutated[first][1:]
+    y0, t0 = embedded["terms"][-1], embedded["thresholds"][0]
+    got0 = {r[0]: (r[1], r[2], r[3]) for r in embedded["rows"][y0][t0]}
+    check("變異後的觀察值與常數不同", got0[first] != mutated[first], True)
+
+
+@reports
+def test_bounds_section_states_coverage_first() -> None:
+    """界限區塊：涵蓋率與「山地鄉」在任何百分比之前，限定語與數字同區塊。
+
+    ⚠️ 檢查的是 `docs/legislative.html` 的**靜態文字與產生區塊的樣板**。
+       面板由 JS 產生，所以樣板裡的順序就是頁面上的順序。
+    """
+    print("\n[頁面] 界限區塊的涵蓋率優先於任何百分比")
+    page = ROOT / "docs" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到立委頁")
+        skipped.append("test_bounds_section_states_coverage_first")
+        return
+    raw = page.read_text(encoding="utf-8")
+    body = raw.split('<section id="bounds">', 1)[1].split("</section>", 1)[0]
+    text = re.sub(r"<[^>]+>", "\n", body)
+    pcts = [m for m in re.finditer(r"[0-9]+(?:\.[0-9]+)?%", text)]
+    check("靜態文字裡有百分比", bool(pcts), True)
+    check("第一個百分比就是涵蓋率 11.0%", pcts[0].group(0), "11.0%")
+    check("「山地鄉」早於第一個百分比",
+          text.index("山地鄉") < pcts[0].start(), True)
+    check("標題不含未限定的「原住民的政黨傾向」",
+          "原住民的政黨傾向" in re.search(r"<h2>(.*?)</h2>", body, re.S).group(1),
+          False)
+
+    script = raw.split("/* 04 界限", 1)[1]
+    i_cov = script.index("covnum")
+    i_tbl = script.index('tableFrom(t, ["政黨"')
+    i_qual = script.index("qual")
+    check("涵蓋率的主視覺排在表格之前", i_cov < i_tbl, True)
+    check("限定語排在同一個 .bnd 區塊內的表格之後", i_tbl < i_qual, True)
+    check("限定語含「不是全體原住民」",
+          "不是全體原住民的政黨傾向" in script, True)
+    check("限定語帶著涵蓋率一起走", "coverage.toFixed(1)" in
+          script[i_qual:i_qual + 500], True)
+    check("三個門檻都畫，不挑一個",
+          "BOUNDS.thresholds.forEach" in script, True)
+
+
+@reports
+def test_existing_pages_still_reproduce() -> None:
+    """既有兩頁的現有屆別逐鍵重現。
+
+    ⚠️ 這條與 `--check` 重疊是刻意的：本變更改動了兩頁的 `<head>` 與導覽，
+       而那兩處就在資料常數的同一個檔案裡。
+    """
+    print("\n[真實] 既有兩頁的現有屆別逐鍵重現")
+    if not (DATA_DIR / CANDIDATES_FILE).exists():
+        print("  SKIP  找不到長表")
+        skipped.append("test_existing_pages_still_reproduce")
+        return
+    summ, cands = load_long_tables()
+    for name, marker, builder, norm in (
+        ("index.html", build_site_data.DATA_MARKER, build_index_data,
+         lambda x: x),
+        ("roster.html", build_site_data.ROSTER_MARKER, build_roster_data,
+         build_site_data.normalise_roster),
+    ):
+        page = ROOT / "docs" / name
+        old = read_embedded_constant(page, marker)
+        new = builder(summ, cands, only_terms=old["years"])
+        diffs = build_site_data.unexpected_diffs(
+            build_site_data.diff_nested(norm(new), norm(old)))
+        check(f"{name} 未預期差異", diffs, [])
+        check(f"{name} 的屆別數", len(old["years"]), 9)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -709,7 +1021,15 @@ def main() -> int:
                test_party_code_and_name_hygiene,
                test_age_read_from_derived_column,
                test_roster_main_projection,
-               test_independent_bucket_non_empty_every_term):
+               test_independent_bucket_non_empty_every_term,
+               test_legislative_constants_regression,
+               test_bucket_sets_are_not_shared,
+               test_legislative_bucket_key_semantics,
+               test_legislative_independent_bucket_every_term,
+               test_legislative_required_column_aborts,
+               test_bounds_constant_matches_csv,
+               test_bounds_section_states_coverage_first,
+               test_existing_pages_still_reproduce):
         try:
             fn()
         except AssertionError:

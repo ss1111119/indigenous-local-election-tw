@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原住民立委九屆</title>
+<meta name="description" content="1995–2024 九屆原住民立法委員選舉的政黨得票率、席次與投票率，資料來自中選會選舉資料庫。另附原住民族地區高密度投開票所的不分區政黨票界限估計。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="原住民立委九屆">
+<meta property="og:description" content="1995–2024 九屆原住民立法委員選舉的政黨得票率、席次與投票率，資料來自中選會選舉資料庫。">
+<meta property="og:locale" content="zh_TW">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#FBFAF7; --panel:#FFFFFF; --ink:#1B1E21; --ink2:#5F6469; --ink3:#8A9096;
+  --rule:#E2DFD8; --rule2:#EFEDE7; --grid:#EAE7E0;
+  --accent:#2a78d6; --limit:#8A6A28; --limitbg:#FAF4E6;
+  /* 六個政黨系列。量測見 openspec/specs/site-chart-accessibility/spec.md 的紀錄表。 */
+  --p1:#2a78d6; --p2:#1baf7a; --p3:#ee7700; --p4:#c0397a; --p5:#3A4046; --p6:#ADB3B9;
+  /* 段內數字的墨色：對各自填色算出 4.5:1 才選的黑或白，不動政黨色 */
+  --i1:#000; --i2:#16181A; --i3:#16181A; --i4:#fff; --i5:#fff; --i6:#16181A;
+  --cov:#2a78d6; --uncov:#E2DFD8;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
+    --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
+    --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
+    --p1:#3987e5; --p2:#1da77a; --p3:#ee7700; --p4:#cc2244; --p5:#C9CED3; --p6:#6A7178;
+    --i1:#16181A; --i2:#16181A; --i3:#16181A; --i4:#fff; --i5:#16181A; --i6:#fff;
+    --cov:#5b9bea; --uncov:#2C3033;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#16181A; --panel:#1D2023; --ink:#ECEDEA; --ink2:#A3A9AF; --ink3:#767D84;
+  --rule:#2C3033; --rule2:#23272A; --grid:#282C30;
+  --accent:#5b9bea; --limit:#C9A24A; --limitbg:#231E12;
+  --p1:#3987e5; --p2:#1da77a; --p3:#ee7700; --p4:#cc2244; --p5:#C9CED3; --p6:#6A7178;
+  --i1:#16181A; --i2:#16181A; --i3:#16181A; --i4:#fff; --i5:#16181A; --i6:#fff;
+  --cov:#5b9bea; --uncov:#2C3033;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans TC",-apple-system,"Segoe UI",sans-serif;
+  font-size:16px;line-height:1.75;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 88px}
+.col{max-width:660px}
+h1,h2{font-family:"Noto Serif TC",serif;text-wrap:balance;line-height:1.32;margin:0}
+h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(19px,2.4vw,25px);font-weight:600}
+h3{font-size:14px;margin:0 0 8px;font-weight:500}
+p{margin:0 0 16px}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+strong{font-weight:700}
+header{border-bottom:1px solid var(--rule);padding:52px 0 26px;margin-bottom:8px}
+.eyebrow{font-size:11.5px;letter-spacing:.16em;color:var(--ink3);
+  font-family:"IBM Plex Mono",monospace;margin:0 0 14px}
+.lede{font-size:17.5px;color:var(--ink2);margin:18px 0 0;max-width:640px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:22px;font-size:12px;color:var(--ink3);
+  font-family:"IBM Plex Mono",monospace}
+section{padding:38px 0;border-bottom:1px solid var(--rule2)}
+section:last-of-type{border:0}
+.sh{display:flex;align-items:baseline;gap:13px;margin-bottom:18px}
+.sn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink3);
+  border:1px solid var(--rule);border-radius:3px;padding:2px 7px;flex:none}
+.limit{border-left:3px solid var(--limit);background:var(--limitbg);
+  padding:15px 20px;margin:24px 0 0;border-radius:0 4px 4px 0}
+.limit .lt{font-size:11.5px;letter-spacing:.13em;color:var(--limit);
+  font-family:"IBM Plex Mono",monospace;margin:0 0 9px;font-weight:500}
+.limit p{margin:0 0 10px;font-size:15px;color:var(--ink2);line-height:1.7}
+.limit p:last-child{margin:0}
+.limit strong{color:var(--ink)}
+figure{margin:24px 0 0}
+figcaption{font-size:12.5px;color:var(--ink3);margin-top:14px;line-height:1.65;max-width:660px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px}
+.panel{background:var(--panel);border:1px solid var(--rule2);border-radius:5px;padding:12px 13px 9px}
+.pt{display:flex;align-items:baseline;gap:7px;margin-bottom:6px;flex-wrap:wrap}
+.pc{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3)}
+.pn{font-size:12.5px;font-weight:500;line-height:1.35}
+.tw{overflow-x:auto;margin:20px 0 0}
+.dt{margin:14px 0 0}
+.dt>summary{cursor:pointer;font-size:13px;color:var(--ink2);padding:2px 0}
+.dt>summary:hover{color:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--rule2);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+thead th{font-size:11px;letter-spacing:.07em;color:var(--ink3);font-weight:500;
+  border-bottom:1px solid var(--rule);font-family:"IBM Plex Mono",monospace}
+tbody td{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:"Noto Sans TC",sans-serif}
+tbody tr:hover{background:var(--rule2)}
+caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--ink3);padding:0 0 8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 14px;font-size:13px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:11px;height:11px;border-radius:2px;flex:none}
+#tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--ink);color:var(--paper);padding:7px 10px;border-radius:4px;
+  font-size:12.5px;font-family:"IBM Plex Mono",monospace;z-index:9;line-height:1.55;white-space:pre}
+svg{display:block;overflow:visible}
+.foot{font-size:12.5px;color:var(--ink3);margin-top:34px;line-height:1.75}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.nav{display:flex;flex-wrap:wrap;gap:14px;margin-top:20px;font-size:13.5px}
+.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px}
+.nav a:hover{border-bottom-color:var(--accent)}
+.nav a[aria-current]{color:var(--ink);border-bottom-color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 界限區塊：限定語與數字必須在同一個可複製的區塊內，所以整組包在同一個 .bnd 裡 */
+.bnd{background:var(--panel);border:1px solid var(--rule2);border-radius:5px;padding:16px 17px 13px}
+.bnd table{min-width:0;font-size:13.5px}
+.bnd .qual{font-size:12.5px;color:var(--limit);margin:12px 0 0;line-height:1.6}
+.covbar{display:block;width:100%;height:22px;margin:2px 0 10px}
+.covnum{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:500;line-height:1.2}
+.covsub{font-size:12px;color:var(--ink3);font-family:"IBM Plex Mono",monospace}
+.sel{font-size:13.5px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;
+  background:var(--panel);color:var(--ink);font-family:inherit}
+/* 列印：瀏覽器預設會剝掉背景色，暗色主題印出來會是白紙白字。一律改用淺色那組。 */
+@media print{
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]){
+    color-scheme:light;
+    --paper:#fff; --panel:#fff; --ink:#16181A; --ink2:#42474C; --ink3:#5F6469;
+    --rule:#C9C6C0; --rule2:#E2DFD8; --grid:#E2DFD8;
+    --accent:#2a78d6; --limit:#6B5320; --limitbg:#fff;
+    --p1:#2a78d6; --p2:#1baf7a; --p3:#ee7700; --p4:#c0397a; --p5:#3A4046; --p6:#ADB3B9;
+    --i1:#000; --i2:#16181A; --i3:#16181A; --i4:#fff; --i5:#fff; --i6:#16181A;
+    --cov:#2a78d6; --uncov:#C9C6C0;
+  }
+  body{background:#fff}
+  /* 圖表的顏色就是資料，不能被省墨規則吃掉 */
+  *{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .dt{display:block}
+  .dt>summary{display:none}
+  .dt[open], .dt:not([open]) > *:not(summary){display:block}
+}
+/* Windows 高對比：系統會把填色全換成系統色，六個系列會糊成同一色。
+   圖表的顏色承載資料，所以這幾類保留原色；其餘介面照樣交給系統。 */
+@media (forced-colors: active){
+  svg, .sw{forced-color-adjust:none}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">CEC / 立法委員選舉 1995–2024</p>
+  <h1>原住民立法委員<br>九屆的政黨版圖</h1>
+  <p class="lede">山地原住民與平地原住民立委各三席（1995–2004 為各四席）。
+    這九屆的政黨得票率是逐票統計出來的，沒有任何推估。</p>
+  <div class="meta">
+    <span>來源：中選會選舉資料庫</span>
+    <span>屆別：第三屆～第十一屆</span>
+    <span>更新：2026-08</span>
+  </div>
+  <nav class="nav"><a href="index.html">地方選舉概況</a><a href="roster.html">名錄</a><a href="legislative.html" aria-current="page">立委與政黨傾向</a></nav>
+</header>
+
+<section>
+  <div class="sh"><span class="sn">範圍</span><h2>這個頁面是什麼、不是什麼</h2></div>
+  <div class="col">
+  <p><strong>是</strong>：原住民立法委員選舉——山地原住民、平地原住民兩個全國性選舉區，
+    1995 年至 2024 年共九屆。每一位原住民選舉人都在其中一區投票。</p>
+  <p><strong>不是</strong>：地方公職（縣市議員、鄉鎮市民代表、原住民區長）的資料。
+    那是另外一個母體、另外一套選舉區、另外一種任期，在
+    <a href="index.html">地方選舉概況</a>與<a href="roster.html">名錄</a>兩頁。</p>
+  <p class="mono" style="font-size:13px;color:var(--ink3)">
+    ⚠️ 兩頁的數字不可互相比較，也不可相加。</p>
+  </div>
+  <div class="tw"><table id="t-scope"><caption>兩個選舉區的規模</caption><thead><tr>
+    <th>代碼</th><th>選舉區</th><th>2024 選舉人</th><th>2024 席次</th><th>屆數</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">01</span><h2>立委選舉的政黨得票率</h2></div>
+  <div class="col">
+  <p>兩個選舉區合計的得票率。國民黨從 1995 年的七成七掉到 2024 年的四成一，
+    掉的票主要沒有到民進黨手上——2001 年到 2016 年之間去了親民黨與無黨團結聯盟，
+    2020 年之後則是無黨籍。</p>
+  </div>
+  <div class="legend" id="l-party"></div>
+  <figure>
+    <div id="c-party"></div>
+    <figcaption>九屆的政黨得票率。得票率的分母是兩個選舉區的有效票合計。</figcaption>
+  </figure>
+  <div class="limit">
+    <p class="lt">這不等於政黨認同</p>
+    <p>這是<strong>候選人</strong>的得票率，依候選人登記的推薦政黨歸類。
+      原住民立委是複數席次的全國選舉區，候選人是誰、有沒有現任優勢、
+      同一政黨提了幾個人，都會直接改變這個數字。</p>
+    <p>真正接近「政黨傾向」的是不分區政黨票，那在<a href="#bounds">第 04 節</a>——
+      但那份資料只涵蓋一小部分原住民選舉人。</p>
+  </div>
+  <details class="dt"><summary>表格：逐屆得票率（%）</summary>
+    <div class="tw"><table id="t-party"></table></div>
+  </details>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">02</span><h2>席次</h2></div>
+  <div class="col">
+  <p>1995 年到 2001 年之間席次由六席增為八席（第四屆起山地、平地各四席），
+    2008 年單一選區兩票制上路後回到各三席，共六席。</p>
+  </div>
+  <div class="legend" id="l-seat"></div>
+  <figure>
+    <div id="c-seat"></div>
+    <figcaption>逐屆的政黨席次。條內數字為席次；席次為 0 的政黨不畫。</figcaption>
+  </figure>
+  <details class="dt"><summary>表格：逐屆席次</summary>
+    <div class="tw"><table id="t-seat"></table></div>
+  </details>
+</section>
+
+<section>
+  <div class="sh"><span class="sn">03</span><h2>投票率</h2></div>
+  <div class="col">
+  <p>山地與平地分列。兩者是不重疊的選舉人母體，合計投票率的分母是兩邊選舉人相加，
+    不是兩個投票率取平均。</p>
+  </div>
+  <figure>
+    <div class="grid" id="c-turnout"></div>
+    <figcaption>投票率。縱軸固定 40–75%，兩個面板可直接比較。</figcaption>
+  </figure>
+  <details class="dt"><summary>表格：逐屆投票率（%）與選舉人數</summary>
+    <div class="tw"><table id="t-turnout"></table></div>
+  </details>
+</section>
+
+<section id="bounds">
+  <div class="sh"><span class="sn">04</span><h2>原住民族地區的投開票所：不分區政黨票</h2></div>
+  <div class="col">
+  <p>不分區政黨票不分族別統計，所以沒有「原住民投給誰」這個數字。
+    能做的只有一件事：找出原住民選舉人密度極高的投開票所，
+    在那裡政黨票幾乎就是原住民投的。</p>
+  <p>這樣的所<strong>全部位於原住民族地區的山地鄉</strong>，
+    而它們只涵蓋全體原住民選舉人的一小部分——最嚴的一組是 11.0%。
+    都市裡的平地原住民完全不在裡面。</p>
+  </div>
+  <p class="col" style="font-size:14px;color:var(--ink2)">
+    屆別 <select id="sel-term" class="sel" aria-label="選擇屆別"></select>
+    <span class="mono" style="font-size:12px">（2008 年起才有不分區政黨票）</span>
+  </p>
+  <div class="grid" id="c-bounds"></div>
+  <div class="limit">
+    <p class="lt">為什麼不畫成誤差線</p>
+    <p>界限只有幾個百分點寬，畫成長條加誤差線看起來會像一個很確定的數字。
+      <strong>真正不確定的東西不在區間裡，在涵蓋率。</strong>
+      區間對那些投開票所是算術上確定的；不確定的是剩下的原住民選舉人怎麼投——
+      那些所之外，同樣的算術給不出任何有用的界限。</p>
+    <p>三個門檻並列，是因為「涵蓋率換精度」這個取捨會決定這個數字能推到多遠。
+      挑一個給讀者，等於替讀者做了那個決定。</p>
+  </div>
+  <details class="dt"><summary>表格：三個門檻的完整界限</summary>
+    <div class="tw"><table id="t-bounds"></table></div>
+  </details>
+</section>
+
+<p class="foot">重現：<code>python scripts/build_party_list_election.py</code> 產生立委三張長表與界限表，
+<code>python scripts/build_site_data.py --write</code> 把本頁的 <code>LEG</code> 與 <code>BOUNDS</code> 兩個常數寫回。
+席次一律取自長表的 <code>當選</code> 欄（跨檔對帳過的權威值），不數來源的當選註記。
+界限的算法見 <code>docs/schema/cec-party-list-election.md</code>。</p>
+
+</div>
+<div id="tip"></div>
+
+<script>
+const LEG = {"years":["1995","1998","2001","2004","2008","2012","2016","2020","2024"],"buckets":["中國國民黨","民主進步黨","親民黨","無黨團結聯盟","無黨籍","其他"],"types":[{"code":"L2","name":"立法委員(平地原住民)選舉","years":{"1995":{"electors":110147,"votes":58394,"cands":9,"seats":3,"turnout":53.01},"1998":{"electors":119595,"votes":61496,"cands":6,"seats":4,"turnout":51.42},"2001":{"electors":130629,"votes":69990,"cands":9,"seats":4,"turnout":53.58},"2004":{"electors":144646,"votes":63954,"cands":9,"seats":4,"turnout":44.21},"2008":{"electors":156052,"votes":66908,"cands":5,"seats":3,"turnout":42.88},"2012":{"electors":171548,"votes":100671,"cands":10,"seats":3,"turnout":58.68},"2016":{"electors":187076,"votes":96761,"cands":13,"seats":3,"turnout":51.72},"2020":{"electors":199833,"votes":124504,"cands":10,"seats":3,"turnout":62.3},"2024":{"electors":210036,"votes":122343,"cands":9,"seats":3,"turnout":58.25}}},{"code":"L3","name":"立法委員(山地原住民)選舉","years":{"1995":{"electors":120900,"votes":75309,"cands":9,"seats":3,"turnout":62.29},"1998":{"electors":130217,"votes":77360,"cands":9,"seats":4,"turnout":59.41},"2001":{"electors":141757,"votes":87562,"cands":12,"seats":4,"turnout":61.77},"2004":{"electors":155629,"votes":82477,"cands":9,"seats":4,"turnout":53.0},"2008":{"electors":167020,"votes":86093,"cands":7,"seats":3,"turnout":51.55},"2012":{"electors":183398,"votes":119374,"cands":6,"seats":3,"turnout":65.09},"2016":{"electors":200029,"votes":115341,"cands":10,"seats":3,"turnout":57.66},"2020":{"electors":215115,"votes":147572,"cands":11,"seats":3,"turnout":68.6},"2024":{"electors":228164,"votes":146750,"cands":10,"seats":3,"turnout":64.32}}}],"parties":{"1995":{"中國國民黨":76.97,"民主進步黨":2.72,"親民黨":0.0,"無黨團結聯盟":0.0,"無黨籍":13.27,"其他":7.04},"1998":{"中國國民黨":71.54,"民主進步黨":7.09,"親民黨":0.0,"無黨團結聯盟":0.0,"無黨籍":0.17,"其他":21.19},"2001":{"中國國民黨":47.71,"民主進步黨":6.53,"親民黨":27.67,"無黨團結聯盟":0.0,"無黨籍":6.1,"其他":11.99},"2004":{"中國國民黨":40.64,"民主進步黨":9.77,"親民黨":17.62,"無黨團結聯盟":26.03,"無黨籍":2.65,"其他":3.3},"2008":{"中國國民黨":54.89,"民主進步黨":6.76,"親民黨":17.47,"無黨團結聯盟":13.35,"無黨籍":7.11,"其他":0.41},"2012":{"中國國民黨":51.52,"民主進步黨":4.64,"親民黨":13.74,"無黨團結聯盟":13.74,"無黨籍":15.57,"其他":0.79},"2016":{"中國國民黨":48.95,"民主進步黨":16.24,"親民黨":2.98,"無黨團結聯盟":13.34,"無黨籍":9.19,"其他":9.3},"2020":{"中國國民黨":48.1,"民主進步黨":19.36,"親民黨":0.0,"無黨團結聯盟":0.0,"無黨籍":27.42,"其他":5.11},"2024":{"中國國民黨":41.37,"民主進步黨":22.53,"親民黨":0.0,"無黨團結聯盟":0.0,"無黨籍":32.91,"其他":3.2}},"partySeats":{"1995":{"中國國民黨":6,"民主進步黨":0,"親民黨":0,"無黨團結聯盟":0,"無黨籍":0,"其他":0},"1998":{"中國國民黨":6,"民主進步黨":0,"親民黨":0,"無黨團結聯盟":0,"無黨籍":0,"其他":2},"2001":{"中國國民黨":4,"民主進步黨":0,"親民黨":2,"無黨團結聯盟":0,"無黨籍":1,"其他":1},"2004":{"中國國民黨":4,"民主進步黨":1,"親民黨":2,"無黨團結聯盟":1,"無黨籍":0,"其他":0},"2008":{"中國國民黨":4,"民主進步黨":0,"親民黨":1,"無黨團結聯盟":1,"無黨籍":0,"其他":0},"2012":{"中國國民黨":4,"民主進步黨":0,"親民黨":1,"無黨團結聯盟":1,"無黨籍":0,"其他":0},"2016":{"中國國民黨":4,"民主進步黨":1,"親民黨":0,"無黨團結聯盟":1,"無黨籍":0,"其他":0},"2020":{"中國國民黨":3,"民主進步黨":2,"親民黨":0,"無黨團結聯盟":0,"無黨籍":1,"其他":0},"2024":{"中國國民黨":3,"民主進步黨":2,"親民黨":0,"無黨團結聯盟":0,"無黨籍":1,"其他":0}},"turnout":{"1995":57.87,"1998":55.58,"2001":57.84,"2004":48.77,"2008":47.36,"2012":61.99,"2016":54.79,"2020":65.57,"2024":61.41}};
+const BOUNDS = {"terms":["2008","2012","2016","2020","2024"],"thresholds":["0.95","0.90","0.80"],"meta":{"2008":{"0.95":{"stations":60,"electors":26025,"coverage":8.1},"0.90":{"stations":155,"electors":75921,"coverage":23.5},"0.80":{"stations":219,"electors":108262,"coverage":33.5}},"2012":{"0.95":{"stations":71,"electors":33154,"coverage":9.3},"0.90":{"stations":161,"electors":80626,"coverage":22.7},"0.80":{"stations":218,"electors":111423,"coverage":31.4}},"2016":{"0.95":{"stations":76,"electors":37889,"coverage":9.8},"0.90":{"stations":167,"electors":86414,"coverage":22.3},"0.80":{"stations":223,"electors":117591,"coverage":30.4}},"2020":{"0.95":{"stations":87,"electors":45353,"coverage":10.9},"0.90":{"stations":170,"electors":89551,"coverage":21.6},"0.80":{"stations":231,"electors":122240,"coverage":29.5}},"2024":{"0.95":{"stations":90,"electors":48091,"coverage":11.0},"0.90":{"stations":172,"electors":90837,"coverage":20.7},"0.80":{"stations":237,"electors":124365,"coverage":28.4}}},"rows":{"2008":{"0.95":[["中國國民黨",86.19,85.93,87.83],["民主進步黨",7.39,5.63,7.53],["台灣團結聯盟",1.49,0.0,1.52],["新黨",1.22,0.0,1.25],["無黨團結聯盟",0.83,0.0,0.85],["台灣農民黨",0.63,0.0,0.64],["制憲聯盟",0.61,0.0,0.62],["紅黨",0.51,0.0,0.52],["第三社會黨",0.45,0.0,0.45],["綠黨",0.31,0.0,0.32],["公民黨",0.29,0.0,0.3],["客家黨",0.07,0.0,0.07]],"0.90":[["中國國民黨",86.11,85.72,88.54],["民主進步黨",7.02,4.4,7.21],["台灣團結聯盟",1.54,0.0,1.58],["新黨",1.41,0.0,1.45],["無黨團結聯盟",1.08,0.0,1.11],["紅黨",0.55,0.0,0.56],["制憲聯盟",0.54,0.0,0.56],["台灣農民黨",0.48,0.0,0.49],["第三社會黨",0.4,0.0,0.41],["公民黨",0.39,0.0,0.4],["綠黨",0.31,0.0,0.32],["客家黨",0.18,0.0,0.19]],"0.80":[["中國國民黨",85.68,84.9,90.37],["民主進步黨",7.29,2.21,7.69],["台灣團結聯盟",1.59,0.0,1.67],["新黨",1.39,0.0,1.46],["無黨團結聯盟",1.06,0.0,1.11],["制憲聯盟",0.62,0.0,0.66],["紅黨",0.59,0.0,0.62],["台灣農民黨",0.5,0.0,0.52],["公民黨",0.41,0.0,0.43],["第三社會黨",0.38,0.0,0.4],["綠黨",0.33,0.0,0.35],["客家黨",0.17,0.0,0.18]]},"2012":{"0.95":[["中國國民黨",80.31,79.71,82.76],["民主進步黨",8.25,5.45,8.5],["親民黨",4.67,1.76,4.81],["台灣團結聯盟",1.46,0.0,1.51],["綠黨",1.3,0.0,1.33],["人民最大黨",1.17,0.0,1.2],["台灣國民會議",0.9,0.0,0.93],["新黨",0.82,0.0,0.85],["健保免費連線",0.8,0.0,0.83],["台灣主義黨",0.19,0.0,0.19],["中華民國臺灣基本法連線",0.13,0.0,0.13]],"0.90":[["中國國民黨",78.36,77.22,82.52],["民主進步黨",8.45,3.6,8.9],["親民黨",5.92,0.93,6.24],["台灣團結聯盟",1.56,0.0,1.64],["綠黨",1.43,0.0,1.51],["人民最大黨",1.16,0.0,1.22],["台灣國民會議",0.96,0.0,1.01],["健保免費連線",0.92,0.0,0.97],["新黨",0.88,0.0,0.93],["台灣主義黨",0.2,0.0,0.21],["中華民國臺灣基本法連線",0.15,0.0,0.15]],"0.80":[["中國國民黨",77.4,75.6,83.57],["民主進步黨",8.77,1.5,9.47],["親民黨",6.34,0.0,6.85],["台灣團結聯盟",1.63,0.0,1.76],["綠黨",1.46,0.0,1.58],["人民最大黨",1.19,0.0,1.28],["健保免費連線",0.97,0.0,1.05],["台灣國民會議",0.95,0.0,1.03],["新黨",0.9,0.0,0.97],["台灣主義黨",0.25,0.0,0.26],["中華民國臺灣基本法連線",0.14,0.0,0.15]]},"2016":{"0.95":[["中國國民黨",62.01,60.87,63.86],["民主進步黨",11.8,9.16,12.16],["親民黨",8.2,5.45,8.44],["信心希望聯盟",6.07,3.26,6.26],["時代力量",2.53,0.0,2.61],["民國黨",2.38,0.0,2.45],["新黨",1.51,0.0,1.56],["軍公教聯盟黨",1.13,0.0,1.16],["台灣團結聯盟",1.02,0.0,1.05],["綠黨社會民主黨聯盟",0.88,0.0,0.91],["無黨團結聯盟",0.84,0.0,0.86],["自由台灣黨",0.49,0.0,0.5],["健保免費連線",0.29,0.0,0.3],["中華統一促進黨",0.27,0.0,0.27],["和平鴿聯盟黨",0.22,0.0,0.23],["台灣獨立黨",0.17,0.0,0.18],["樹黨",0.15,0.0,0.15],["大愛憲改聯盟",0.06,0.0,0.06]],"0.90":[["中國國民黨",59.29,57.22,62.3],["民主進步黨",12.55,8.11,13.18],["親民黨",9.8,5.22,10.29],["信心希望聯盟",5.45,0.65,5.72],["民國黨",2.67,0.0,2.8],["時代力量",2.47,0.0,2.6],["新黨",1.68,0.0,1.77],["軍公教聯盟黨",1.05,0.0,1.1],["無黨團結聯盟",1.02,0.0,1.07],["綠黨社會民主黨聯盟",1.0,0.0,1.05],["台灣團結聯盟",0.91,0.0,0.96],["自由台灣黨",0.48,0.0,0.51],["中華統一促進黨",0.47,0.0,0.5],["健保免費連線",0.4,0.0,0.42],["和平鴿聯盟黨",0.27,0.0,0.29],["樹黨",0.2,0.0,0.21],["台灣獨立黨",0.19,0.0,0.2],["大愛憲改聯盟",0.1,0.0,0.11]],"0.80":[["中國國民黨",57.84,54.59,62.3],["民主進步黨",12.85,6.13,13.84],["親民黨",10.37,3.46,11.17],["信心希望聯盟",5.36,0.0,5.78],["時代力量",2.76,0.0,2.97],["民國黨",2.7,0.0,2.91],["新黨",1.73,0.0,1.87],["軍公教聯盟黨",1.05,0.0,1.13],["綠黨社會民主黨聯盟",1.02,0.0,1.1],["台灣團結聯盟",1.01,0.0,1.09],["無黨團結聯盟",1.0,0.0,1.08],["自由台灣黨",0.52,0.0,0.56],["中華統一促進黨",0.5,0.0,0.54],["健保免費連線",0.41,0.0,0.44],["和平鴿聯盟黨",0.32,0.0,0.34],["樹黨",0.22,0.0,0.24],["台灣獨立黨",0.22,0.0,0.23],["大愛憲改聯盟",0.11,0.0,0.12]]},"2020":{"0.95":[["中國國民黨",71.89,71.05,74.02],["民主進步黨",12.38,9.78,12.75],["台灣民眾黨",3.49,0.63,3.6],["時代力量",3.21,0.34,3.31],["親民黨",2.61,0.0,2.69],["安定力量",1.42,0.0,1.47],["台灣基進",1.06,0.0,1.09],["綠黨",0.88,0.0,0.9],["喜樂島聯盟",0.52,0.0,0.53],["中華統一促進黨",0.51,0.0,0.52],["新黨",0.49,0.0,0.5],["台灣團結聯盟",0.38,0.0,0.39],["合一行動聯盟",0.26,0.0,0.27],["一邊一國行動黨",0.26,0.0,0.27],["國會政黨聯盟",0.2,0.0,0.21],["宗教聯盟",0.19,0.0,0.19],["勞動黨",0.15,0.0,0.16],["台澎黨",0.07,0.0,0.07],["台灣維新",0.04,0.0,0.04]],"0.90":[["中國國民黨",71.57,70.19,75.04],["民主進步黨",12.49,8.24,13.09],["台灣民眾黨",3.52,0.0,3.69],["時代力量",3.11,0.0,3.26],["親民黨",2.71,0.0,2.84],["安定力量",1.37,0.0,1.44],["台灣基進",1.05,0.0,1.1],["綠黨",0.92,0.0,0.97],["新黨",0.56,0.0,0.58],["中華統一促進黨",0.51,0.0,0.54],["台灣團結聯盟",0.47,0.0,0.49],["喜樂島聯盟",0.43,0.0,0.45],["一邊一國行動黨",0.33,0.0,0.35],["合一行動聯盟",0.23,0.0,0.25],["國會政黨聯盟",0.22,0.0,0.24],["宗教聯盟",0.21,0.0,0.22],["勞動黨",0.18,0.0,0.19],["台澎黨",0.08,0.0,0.08],["台灣維新",0.05,0.0,0.05]],"0.80":[["中國國民黨",71.06,68.89,76.41],["民主進步黨",12.53,5.96,13.48],["台灣民眾黨",3.57,0.0,3.84],["時代力量",3.06,0.0,3.28],["親民黨",2.78,0.0,2.99],["安定力量",1.49,0.0,1.6],["台灣基進",1.12,0.0,1.2],["綠黨",0.96,0.0,1.03],["中華統一促進黨",0.57,0.0,0.61],["新黨",0.56,0.0,0.6],["台灣團結聯盟",0.46,0.0,0.49],["喜樂島聯盟",0.39,0.0,0.42],["一邊一國行動黨",0.34,0.0,0.36],["合一行動聯盟",0.3,0.0,0.32],["國會政黨聯盟",0.25,0.0,0.27],["宗教聯盟",0.22,0.0,0.24],["勞動黨",0.18,0.0,0.2],["台灣維新",0.08,0.0,0.09],["台澎黨",0.08,0.0,0.09]]},"2024":{"0.95":[["中國國民黨",68.1,67.13,70.17],["台灣民眾黨",14.09,11.47,14.51],["民主進步黨",12.09,9.42,12.46],["時代力量",1.36,0.0,1.41],["臺灣雙語無法黨",0.74,0.0,0.77],["小民參政歐巴桑聯盟",0.64,0.0,0.66],["台灣綠黨",0.6,0.0,0.62],["親民黨",0.54,0.0,0.55],["司法改革黨",0.43,0.0,0.45],["台灣團結聯盟",0.36,0.0,0.37],["台灣基進",0.27,0.0,0.27],["新黨",0.21,0.0,0.21],["中華統一促進黨",0.19,0.0,0.2],["制度救世島",0.17,0.0,0.17],["人民最大黨",0.16,0.0,0.16],["台灣維新",0.06,0.0,0.06]],"0.90":[["中國國民黨",67.5,65.95,70.72],["台灣民眾黨",14.81,10.75,15.52],["民主進步黨",11.81,7.61,12.38],["時代力量",1.32,0.0,1.38],["臺灣雙語無法黨",0.73,0.0,0.77],["台灣綠黨",0.66,0.0,0.69],["親民黨",0.64,0.0,0.67],["小民參政歐巴桑聯盟",0.54,0.0,0.56],["司法改革黨",0.46,0.0,0.48],["台灣團結聯盟",0.34,0.0,0.36],["台灣基進",0.27,0.0,0.28],["中華統一促進黨",0.25,0.0,0.26],["新黨",0.24,0.0,0.26],["人民最大黨",0.18,0.0,0.19],["制度救世島",0.18,0.0,0.19],["台灣維新",0.07,0.0,0.07]],"0.80":[["中國國民黨",67.18,64.74,72.19],["台灣民眾黨",14.81,8.46,15.92],["民主進步黨",11.97,5.41,12.87],["時代力量",1.33,0.0,1.43],["台灣綠黨",0.77,0.0,0.83],["親民黨",0.72,0.0,0.77],["臺灣雙語無法黨",0.68,0.0,0.73],["小民參政歐巴桑聯盟",0.51,0.0,0.55],["司法改革黨",0.44,0.0,0.47],["台灣團結聯盟",0.35,0.0,0.38],["中華統一促進黨",0.28,0.0,0.3],["台灣基進",0.28,0.0,0.3],["新黨",0.25,0.0,0.27],["制度救世島",0.18,0.0,0.2],["人民最大黨",0.17,0.0,0.18],["台灣維新",0.07,0.0,0.07]]}}};
+
+const YS = LEG.years;
+const NF = n => n.toLocaleString("en-US");
+const YLAB = v => v.slice(2, 4);
+
+/* 政黨系列。⚠️ 這六個桶與地方選舉頁的三桶【不是同一套】：
+   親民黨 2001 年拿 27.7%、無黨團結聯盟 2004 年拿 26.0%，
+   套地方公職那三桶會讓那兩屆的主要故事掉進「其他」。 */
+const PARTIES = [
+  ["中國國民黨", "--p1", "--i1"],
+  ["民主進步黨", "--p2", "--i2"],
+  ["親民黨", "--p3", "--i3"],
+  ["無黨團結聯盟", "--p4", "--i4"],
+  ["無黨籍", "--p5", "--i5"],
+  ["其他", "--p6", "--i6"]
+];
+
+const tip = document.getElementById("tip");
+function bind(el, text){
+  el.addEventListener("pointerenter", () => { tip.textContent = text; tip.style.opacity = 1; });
+  el.addEventListener("pointermove", e => {
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y < 8) y = e.clientY + 16;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  el.addEventListener("pointerleave", () => tip.style.opacity = 0);
+}
+const svgEl = (n, a) => {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  return e;
+};
+function legendInto(id){
+  const lg = document.getElementById(id);
+  PARTIES.forEach(([label, cv]) => {
+    const sp = document.createElement("span");
+    const sw = document.createElement("i");
+    sw.className = "sw"; sw.style.background = `var(${cv})`; sw.style.display = "block";
+    sp.append(sw, document.createTextNode(label)); lg.append(sp);
+  });
+}
+function tableFrom(el, head, rows){
+  el.innerHTML = "<thead><tr>" + head.map(h => `<th>${h}</th>`).join("") + "</tr></thead>";
+  const tb = document.createElement("tbody");
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = r.map(c => `<td>${c}</td>`).join("");
+    tb.append(tr);
+  });
+  el.append(tb);
+}
+
+/* 範圍表 */
+{
+  const tb = document.querySelector("#t-scope tbody");
+  LEG.types.forEach(t => {
+    const last = t.years[YS[YS.length - 1]];
+    const n = YS.filter(v => t.years[v]).length;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="mono">${t.code}</td><td>${t.name}</td>`
+      + `<td>${NF(last.electors)}</td><td>${last.seats}</td><td>${n}</td>`;
+    tb.append(tr);
+  });
+}
+
+/* 01 政黨得票率：九屆折線 */
+{
+  legendInto("l-party");
+  const W = 560, H = 250, P = { t: 12, r: 44, b: 24, l: 8 }, HI = 80;
+  const x = i => P.l + i * (W - P.l - P.r) / (YS.length - 1);
+  const y = v => P.t + (HI - v) * (H - P.t - P.b) / HI;
+  const s = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img",
+    "aria-label": "九屆政黨得票率折線圖，數值見下方表格", "aria-describedby": "t-party" });
+  [0, 20, 40, 60, 80].forEach(g => {
+    s.append(svgEl("line", { x1: P.l, x2: W - P.r, y1: y(g), y2: y(g),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const lb = svgEl("text", { x: W - P.r + 6, y: y(g) + 4, fill: "var(--ink3)",
+      "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+    lb.textContent = g + "%"; s.append(lb);
+  });
+  PARTIES.forEach(([key, cv]) => {
+    const pts = YS.map((v, i) => [x(i), y(LEG.parties[v][key])]);
+    s.append(svgEl("path", { d: "M" + pts.map(p => p.join(" ")).join("L"),
+      fill: "none", stroke: `var(${cv})`, "stroke-width": 2.2,
+      "stroke-linecap": "round", "stroke-linejoin": "round" }));
+    pts.forEach((p, i) => {
+      s.append(svgEl("circle", { cx: p[0], cy: p[1], r: 3.2, fill: `var(${cv})` }));
+      const hit = svgEl("circle", { cx: p[0], cy: p[1], r: 13, fill: "transparent" });
+      bind(hit, `${YS[i]}　${key}\n得票率 ${LEG.parties[YS[i]][key].toFixed(2)}%\n席次 ${LEG.partySeats[YS[i]][key]}`);
+      s.append(hit);
+    });
+  });
+  YS.forEach((v, i) => {
+    const lb = svgEl("text", { x: x(i), y: H - 6, fill: "var(--ink3)", "font-size": 11,
+      "text-anchor": i === 0 ? "start" : (i === YS.length - 1 ? "end" : "middle"),
+      "font-family": "IBM Plex Mono, monospace" });
+    lb.textContent = v; s.append(lb);
+  });
+  document.getElementById("c-party").append(s);
+
+  tableFrom(document.getElementById("t-party"),
+    ["政黨"].concat(YS),
+    PARTIES.map(([key]) => [key].concat(YS.map(v => LEG.parties[v][key].toFixed(2)))));
+}
+
+/* 02 席次：逐屆堆疊條 */
+{
+  legendInto("l-seat");
+  const W = 560, BH = 22, GAP = 10, LW = 40;
+  const H = YS.length * (BH + GAP);
+  const s = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img",
+    "aria-label": "逐屆政黨席次堆疊條，數值見下方表格", "aria-describedby": "t-seat" });
+  YS.forEach((v, r) => {
+    const seats = LEG.partySeats[v];
+    const total = PARTIES.reduce((a, [k]) => a + seats[k], 0);
+    const top = r * (BH + GAP);
+    const yl = svgEl("text", { x: 0, y: top + BH / 2 + 4, fill: "var(--ink3)",
+      "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+    yl.textContent = v; s.append(yl);
+    let cx = LW;
+    PARTIES.forEach(([key, cv, iv]) => {
+      const n = seats[key];
+      if (!n) return;
+      const w = n / total * (W - LW);
+      const g = svgEl("g");
+      g.append(svgEl("rect", { x: cx, y: top, width: Math.max(w - 2, 1), height: BH,
+        rx: 2, fill: `var(${cv})` }));
+      const lb = svgEl("text", { x: cx + (w - 2) / 2, y: top + BH / 2 + 4,
+        "text-anchor": "middle", "font-size": 12, fill: `var(${iv})`,
+        "font-family": "IBM Plex Mono, monospace", "font-weight": 500 });
+      lb.textContent = n; g.append(lb);
+      bind(g, `${v}　${key}\n席次 ${n} / ${total}\n得票率 ${LEG.parties[v][key].toFixed(2)}%`);
+      s.append(g);
+      cx += w;
+    });
+  });
+  document.getElementById("c-seat").append(s);
+
+  tableFrom(document.getElementById("t-seat"),
+    ["屆別"].concat(PARTIES.map(([k]) => k)).concat(["合計"]),
+    YS.map(v => [v].concat(PARTIES.map(([k]) => LEG.partySeats[v][k]))
+      .concat([PARTIES.reduce((a, [k]) => a + LEG.partySeats[v][k], 0)])));
+}
+
+/* 03 投票率：山地／平地小倍數，共用 40–75 縱軸 */
+{
+  const W = 220, H = 120, P = { t: 12, r: 30, b: 20, l: 4 }, LO = 40, HI = 75;
+  const x = i => P.l + i * (W - P.l - P.r) / (YS.length - 1);
+  const y = v => P.t + (HI - v) * (H - P.t - P.b) / (HI - LO);
+  const box = document.getElementById("c-turnout");
+  LEG.types.forEach(t => {
+    const ys = YS.filter(v => t.years[v]);
+    const s = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img",
+      "aria-label": `${t.code} 投票率 ${ys.map(v => v + " " + t.years[v].turnout + "%").join("、")}` });
+    [50, 60, 70].forEach(g => {
+      s.append(svgEl("line", { x1: P.l, x2: W - P.r, y1: y(g), y2: y(g),
+        stroke: "var(--grid)", "stroke-width": 1 }));
+      const lb = svgEl("text", { x: W - P.r + 5, y: y(g) + 3.5, fill: "var(--ink3)",
+        "font-size": 9, "font-family": "IBM Plex Mono, monospace" });
+      lb.textContent = g; s.append(lb);
+    });
+    const pts = ys.map((v, i) => [x(YS.indexOf(v)), y(t.years[v].turnout)]);
+    s.append(svgEl("path", { d: "M" + pts.map(p => p.join(" ")).join("L"), fill: "none",
+      stroke: "var(--accent)", "stroke-width": 2,
+      "stroke-linecap": "round", "stroke-linejoin": "round" }));
+    pts.forEach((p, i) => {
+      const d = t.years[ys[i]];
+      s.append(svgEl("circle", { cx: p[0], cy: p[1], r: 4, fill: "var(--panel)",
+        stroke: "var(--accent)", "stroke-width": 2 }));
+      const hit = svgEl("circle", { cx: p[0], cy: p[1], r: 13, fill: "transparent" });
+      bind(hit, `${ys[i]}　${t.name}\n投票率 ${d.turnout}%\n選舉人 ${NF(d.electors)}\n投票數 ${NF(d.votes)}`);
+      s.append(hit);
+      if (i !== 0 && i !== pts.length - 1) return;
+      const lb = svgEl("text", { x: p[0], y: p[1] - 9, fill: "var(--ink2)", "font-size": 10,
+        "text-anchor": i === 0 ? "start" : "end",
+        "font-family": "IBM Plex Mono, monospace" });
+      lb.textContent = d.turnout.toFixed(1); s.append(lb);
+    });
+    YS.forEach((v, i) => {
+      const lb = svgEl("text", { x: x(i), y: H - 5, fill: "var(--ink3)", "font-size": 9,
+        "text-anchor": i === 0 ? "start" : (i === YS.length - 1 ? "end" : "middle"),
+        "font-family": "IBM Plex Mono, monospace" });
+      lb.textContent = YLAB(v); s.append(lb);
+    });
+    const d = document.createElement("div"); d.className = "panel";
+    const h = document.createElement("div"); h.className = "pt";
+    const c = document.createElement("span"); c.className = "pc"; c.textContent = t.code;
+    const n = document.createElement("span"); n.className = "pn"; n.textContent = t.name;
+    h.append(c, n); d.append(h, s); box.append(d);
+  });
+
+  tableFrom(document.getElementById("t-turnout"),
+    ["屆別"].concat(LEG.types.map(t => t.name + " 投票率"))
+      .concat(LEG.types.map(t => t.name + " 選舉人")).concat(["合計投票率"]),
+    YS.map(v => [v]
+      .concat(LEG.types.map(t => t.years[v] ? t.years[v].turnout.toFixed(2) : "—"))
+      .concat(LEG.types.map(t => t.years[v] ? NF(t.years[v].electors) : "—"))
+      .concat([LEG.turnout[v].toFixed(2)])));
+}
+
+/* 04 界限：涵蓋率是主視覺 */
+{
+  const sel = document.getElementById("sel-term");
+  BOUNDS.terms.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t + " 年";
+    if (t === BOUNDS.terms[BOUNDS.terms.length - 1]) o.selected = true;
+    sel.append(o);
+  });
+  const box = document.getElementById("c-bounds");
+  const TOP = 4;
+
+  function render(term){
+    box.innerHTML = "";
+    BOUNDS.thresholds.forEach(th => {
+      const m = BOUNDS.meta[term][th];
+      const rows = BOUNDS.rows[term][th];
+      const d = document.createElement("div"); d.className = "bnd";
+
+      const h = document.createElement("h3");
+      h.textContent = `原住民選舉人佔比 ≥${(+th * 100).toFixed(0)}% 的 ${m.stations} 個投開票所`;
+      d.append(h);
+
+      /* 主視覺：涵蓋率。條的全長是全體原住民選舉人。 */
+      const num = document.createElement("div");
+      num.className = "covnum"; num.textContent = m.coverage.toFixed(1) + "%";
+      const sub = document.createElement("div");
+      sub.className = "covsub";
+      sub.textContent = `全體原住民選舉人的涵蓋率　${NF(m.electors)} 人`;
+      d.append(num, sub);
+
+      const s = svgEl("svg", { class: "covbar", viewBox: "0 0 100 8",
+        preserveAspectRatio: "none", role: "img",
+        "aria-label": `涵蓋 ${m.coverage.toFixed(1)}%，未涵蓋 ${(100 - m.coverage).toFixed(1)}%` });
+      s.append(svgEl("rect", { x: 0, y: 0, width: 100, height: 8, fill: "var(--uncov)" }));
+      s.append(svgEl("rect", { x: 0, y: 0, width: m.coverage, height: 8, fill: "var(--cov)" }));
+      d.append(s);
+
+      const t = document.createElement("table");
+      tableFrom(t, ["政黨", "觀察", "界限"],
+        rows.slice(0, TOP).map(r => [r[0], r[1].toFixed(1) + "%",
+          `${r[2].toFixed(1)}–${r[3].toFixed(1)}%`]));
+      const cap = document.createElement("caption");
+      cap.textContent = `${term} 年不分區政黨票，這 ${m.stations} 個所的觀察值與原住民得票率的界限`;
+      t.prepend(cap);
+      d.append(t);
+
+      /* ⚠️ 限定語與數字必須在同一個可複製的區塊內——不是放在頁尾註腳。
+         讀者複製這一塊貼到別處時，限定語要跟著走。 */
+      const q = document.createElement("p"); q.className = "qual";
+      q.textContent = `以上是這 ${m.stations} 個投開票所的數字，涵蓋 ${m.coverage.toFixed(1)}% 的原住民選舉人，`
+        + `不是全體原住民的政黨傾向。其餘 ${(100 - m.coverage).toFixed(1)}% 的原住民選舉人，同樣的算術給不出有用的界限。`;
+      d.append(q);
+      box.append(d);
+    });
+
+    const head = ["門檻", "所數", "涵蓋率", "政黨", "觀察得票率", "界限下界", "界限上界"];
+    const body = [];
+    BOUNDS.thresholds.forEach(th => {
+      const m = BOUNDS.meta[term][th];
+      BOUNDS.rows[term][th].forEach((r, i) => {
+        body.push([i === 0 ? "≥" + (+th * 100).toFixed(0) + "%" : "",
+          i === 0 ? m.stations : "", i === 0 ? m.coverage.toFixed(1) + "%" : "",
+          r[0], r[1].toFixed(2) + "%", r[2].toFixed(2) + "%", r[3].toFixed(2) + "%"]);
+      });
+    });
+    tableFrom(document.getElementById("t-bounds"), head, body);
+  }
+
+  sel.addEventListener("change", () => render(sel.value));
+  render(sel.value);
+}
+</script>
+</body>
+</html>

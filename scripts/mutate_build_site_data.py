@@ -194,6 +194,99 @@ MUTATIONS = [
     ("契約：拿掉缺欄檢查本身",
      '        if missing:',
      '        if False:'),
+
+    # ---- 立委頁：分桶 ----
+    ("立委：分桶鍵改成只比名稱（代號 9 的兩個政黨會被合併）",
+     '    return LEGISLATIVE_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    return {n: b for (_c, n), b in LEGISLATIVE_IDENTITY_BUCKETS.items()}'
+     '.get(row["政黨名稱"], OTHER_BUCKET)'),
+    ("立委：分桶鍵改成只比代號",
+     '    return LEGISLATIVE_IDENTITY_BUCKETS.get(\n'
+     '        (row["政黨代號"], row["政黨名稱"]), OTHER_BUCKET)',
+     '    return {c: b for (c, _n), b in LEGISLATIVE_IDENTITY_BUCKETS.items()}'
+     '.get(row["政黨代號"], OTHER_BUCKET)'),
+    ("立委：漏掉舊屆的無黨籍編碼 ('99','無')",
+     '    ("99", "無"): "無黨籍",\n',
+     ''),
+    ("立委：分桶集合改成沿用地方公職那三桶",
+     'LEGISLATIVE_PARTY_BUCKETS = (\n'
+     '    "中國國民黨", "民主進步黨", "親民黨", "無黨團結聯盟", "無黨籍",\n'
+     ')',
+     'LEGISLATIVE_PARTY_BUCKETS = PARTY_BUCKETS'),
+    ("立委：拿掉「兩個分桶集合不得相同」的檢查",
+     '    if set(LEGISLATIVE_PARTY_BUCKETS) == set(PARTY_BUCKETS):',
+     '    if False:'),
+    ("立委：拿掉「無黨籍桶九屆皆非零」的檢查",
+     '    empty = [y for y in years if party_votes[y].get("無黨籍", 0) == 0]',
+     '    empty = []'),
+
+    # ---- 立委頁：席次與投票率 ----
+    ("立委：席次改用來源的當選註記",
+     '        if c["當選"] == "Y":\n'
+     '            party_seats[c["年度"]][legislative_bucket(c)] += 1',
+     '        if c["當選註記"] == "*":\n'
+     '            party_seats[c["年度"]][legislative_bucket(c)] += 1'),
+    ("立委：政黨席次改用地方公職的分桶函式",
+     '            party_seats[c["年度"]][legislative_bucket(c)] += 1',
+     '            party_seats[c["年度"]][party_bucket(c)] += 1'),
+    ("立委：合計投票率改成兩個投票率取平均",
+     '        turnout[y] = float(_round_half_up(\n'
+     '            Decimal(n) * 100 / Decimal(e), "0.01"))',
+     '        rs = [t["years"][y]["votes"] / t["years"][y]["electors"]\n'
+     '              for t in types.values() if y in t["years"]]\n'
+     '        turnout[y] = float(_round_half_up(\n'
+     '            Decimal(sum(rs) / len(rs)) * 100, "0.01"))'),
+
+    # ---- 界限 ----
+    ("界限：涵蓋率改成無條件捨去到整數",
+     '            "coverage": float(_round_half_up(\n'
+     '                Decimal(r["涵蓋率"]) * 100, "0.1")),',
+     '            "coverage": float(int(Decimal(r["涵蓋率"]) * 100)),'),
+    ("界限：上界誤寫成下界（區間會塌成一點）",
+     '            float(_round_half_up(Decimal(r["上界_原住民得票率"]) * 100, "0.01")),',
+     '            float(_round_half_up(Decimal(r["下界_原住民得票率"]) * 100, "0.01")),'),
+    ("界限：只留一個門檻（替讀者挑掉取捨）",
+     'BOUNDS_THRESHOLDS = ("0.95", "0.90", "0.80")',
+     'BOUNDS_THRESHOLDS = ("0.95",)'),
+    ("界限：所數與涵蓋人數對調",
+     '            "stations": int(r["所數"]),\n'
+     '            "electors": int(r["涵蓋原住民選舉人"]),',
+     '            "stations": int(r["涵蓋原住民選舉人"]),\n'
+     '            "electors": int(r["所數"]),'),
+]
+
+# 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。
+LEG_HTML = ROOT / "docs" / "legislative.html"
+LEG_HTML_MUTATION = (
+    "立委頁：涵蓋率被擠到「山地鄉」之前（限定語順序反了）",
+    '這樣的所<strong>全部位於原住民族地區的山地鄉</strong>',
+    '這樣的所涵蓋 11.0% 的原住民選舉人，'
+    '且<strong>全部位於原住民族地區的山地鄉</strong>')
+
+# 每個被變異的檔各一個 canary。
+#
+# ⚠️ **這是必要的，不是保險。** 本專案在政黨票那個 change 遇過「36 個變異
+#    全部漏網而基準通過」——成因是副本沒被載入（`sys.path` 指回真正的
+#    `scripts/`）。當時只有一個 canary，看不出另一個檔沒生效。
+#    canary 是「明顯壞掉、一定要被抓到」的改動：它沒被抓到，代表
+#    那個檔根本不是被執行的那一份，這一輪的所有結果都不算數。
+CANARIES = [
+    ("build_site_data.py", 'OTHER_BUCKET = "其他"',
+     'OTHER_BUCKET = "CANARY 這個桶名不存在"'),
+    ("test_build_site_data.py",
+     '    print("\\n[合成] 席次相關指標一律取自 `當選`（權威值），不是 `當選註記`")',
+     '    print("\\n[合成] CANARY")\n    check("canary 必須失敗", 1, 2)'),
+]
+HTML_CANARIES = [
+    # ⚠️ canary 要打在**有斷言看著**的地方。改 <title> 沒有任何測試在看，
+    #    它「沒被抓到」不代表副本沒生效，那個 canary 自己就是壞的。
+    (HTML, "docs/index.html",
+     '"note2009":"2009-2010 是同一輪任期分兩次投票',
+     '"note2009":"CANARY 這不是原本的註記'),
+    (LEG_HTML, "docs/legislative.html",
+     '最嚴的一組是 11.0%',
+     '最嚴的一組是 99.9%'),
 ]
 
 # 只能改真檔的那一項。見模組 docstring。
@@ -262,31 +355,39 @@ def git_is_clean(path: Path) -> bool:
     return True
 
 
-def mutate_index_html() -> tuple[bool, str]:
-    """唯一必須改真檔的變異。回傳（是否偵測到, 說明）。
+def mutate_real_html(path: Path, desc: str, old: str, new: str
+                     ) -> tuple[bool, str]:
+    """在真檔上做一次變異並驗，之後以 git 還原。回傳（是否偵測到, 說明）。
 
     ⚠️ 還原用 `git checkout --` 而不是把備份寫回去：若這支腳本在改完之後、
        寫回之前被中斷，記憶體裡的備份就沒了，而 git 的版本還在。
        前提是執行前該檔必須乾淨，否則會連使用者未提交的改動一起還原掉——
        所以不乾淨就直接拒絕執行，不做「應該沒差」的判斷。
     """
-    desc, old, new = HTML_MUTATION
-    if not git_is_clean(HTML):
-        return False, (f"★ 跳過「{desc}」：docs/index.html 有未提交的改動。"
+    rel = path.relative_to(ROOT).as_posix()
+    if not git_is_clean(path):
+        return False, (f"★ 跳過「{desc}」：{rel} 有未提交的改動。"
                        "這項變異需要改真檔並以 git 還原，會連你的改動一起還原掉。"
                        "請先提交或暫存後再跑。")
-    src = HTML.read_text(encoding="utf-8")
+    src = path.read_text(encoding="utf-8")
     if src.count(old) != 1:
-        return False, f"★ 變異字串在 index.html 出現 {src.count(old)} 次（需恰好 1 次）"
+        return False, f"★ 變異字串在 {rel} 出現 {src.count(old)} 次（需恰好 1 次）"
     test_path = fresh_copies()
     try:
-        HTML.write_text(src.replace(old, new, 1), encoding="utf-8")
+        path.write_text(src.replace(old, new, 1), encoding="utf-8")
         rc, out = run_pytest(test_path)
         caught = rc != 0 and "INTERNALERROR" not in out
     finally:
-        subprocess.run(["git", "checkout", "--", str(HTML)], cwd=ROOT,
+        subprocess.run(["git", "checkout", "--", str(path)], cwd=ROOT,
                        capture_output=True)
     return caught, f"  {desc} → {'偵測到 ✓' if caught else '★沒被偵測到'}"
+
+
+def mutate_index_html() -> tuple[bool, str]:
+    """index.html 的變異。它只能改真檔——測試是用 node 執行 HTML 裡那兩行
+    來驗前端過濾，而它讀的是 ROOT/docs/index.html，改副本測不到。
+    """
+    return mutate_real_html(HTML, *HTML_MUTATION)
 
 
 def main() -> int:
@@ -316,13 +417,38 @@ def main() -> int:
     # ⚠️ 「因前置條件未驗證」與「驗證後漏網」是兩件不同的事，分開計數。
     #    但兩者都不算通過——把未驗證的項目算成通過，就是「靜默縮減涵蓋範圍」。
     skipped_msgs: list[str] = []
-    caught, msg = mutate_index_html()
-    print(msg)
-    if not caught:
-        if msg.lstrip().startswith("★ 跳過"):
-            skipped_msgs.append(msg.strip())
-        else:
+    for caught, msg in (mutate_index_html(),
+                        mutate_real_html(LEG_HTML, *LEG_HTML_MUTATION)):
+        print(msg)
+        if not caught:
+            if msg.lstrip().startswith("★ 跳過"):
+                skipped_msgs.append(msg.strip())
+            else:
+                rc = 1
+
+    # ---- canary：每個被變異的檔各一個 ----
+    print("\n[canary] 每個被變異的檔都必須真的是被執行的那一份")
+    for fname, old, new in CANARIES:
+        test_path = fresh_copies()
+        if not apply_to_copy(fname, old, new):
+            print(f"  ★ canary 字串未恰好出現一次：{fname}")
             rc = 1
+            continue
+        crc, cout = run_pytest(test_path)
+        caught = crc != 0 and "INTERNALERROR" not in cout
+        print(f"  {fname} 的 canary → {'被抓到 ✓' if caught else '★沒被抓到'}")
+        if not caught:
+            rc = 1
+            print("       這一輪的所有結果都不算數：副本沒有被載入。")
+    for path, label, old, new in HTML_CANARIES:
+        caught, msg = mutate_real_html(path, f"{label} 的 canary", old, new)
+        print(msg)
+        if not caught:
+            if msg.lstrip().startswith("★ 跳過"):
+                skipped_msgs.append(msg.strip())
+            else:
+                rc = 1
+                print("       這一輪的所有結果都不算數：該檔沒有被讀到。")
 
     # ---- @reports 承重驗證 ----
     print("\n[骨架] 驗證 @reports 是承重的，不是裝飾")
