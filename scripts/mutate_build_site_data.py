@@ -421,44 +421,69 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
        基準是**通過**的（頁面本來就有 `更新：2026-08`），所以它看起來
        像「沒被偵測到的變異」，實際上是那個寫法本身沒有辨識力。
 
-    要驗的是一對：
-      限定語被拿掉 + 具名字串的檢查 → 抓得到
-      限定語被拿掉 + 比對 2026 的檢查 → 抓不到  ← 這正是不能那樣寫的理由
+    ⚠️ **也不能用 pytest 的退出碼來量。** 測試檔另有一條獨立斷言直接比對
+       限定語，限定語一被拿掉它就紅——不論 check_publication_record 拿什麼比。
+       實測第一版就是這樣得到 (1, 1) 而看不出差別。
+       所以這裡**直接呼叫那個函式**，只問它有沒有丟出 SiteDataError。
+
+    要驗的是一對，在同一份被拿掉限定語的頁面上：
+      具名字串的檢查 → 丟出 SiteDataError
+      比對 2026 的檢查 → 不丟   ← 這正是不能那樣寫的理由
 
     與 @reports 承重驗證是同一種形狀。
     """
     if not git_is_clean(LEG_HTML):
-        return False, ("★ 跳過「具名字串 vs 年份」：docs/legislative.html 有未提交的改動")
+        return False, "★ 跳過「具名字串 vs 年份」：docs/legislative.html 有未提交的改動"
 
     desc, old, new = LEG_NOTICE_MUTATION
     src = LEG_HTML.read_text(encoding="utf-8")
     if src.count(old) != 1:
-        return False, f"★ 限定語字串在 legislative.html 出現 {src.count(old)} 次（需恰好 1 次）"
+        return False, (f"★ 限定語字串在 legislative.html 出現 "
+                       f"{src.count(old)} 次（需恰好 1 次）")
 
     year_check = (
         '        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):',
         '        if "2026" not in page.read_text(encoding="utf-8"):')
 
-    try:
-        # (1) 限定語拿掉 + 具名字串的檢查
-        test_path = fresh_copies()
-        LEG_HTML.write_text(src.replace(old, new, 1), encoding="utf-8")
-        named_rc, named_out = run_pytest(test_path)
-        named_caught = named_rc != 0 and "INTERNALERROR" not in named_out
+    # 只呼叫 check_publication_record()，不跑測試套件。
+    # 印出 RAISED / OK，讓「工具自己壞掉」與「檢查沒抓到」分得開。
+    snippet = (
+        "import sys\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "import build_site_data as B\n"
+        "try:\n"
+        "    B.check_publication_record()\n"
+        "    print('OK')\n"
+        "except B.SiteDataError:\n"
+        "    print('RAISED')\n"
+    )
 
-        # (2) 限定語拿掉 + 檢查改成比對年份
-        test_path = fresh_copies()
+    def probe() -> str:
+        r = subprocess.run([sys.executable, "-c", snippet, str(MUT)],
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", cwd=ROOT,
+                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        out = (r.stdout or "").strip().splitlines()
+        return out[-1] if out else f"ERROR rc={r.returncode} {r.stderr[-200:]}"
+
+    try:
+        LEG_HTML.write_text(src.replace(old, new, 1), encoding="utf-8")
+
+        fresh_copies()
+        named = probe()                      # 具名字串的檢查
+
+        fresh_copies()
         apply_to_copy("build_site_data.py", *year_check)
-        year_rc, _ = run_pytest(test_path)
+        year = probe()                       # 改成比對年份
     finally:
         subprocess.run(["git", "checkout", "--", str(LEG_HTML)], cwd=ROOT,
                        capture_output=True)
 
-    ok = named_caught and year_rc == 0
-    msg = (f"  限定語被拿掉 + 具名字串檢查 → rc={named_rc}"
-           f"（應非零）{'✓' if named_caught else ' ★'}\n"
-           f"  限定語被拿掉 + 比對『2026』 → rc={year_rc}"
-           f"（應為零，證明年份判準沒有辨識力）{'✓' if year_rc == 0 else ' ★'}")
+    ok = named == "RAISED" and year == "OK"
+    msg = (f"  限定語被拿掉 + 具名字串檢查 → {named}"
+           f"（應 RAISED）{'✓' if named == 'RAISED' else ' ★'}\n"
+           f"  限定語被拿掉 + 比對『2026』 → {year}"
+           f"（應 OK，證明年份判準沒有辨識力）{'✓' if year == 'OK' else ' ★'}")
     return ok, msg
 
 
