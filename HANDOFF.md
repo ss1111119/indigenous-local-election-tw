@@ -7,56 +7,44 @@
 
 ## 一、現在停在哪裡
 
-### 已完成並提交
+**最後更新：2026-08-23。**
 
-- `b6fda7c spectra(include-1994-2006-terms): 納入 1994-2006 舊屆別並防堵來源靜默錯誤`
-- `2599c73 docs: 文件同步至九屆，並補上 當選／elected_authoritative 的分工警告`
-- `9bdaf25 spectra(update-site-to-nine-terms): 站台前端擴充至九屆，常數改由腳本產生`
-- `82d9a17 spectra(update-site-to-nine-terms): 歸檔，並建立 site-data-generation 主 spec`
+### 資料集
 
-**資料集現在涵蓋九屆**：1994、1998、2002、2005、2006、2009-2010、2014、2018、2022。
-Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
-`openspec/changes/archive/2026-08-20-include-1994-2006-terms/`，
-並建立本專案第一份主 specs（`openspec/specs/` 下兩個能力、9 條 Requirement）。
+| 資料集 | 屆別 | 輸出 |
+| --- | --- | --- |
+| 地方公職（議員、區長、代表） | 1994–2022 九屆 | `cec-local-election-*` 三張長表 |
+| 原住民立法委員 | 1995–2024 九屆 | `cec-legislative-election-*` 三張長表 |
+| 不分區政黨票的界限估計 | 2008–2024 五屆 | `indigenous-party-preference-bounds.csv` |
 
-**站台已跟上九屆。** change `update-site-to-nine-terms` 10/10 完成、**已歸檔**至
-`openspec/changes/archive/2026-08-20-update-site-to-nine-terms/`，
-並新增第三份主 spec `site-data-generation`（5 條 Requirement）。
+⚠️ **三者是三個不同的母體，不可互相比較，也不可相加。** 見地雷 1c。
 
-**另外四個變更已歸檔**（2026-08-20 ~ 08-21）：
+### 已歸檔的 change（11 個）
 
-- `fix-party-bucket-drift` —— 政黨分桶改用 `(政黨代號, 政黨名稱)` 具名對照表。
-  無黨籍在來源有兩套不重疊的編碼（舊屆 `99`／「無」、新屆 `999`／「無黨籍及未經政黨推薦」），
-  原本只比對名稱，導致站台五個舊屆的無黨籍全是 0、151 人被歸進「其他」。
-- `age-99-is-unrecorded` —— 舊五屆的年齡欄整批是 `99`（格式文件明列的無資料值），
-  站台原本顯示成「99 歲」。
-- `candidate-age-valid-column` —— 把 `年齡` 對調成**乾淨值**，來源原值退居 `年齡_原始`。
-- `elected-column-swap` —— 把 `當選` 對調成**權威值**，`elected_authoritative` 移除、
-  `elected_authoritative_basis` 更名 `當選_依據`，候選人長表欄位數 29→28。
-  外部覆核（agy）抓到驗證第 4 項的 `n_win` 漏改——它讀 `當選` 後會恆等於比較對象、
-  永不觸發且不報錯。詳見地雷 1。
+`fix-party-bucket-drift`、`include-1994-2006-terms`、`update-site-to-nine-terms`、
+`add-indigenous-legislative-elections`、`age-99-is-unrecorded`、
+`candidate-age-valid-column`、`elected-column-swap`、
+`normalise-town-codes-1998-2005`、`site-accessibility-baseline`、
+`test-unguarded-source-checks`、`add-party-list-votes`。
 
-主 specs 現為三個能力、**25 條 Requirement**
-（`legacy-source-quirks` 14、`site-data-generation` 8、`historical-terms-1994-2006` 3）。
+全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-⚠️ **`site-accessibility-baseline`（另一個 session）18/18 完成、尚未歸檔。**
-依約定順序它排在本 session 的變更之後，現在可以歸檔了。
+### 主 specs：七個能力、**57 條 Requirement**
 
-**`add-indigenous-legislative-elections` 17/17 完成、已推送、已歸檔**至
-`openspec/changes/archive/2026-08-21-add-indigenous-legislative-elections/`，
-並建立第四份主 spec `indigenous-legislative-elections`（7 條 Requirement），
-另往 `legacy-source-quirks` 加 4 條。
+| 能力 | 條數 |
+| --- | ---: |
+| `legacy-source-quirks` | 22 |
+| `site-data-generation` | 9 |
+| `indigenous-legislative-elections` | 7 |
+| `site-chart-accessibility` | 6 |
+| `party-list-votes` | 5 |
+| `bounded-estimates` | 4 |
+| `historical-terms-1994-2006` | 4 |
 
-納入九屆原住民立法委員（1995-2024），輸出與地方公職【完全分開】的三張長表
-`cec-legislative-election-*`。既有地方公職四份輸出的 SHA-256 不變。
-變異測試 28 項全數偵測到。詳見 `docs/schema/cec-legislative-election.md`
-與 `data/sources.json` 的 `indigenousLegislators1995_2024`。
+### 進行中的 change
 
-主 specs 現為四個能力、**36 條 Requirement**
-（`legacy-source-quirks` 18、`site-data-generation` 8、
-`indigenous-legislative-elections` 7、`historical-terms-1994-2006` 3）。
-
-**目前沒有進行中的 change。**
+`site-legislative-and-party-preference` —— 站台加入立委頁與政黨傾向區塊。
+本文更新時 8/11，餘 5.1（測試）、5.2（變異）、6.1（文件）。
 
 議員席次序列（權威值）：
 
@@ -72,17 +60,19 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 | 2018 | 34 | 35 | — |
 | 2022 | 34 | 35 | — |
 
+原住民立委席次（山地＋平地合計）：1995 起 6／8／8／8／6／6／6／6／6。
+
 ---
 
 ## 二、下一步（依優先序）
 
-目前沒有待辦的工程項目。九屆地方公職與五屆原住民立委皆已建置、驗證、封存，
-四份主 spec 與兩份站台 spec 的 Purpose 均已補實。
-
-唯一未決的是**原住民政黨傾向分析的去處**——那是使用者的決定，不是技術問題。
-現況：估計值只存在於對話紀錄，**檔案裡沒有任何產物**。
-`elpaty` 只是政黨代號→名稱的兩欄查表，立委長表沒有政黨票欄位；
-要落地就得先決定它算不算本專案的產出（它是估計值，不是官方數字）。
+1. **完成 `site-legislative-and-party-preference` 的 5.1／5.2／6.1**，然後歸檔。
+2. **repo 更名**未決。專案名為 `indigenous-local-election-tw`，但站台現在
+   同時涵蓋地方公職與立委——「local」已經名不副實。
+   repo 內有 4 處硬寫的 URL 與 README 標題要跟著改；相鄰三個 repo 實測
+   **零處引用**。⚠️ **本機資料夾不可更名**：Claude 的記憶目錄以本機路徑為鍵。
+3. `README.md`「尚未解決」第 2 點（地方層級的代表性指標）仍未定義。
+   立委頁不是它的答案——立委是全國選舉區，地方層級算不出同一個東西。
 
 ---
 
@@ -135,6 +125,22 @@ Spectra change `include-1994-2006-terms` 10/10 完成，**已歸檔**至
 立委是 1995／1998／2001／2004，地方公職是 1994／1998／2002／2005／2006——
 **只有 1998 重疊**。`build_legislative_election.py` 有自己的
 `AGE_UNRECORDED_TERMS`，**不要 import 地方公職那一份**。
+
+### 1d. 站台上的三個資料集**分開呈現是刻意的**，不是還沒整合
+
+`index.html`／`roster.html` 是地方公職，`legislative.html` 是原住民立委，
+該頁第四節是不分區政黨票的界限估計。合併呈現會產生三種錯誤，且都不會報錯：
+
+1. **母體不同。** 地方公職是各縣市選舉區，立委是山地／平地兩個全國選舉區。
+   兩邊的投票率放進同一條折線，讀者會讀成同一群人的行為變化。
+2. **分桶集合不同。** 立委頁有五個政黨桶，地方公職三個。共用一套會讓
+   親民黨 2001 年的 27.7%、無黨團結聯盟 2004 年的 26.0% 掉進「其他」——
+   而那正是那兩屆的主要故事。`check_bucket_sets_differ()` 專門擋這件事。
+3. **涵蓋率不同。** 前兩者是全查；第三個最嚴的門檻只涵蓋 11.0% 的原住民
+   選舉人且全在山地鄉。把它跟全查的數字並排，等於宣稱它適用於全體。
+
+⚠️ 界限那一節的限定語與數字**必須在同一個可複製的區塊內**。讀者複製一段
+貼到別處時，限定語要跟著走；放在頁尾註腳等於沒有。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 

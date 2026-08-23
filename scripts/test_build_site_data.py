@@ -774,6 +774,66 @@ def test_legislative_constants_regression() -> None:
           leg["parties"]["2004"]["無黨團結聯盟"], LEG_NPSU_2004)
 
 
+def _leg_synth() -> tuple[list[dict], list[dict], list[dict]]:
+    """一屆、一個選舉種類、三位候選人的合成立委資料。
+
+    刻意讓 `當選註記`（來源怎麼寫）與 `當選`（權威值）**不一致**：
+    乙當選了但來源沒標。方向與 2005 縣市議員兩檔相同。
+    """
+    term, kind = "2999", "L3"
+    summ = [{c: "" for c in REQUIRED_COLUMNS[build_site_data.LEG_SUMMARY_FILE]}]
+    summ[0].update(年度=term, 選舉種類=kind, 選舉種類名稱="合成選舉",
+                   層級="檔別合計", 選舉人數="400", 投票數="200")
+
+    def cand(no, name, code, party, won, mark):
+        r = {c: "" for c in REQUIRED_COLUMNS[
+            build_site_data.LEG_CANDIDATES_FILE]}
+        r.update(年度=term, 選舉種類=kind, 號次=no, 姓名=name,
+                 政黨代號=code, 政黨名稱=party, 當選=won, 當選註記=mark)
+        return r
+
+    cands = [
+        cand("1", "甲", "1", "中國國民黨", "Y", "*"),
+        cand("2", "乙", "16", "民主進步黨", "Y", ""),   # ← 來源漏標
+        cand("3", "丙", "99", "無", "N", ""),
+    ]
+
+    def vote(no, n):
+        r = {c: "" for c in REQUIRED_COLUMNS[build_site_data.LEG_VOTES_FILE]}
+        r.update(年度=term, 選舉種類=kind, 層級="檔別合計", 號次=no, 得票數=n)
+        return r
+
+    votes = [vote("1", "100"), vote("2", "60"), vote("3", "40")]
+    return summ, cands, votes
+
+
+@reports
+def test_legislative_seats_from_authoritative() -> None:
+    """立委席次一律取自 `當選`（權威值），不是 `當選註記`。
+
+    ⚠️ **這條非用合成資料不可。** 實測立委三張長表：`當選 == "Y"` 與
+    `當選註記 == "*"` 各 60 筆、**逐筆一致，零筆不符**。所以把席次改讀
+    `當選註記`，在現有真實資料上算出的結果**與正確實作完全相同**——
+    任何只斷言真實資料輸出的測試都不可能亮紅燈（實測那項變異就是這樣漏網的）。
+
+    地方公職那邊今天抓得到，靠的是「來源目前是壞的」（2005 兩檔少標 19 席）。
+    立委的來源目前是好的，所以那份辨識力這裡根本不存在。
+    """
+    print("\n[合成] 立委席次取自權威值 `當選`，不是來源註記")
+    print("       實測立委真實資料兩者零筆不符——這條的辨識力只能來自合成資料")
+    summ, cands, votes = _leg_synth()
+    leg = build_legislative_data(summ, cands, votes)
+    seats = leg["partySeats"]["2999"]
+    check("國民黨席次", seats["中國國民黨"], 1)
+    check("民進黨席次（來源漏標，以註記算會是 0）", seats["民主進步黨"], 1)
+    check("無黨籍席次", seats["無黨籍"], 0)
+    check("總席次（以註記算會是 1）",
+          sum(seats.values()), 2)
+    check("投票率 200/400", leg["turnout"]["2999"], 50.0)
+    check("國民黨得票率 100/200", leg["parties"]["2999"]["中國國民黨"], 50.0)
+    check("無黨籍得票率 40/200", leg["parties"]["2999"]["無黨籍"], 20.0)
+
+
 @reports
 def test_bucket_sets_are_not_shared() -> None:
     """兩個分桶集合必須不相等，合併成一套要中止。"""
@@ -930,6 +990,34 @@ def test_bounds_constant_matches_csv() -> None:
     check("每一列的觀察值與上下界相符", bad_rows[:5], [])
     check("比對過的列數", n_rows, len(rows))
 
+    # ⚠️ **上面只比了「檔案裡的常數」對不對，沒有比「產生器」對不對。**
+    #    實測後果：把 build_bounds_data 的上界改讀下界、涵蓋率改成無條件捨去、
+    #    所數與涵蓋人數對調、三個門檻砍成一個——四項變異**全部漏網**，
+    #    因為 HTML 裡那行是變異前寫進去的，比對兩邊都沒動到被改壞的程式。
+    #    產生器必須自己被呼叫一次。
+    print("\n       同一批 CSV 餵給 build_bounds_data，逐鍵比對它的輸出")
+    built = build_bounds_data(rows)
+    check("產生器的門檻數（砍成一個就會少）", len(built["thresholds"]), 3)
+    check("產生器的門檻集合", sorted(built["thresholds"]),
+          sorted({t for _, t in want}))
+    bad_built = []
+    for (y, t), parties in want.items():
+        m = built["meta"][y][t]
+        if (m["stations"], m["electors"], m["coverage"]) != meta[(y, t)]:
+            bad_built.append(("meta", y, t, m, meta[(y, t)]))
+        got = {r[0]: (r[1], r[2], r[3]) for r in built["rows"][y][t]}
+        for p, v in parties.items():
+            if got.get(p) != v:
+                bad_built.append((y, t, p, got.get(p), v))
+    check("產生器輸出與 CSV 逐列相符", bad_built[:5], [])
+    check("產生器輸出與頁面常數相同", built, embedded)
+
+    print("\n       上界必須嚴格大於等於下界，且不得等於觀察值以外塌成一點")
+    collapsed = [(y, t, r[0]) for y in built["terms"]
+                 for t in built["thresholds"]
+                 for r in built["rows"][y][t] if r[2] == r[3]]
+    check("沒有任何一列的上下界完全相同", collapsed[:3], [])
+
     print("\n       改動一個界限值 → 比對要抓得到（量測本身能失敗）")
     mutated = {p: v for p, v in want[(embedded["terms"][-1],
                                       embedded["thresholds"][0])].items()}
@@ -1023,6 +1111,7 @@ def main() -> int:
                test_roster_main_projection,
                test_independent_bucket_non_empty_every_term,
                test_legislative_constants_regression,
+               test_legislative_seats_from_authoritative,
                test_bucket_sets_are_not_shared,
                test_legislative_bucket_key_semantics,
                test_legislative_independent_bucket_every_term,

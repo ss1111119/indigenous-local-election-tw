@@ -3,6 +3,7 @@
 臺灣原住民族**地方選舉**資料的整理專案。
 
 📊 **線上瀏覽**：<https://ss1111119.github.io/indigenous-local-election-tw/>
+（[名錄](https://ss1111119.github.io/indigenous-local-election-tw/roster.html)、[原住民立委與政黨傾向](https://ss1111119.github.io/indigenous-local-election-tw/legislative.html)）
 
 ## 這是什麼
 
@@ -164,6 +165,8 @@ idx7 卻是 1,384 與 572。同一群人同一天的性別組成不可能不同�
    鄉鎮市區單位皆換算為同屆「區域」檔口徑。
 2. **地方層級的代表性指標尚未定義**。各縣市席次、選區與選舉人範圍不同，
    全國加總後除以席次會掩蓋地方差異，不能直接套用立委那套算法。
+   ⚠️ 站台已於 2026-08-23 加入立委頁，但那是**另一個資料集的呈現**，
+   不是這個指標的答案——立委的全國選舉區算得出來的東西，地方層級算不出來。
 3. **納入哪些選舉種類未定**。T2/T3 議員、D2 區長、R3 區民代表、R2 鄉鎮市民代表、
    原住民族地區的鄉鎮市長／代表，不應先假定都用同一指標。
 4. **`elprof` 的 `人口數` 欄底層來源未查證**。一般認為中選會此欄係彙編內政部戶政司
@@ -478,7 +481,20 @@ candidates 兩張長表算出 `index.html` 的 `DATA` 與 `roster.html` 的 `D`�
 
 **線上版**：<https://ss1111119.github.io/indigenous-local-election-tw/>
 （名錄在 [`/roster.html`](https://ss1111119.github.io/indigenous-local-election-tw/roster.html)，
-支援網址雜湊如 `roster.html#2009-2010/T3`）
+支援網址雜湊如 `roster.html#2009-2010/T3`；原住民立委與政黨傾向在
+[`/legislative.html`](https://ss1111119.github.io/indigenous-local-election-tw/legislative.html)）
+
+⚠️ **站台涵蓋三個資料集，它們不可互相比較，也不可相加。**
+
+| 頁面 | 母體 | 屆別 |
+| --- | --- | --- |
+| `index.html`／`roster.html` | 地方公職（議員、區長、代表） | 1994–2022 九屆 |
+| `legislative.html` 前三節 | 原住民立法委員（山地／平地兩選舉區） | 1995–2024 九屆 |
+| `legislative.html` 第四節 | 原住民族地區高密度投開票所的不分區政黨票 | 2008–2024 五屆 |
+
+三者的選舉區、任期與選舉人母體都不同。第三個資料集另有涵蓋率限制：
+最嚴的門檻只涵蓋 11.0% 的原住民選舉人，且全在山地鄉，
+頁面上的限定語與數字放在同一個可複製的區塊內。
 
 兩份都放在 `docs/`，因為 GitHub Pages 只支援根目錄或 `/docs`，不支援其他資料夾；
 由 `main/docs` 發布，`docs/.nojekyll` 關掉 Jekyll 處理。
