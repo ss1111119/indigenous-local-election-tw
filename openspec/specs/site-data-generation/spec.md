@@ -18,94 +18,112 @@ and drifted four terms behind the dataset without anything failing.
 ## Requirements
 
 ### Requirement: Site Data Is Generated From The Long Tables
-The site data constants embedded in `docs/index.html` and `docs/roster.html` SHALL be produced by a script that reads `data/processed/`, and SHALL NOT be maintained by hand. The script SHALL replace only the data constant line in each HTML file, leaving every other byte unchanged.
+The site data constants embedded in the site's HTML pages SHALL be produced by a script that reads `data/processed/`, and SHALL NOT be maintained by hand. The script SHALL replace only the data constant line in each HTML file, leaving every other byte unchanged.
+
+The script SHALL read every dataset the site presents, not only the first one it was written for. Where a page presents a dataset, that page's constants SHALL be generated from that dataset's long tables by the same mechanism, with its own marker line.
 
 #### Scenario: Regenerating after a dataset change
 - **WHEN** the long tables are rebuilt and the site generator is run
-- **THEN** both HTML files SHALL carry data covering every term present in the long tables
+- **THEN** every HTML page SHALL carry data covering every term present in the long tables it presents
 
 #### Scenario: Marker line missing
-- **WHEN** the HTML file does not contain the marker line that delimits the data constant
+- **WHEN** an HTML file does not contain the marker line that delimits one of its data constants
 - **THEN** the generator SHALL abort rather than fall back to a fuzzy match
 
 #### Scenario: Required column missing
-- **WHEN** a long table lacks a column the generator depends on, such as `當選`
+- **WHEN** a long table lacks a column the generator depends on, such as the authoritative elected field
 - **THEN** the generator SHALL abort and SHALL NOT write a partial result
+
+#### Scenario: A new dataset is added to the site
+- **WHEN** a page is added that presents a dataset the generator did not previously read
+- **THEN** the generator SHALL be extended to read that dataset's long tables, and the page's constants SHALL NOT be written by hand even once
 
 
 <!-- @trace
-source: elected-column-swap
-updated: 2026-08-21
+source: site-legislative-and-party-preference
+updated: 2026-08-23
 code:
-  - scratch/probe_districts.py
-  - scratch/measure_town_codes.py
-  - scratch/expected.txt
-  - scratch/review_q3.md
-  - scratch/chk1998t2.py
-  - scratch/verify_21c.py
-  - scratch/verify_33.py
-  - scratch/verify_pop.py
-  - scratch/zip_names.json
-  - .spectra.yaml
-  - scratch/measure_2005c.py
-  - scratch/measure_2005f.py
-  - scratch/add_defect7.py
-  - AGENTS.md
-  - scratch/verify_auth.py
-  - GEMINI.md
-  - scratch/probe3.py
-  - scratch/review_q4.md
-  - scratch/verify_crosswalk.py
-  - scratch/strip_experiment.py
-  - scratch/verify_claims.py
-  - scratch/measure_2005.py
-  - scratch/measure_2005b.py
-  - scratch/dryrun_manifest.py
-  - scratch/gen_expected.py
-  - scratch/verify_pop2.py
-  - scratch/add_legacy_sources.py
-  - scratch/verify_11.py
-  - scratch/verify_21.py
-  - scratch/probe6.py
-  - scratch/chk_cw.py
-  - scratch/probe2.py
-  - scratch/measure_2005d.py
-  - scratch/verify_identity.py
-  - scratch/inventory_legacy.json
-  - scratch/measure_2005e.py
-  - scratch/gen_anomalies.py
-  - scratch/list_zip.py
-  - scratch/inventory_legacy.py
-  - scratch/measure_trunc.py
-  - scratch/measure_pop.py
-  - scratch/gen_town_anom.py
-  - scratch/review_q5.md
-  - scratch/build_1998_2002_crosswalk.py
-  - CLAUDE.md
-  - scratch/measure_auth_existing.py
-  - scratch/measure_whitespace.py
-  - scratch/verify_32.py
-  - scratch/probe4.py
-  - scratch/review_question.md
-  - scratch/probe_anomalies.py
-  - scratch/review_q6.md
-  - scratch/measure_town_feasible.py
-  - scratch/verify_review.py
-  - scratch/baseline/candidates.csv
-  - scratch/measure_2005g.py
-  - scratch/probe_legacy_build.py
-  - scratch/probe5.py
-  - scratch/measure_ws2.py
-  - scratch/verify_strip.py
-  - scratch/baseline/summary.csv
-  - scratch/measure_pop2.py
-  - scratch/review_q2.md
-  - scratch/probe_1994.py
-  - scratch/probe7.py
-  - scratch/measure_2005_towns.py
   - scratch/review_q7.md
+  - scratch/verify_identity.py
+  - scratch/measure_pop2.py
+  - scratch/review_q4.md
+  - scratch/verify_strip.py
+  - README.md
+  - scratch/measure_trunc.py
+  - scratch/probe7.py
+  - scratch/probe6.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/probe_1994.py
+  - scratch/verify_pop2.py
+  - scratch/verify_pop.py
+  - scratch/probe_legacy_build.py
+  - scratch/review_q5.md
+  - scratch/inventory_legacy.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_ws2.py
+  - scratch/measure_town_codes.py
+  - scratch/measure_2005c.py
+  - scratch/dryrun_manifest.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_21c.py
+  - scratch/measure_whitespace.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/review_q2.md
+  - scratch/review_q6.md
+  - docs/legislative.html
+  - scratch/verify_crosswalk.py
+  - scratch/chk_cw.py
+  - scratch/measure_2005.py
+  - scratch/probe2.py
   - scratch/probe_districts2.py
+  - docs/schema/palette-legislative.md
+  - scratch/gen_expected.py
+  - scripts/palette_metrics.py
+  - scratch/probe4.py
+  - HANDOFF.md
+  - scratch/measure_auth_existing.py
+  - scratch/probe_districts.py
+  - .spectra.yaml
+  - docs/sitemap.xml
+  - scripts/mutate_build_site_data.py
+  - scratch/measure_2005d.py
+  - scratch/expected.txt
+  - docs/roster.html
+  - scratch/gen_town_anom.py
+  - scratch/probe_anomalies.py
+  - scratch/verify_21.py
   - scratch/baseline/votes.csv
+  - scratch/strip_experiment.py
+  - GEMINI.md
+  - AGENTS.md
+  - scratch/add_defect7.py
+  - scratch/list_zip.py
+  - scratch/measure_pop.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/add_legacy_sources.py
+  - docs/index.html
+  - scratch/verify_auth.py
+  - scratch/probe5.py
+  - scratch/verify_11.py
+  - scratch/measure_2005f.py
+  - scripts/build_site_data.py
+  - scratch/measure_town_feasible.py
+  - scratch/review_question.md
+  - scratch/verify_32.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005b.py
+  - scratch/review_q3.md
+  - scratch/measure_2005g.py
+  - scratch/zip_names.json
+  - scratch/verify_claims.py
+  - scratch/gen_anomalies.py
+  - scratch/verify_review.py
+  - scratch/verify_33.py
+  - scratch/inventory_legacy.json
+tests:
+  - scripts/test_build_site_data.py
 -->
 
 ---

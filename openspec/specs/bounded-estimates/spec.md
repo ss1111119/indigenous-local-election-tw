@@ -351,6 +351,10 @@ tests:
 ### Requirement: Coverage And Its Skew Are Stated Before The Figure, Not After It
 The strata that support tight bounds cover a minority of the population of interest, and they are not a random minority: they are geographically concentrated. Documentation SHALL state the coverage rate and the concentration before presenting any figure derived from those strata.
 
+This applies wherever the figure is presented, not only in documentation. On a published page the ordering is the mechanism: the coverage rate and the nature of the subset SHALL appear before any percentage in the section that carries the figure, and the heading SHALL name the subset rather than the whole population.
+
+Where the interval around such a figure is narrow while the coverage behind it is small, the presentation SHALL give visual weight to the coverage rather than to the interval. A narrow interval invites the reader to treat the figure as settled, and what is unsettled is not inside the interval.
+
 A bound that is arithmetically certain about a stratum SHALL NOT be described as if it were about the whole population.
 
 #### Scenario: Describing a stratum-derived figure
@@ -361,90 +365,97 @@ A bound that is arithmetically certain about a stratum SHALL NOT be described as
 - **WHEN** the population outside the strata is discussed
 - **THEN** the documentation SHALL state that arithmetic bounds are uninformative there, rather than implying the published interval covers them
 
+#### Scenario: The figure appears on a page rather than in a document
+- **WHEN** the figure is published on a page read by people who did not read the documentation
+- **THEN** the coverage rate SHALL precede any percentage in that section, and the qualifier limiting the figure SHALL sit in the same copyable block as the figure itself
+
+#### Scenario: Presenting more than one threshold
+- **WHEN** several thresholds trade coverage against precision
+- **THEN** they SHALL be presented together rather than one being chosen for the reader, because choosing one hides the trade-off that determines how far the figure generalises
+
 <!-- @trace
-source: add-party-list-votes
+source: site-legislative-and-party-preference
 updated: 2026-08-23
 code:
   - scratch/review_q7.md
-  - scratch/verify_21.py
-  - scratch/verify_32.py
-  - scratch/measure_2005b.py
-  - scratch/list_zip.py
-  - scratch/measure_2005g.py
-  - scratch/gen_anomalies.py
-  - scratch/baseline/candidates.csv
-  - scratch/measure_whitespace.py
-  - scratch/verify_pop.py
-  - scratch/inventory_legacy.py
   - scratch/verify_identity.py
-  - HANDOFF.md
-  - scratch/measure_2005c.py
-  - data/sources.json
-  - scratch/measure_ws2.py
-  - scratch/chk1998t2.py
-  - scratch/measure_town_codes.py
-  - scratch/probe7.py
-  - README.md
-  - scratch/probe5.py
-  - data/processed/cec-party-list-votes-long.csv.gz
-  - scratch/baseline/votes.csv
-  - scripts/build_party_list_election.py
-  - scratch/add_legacy_sources.py
-  - docs/schema/cec-party-list-election.md
-  - scratch/review_q3.md
-  - scratch/verify_33.py
-  - scratch/verify_pop2.py
-  - scratch/dryrun_manifest.py
-  - scratch/probe_districts2.py
-  - scratch/verify_strip.py
-  - scripts/oracles.py
-  - scratch/review_q4.md
-  - scratch/measure_2005f.py
-  - scratch/verify_review.py
-  - scratch/review_question.md
-  - scratch/strip_experiment.py
-  - scratch/measure_town_feasible.py
-  - scratch/measure_pop.py
   - scratch/measure_pop2.py
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/probe2.py
-  - scratch/add_defect7.py
-  - GEMINI.md
-  - scratch/verify_11.py
-  - scripts/mutate_build_party_list_election.py
-  - scratch/verify_21c.py
-  - scratch/measure_auth_existing.py
-  - scratch/probe_1994.py
-  - scratch/review_q2.md
-  - scratch/gen_town_anom.py
-  - scratch/measure_2005.py
-  - scratch/verify_auth.py
+  - scratch/review_q4.md
+  - scratch/verify_strip.py
+  - README.md
   - scratch/measure_trunc.py
-  - data/processed/indigenous-party-preference-bounds.csv
-  - scratch/chk_cw.py
-  - scratch/measure_2005e.py
-  - scratch/measure_2005_towns.py
-  - scratch/probe_legacy_build.py
-  - scratch/review_q6.md
-  - scratch/baseline/summary.csv
-  - scratch/probe_districts.py
-  - scratch/zip_names.json
-  - .spectra.yaml
-  - AGENTS.md
-  - scratch/review_q5.md
-  - scratch/expected.txt
-  - scratch/probe4.py
-  - scratch/probe_anomalies.py
-  - scratch/verify_crosswalk.py
-  - scratch/inventory_legacy.json
-  - scratch/verify_claims.py
-  - scratch/measure_2005d.py
-  - scratch/probe3.py
-  - data/processed/cec-party-list-summary-long.csv.gz
-  - CLAUDE.md
-  - scratch/gen_expected.py
+  - scratch/probe7.py
   - scratch/probe6.py
-  - data/processed/cec-party-list-seats.csv
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/probe_1994.py
+  - scratch/verify_pop2.py
+  - scratch/verify_pop.py
+  - scratch/probe_legacy_build.py
+  - scratch/review_q5.md
+  - scratch/inventory_legacy.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_ws2.py
+  - scratch/measure_town_codes.py
+  - scratch/measure_2005c.py
+  - scratch/dryrun_manifest.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_21c.py
+  - scratch/measure_whitespace.py
+  - scratch/chk1998t2.py
+  - scratch/probe3.py
+  - scratch/review_q2.md
+  - scratch/review_q6.md
+  - docs/legislative.html
+  - scratch/verify_crosswalk.py
+  - scratch/chk_cw.py
+  - scratch/measure_2005.py
+  - scratch/probe2.py
+  - scratch/probe_districts2.py
+  - docs/schema/palette-legislative.md
+  - scratch/gen_expected.py
+  - scripts/palette_metrics.py
+  - scratch/probe4.py
+  - HANDOFF.md
+  - scratch/measure_auth_existing.py
+  - scratch/probe_districts.py
+  - .spectra.yaml
+  - docs/sitemap.xml
+  - scripts/mutate_build_site_data.py
+  - scratch/measure_2005d.py
+  - scratch/expected.txt
+  - docs/roster.html
+  - scratch/gen_town_anom.py
+  - scratch/probe_anomalies.py
+  - scratch/verify_21.py
+  - scratch/baseline/votes.csv
+  - scratch/strip_experiment.py
+  - GEMINI.md
+  - AGENTS.md
+  - scratch/add_defect7.py
+  - scratch/list_zip.py
+  - scratch/measure_pop.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/add_legacy_sources.py
+  - docs/index.html
+  - scratch/verify_auth.py
+  - scratch/probe5.py
+  - scratch/verify_11.py
+  - scratch/measure_2005f.py
+  - scripts/build_site_data.py
+  - scratch/measure_town_feasible.py
+  - scratch/review_question.md
+  - scratch/verify_32.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005b.py
+  - scratch/review_q3.md
+  - scratch/measure_2005g.py
+  - scratch/zip_names.json
+  - scratch/verify_claims.py
+  - scratch/gen_anomalies.py
+  - scratch/verify_review.py
+  - scratch/verify_33.py
+  - scratch/inventory_legacy.json
 tests:
-  - scripts/test_build_party_list_election.py
+  - scripts/test_build_site_data.py
 -->

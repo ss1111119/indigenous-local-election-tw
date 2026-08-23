@@ -720,6 +720,8 @@ tests:
 ### Requirement: Color Verification Is Recorded, Not Asserted
 Any claim that a palette is readable SHALL be recorded with the tool used, the color-vision-deficiency types simulated, the threshold applied, and the measured values. A bare statement that a palette was "checked" SHALL NOT satisfy this requirement.
 
+A record SHALL be reproducible by a later reader: it SHALL name the command that produced it, and the command SHALL be one that can fail. Where a palette grows a new series, the record SHALL cover every pair of the enlarged palette rather than only the pairs the previous record covered.
+
 #### Scenario: A palette or ink is changed
 - **WHEN** a series fill or a label ink is added or re-stepped
 - **THEN** the record SHALL name the tool, the simulated deficiency types, the threshold, and the resulting numbers for every pair or combination affected, so a later reader can tell a measurement from an opinion
@@ -733,6 +735,18 @@ Any claim that a palette is readable SHALL be recorded with the tool used, the c
 | thresholds | ΔE 15 normal vision / ΔE 8 CVD for adjacent pairs; 4.5:1 for text inside a mark |
 | measured | separation 16.9 (light) / 16.6 (dark), CVD 9.0 / 9.7; eight ink-on-fill combinations 4.58–8.41 |
 
+##### Example: the six-series legislative palette
+
+| Field | Value |
+| --- | --- |
+| why a second palette | the legislative page needs five party buckets, not three: 親民黨 took 27.7% in 2001 and 無黨團結聯盟 26.0% in 2004, and the local-office three-bucket set drops both into 其他 |
+| pairs measured | all 15 pairs, not the 5 adjacent ones — a legend that wraps on a narrow screen puts non-adjacent series next to each other |
+| light fills | `#2a78d6 #1baf7a #ee7700 #c0397a #3A4046 #ADB3B9`; worst normal ΔE 16.9, worst CVD ΔE 9.0 |
+| dark fills | `#3987e5 #1da77a #ee7700 #cc2244 #C9CED3 #6A7178`; worst normal ΔE 16.6, worst CVD ΔE 9.3 |
+| inks inside marks | light 4.76–10.49, dark 4.89–11.23 (floor 4.5:1) |
+| record | `docs/schema/palette-legislative.md`, holding the unedited output of both commands |
+| the measurement can fail | 親民黨 `#ee7700`→`#22b884` gives 2 failing pairs, exit 1; 無黨團結聯盟's ink `#fff`→`#16181A` gives 3.48:1, exit 1; unmutated baseline exits 0 |
+
 #### Scenario: Only a claim is offered
 - **WHEN** a change states that colors were verified but names no tool, no simulation, and no numbers
 - **THEN** the claim SHALL be treated as unverified, because "checked" is not reproducible
@@ -744,108 +758,93 @@ Any claim that a palette is readable SHALL be recorded with the tool used, the c
 | "配色已檢查，色盲下可辨識" | no — no tool, no type, no number |
 | "palette_metrics.py，protan/deutan，門檻 ΔE 8，實測 9.0／9.7" | yes |
 
+#### Scenario: The recorded numbers are all passes
+- **WHEN** a record shows every measured pair above the threshold
+- **THEN** the record SHALL also show that the measurement is capable of reporting a failure, by naming a mutation of the palette that the same command rejects, because a check that cannot fail records nothing
+
 <!-- @trace
-source: site-accessibility-baseline
-updated: 2026-08-22
+source: site-legislative-and-party-preference
+updated: 2026-08-23
 code:
-  - scratch/gen_anomalies.py
-  - scratch/inventory_legacy.json
-  - scratch/measure_town_feasible.py
-  - scratch/probe_1994.py
-  - .spectra.yaml
-  - scratch/measure_2005.py
   - scratch/review_q7.md
-  - data/processed/cec-legislative-election-candidates-long.csv
-  - scratch/review_q5.md
-  - CLAUDE.md
-  - scratch/verify_strip.py
-  - data/processed/cec-legislative-election-summary-long.csv.gz
-  - data/processed/cec-legislative-election-votes-long.csv.gz
-  - scratch/review_q2.md
-  - data/processed/legislative-validation-report.json
-  - docs/schema/oracles.md
-  - scratch/verify_11.py
-  - scratch/measure_2005g.py
-  - scratch/probe_anomalies.py
-  - scratch/review_q6.md
-  - scripts/palette_metrics.py
-  - scratch/measure_town_codes.py
-  - scratch/probe2.py
-  - scripts/build_legislative_election.py
-  - scratch/chk_cw.py
-  - scratch/chk1998t2.py
-  - scratch/measure_2005f.py
-  - scratch/verify_21.py
-  - docs/schema/cec-local-election.md
-  - scratch/zip_names.json
-  - scratch/measure_2005d.py
-  - scratch/inventory_legacy.py
-  - scratch/baseline/candidates.csv
-  - docs/roster.html
-  - data/processed/validation-report.json
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/probe4.py
-  - scratch/baseline/summary.csv
-  - scratch/list_zip.py
-  - scratch/review_question.md
-  - data/processed/cec-local-election-candidates-long.csv
-  - scripts/build_site_data.py
-  - docs/index.html
-  - scratch/expected.txt
-  - scratch/dryrun_manifest.py
-  - docs/schema/cec-legislative-election.md
-  - data/reference/cec-legislative-county-crosswalk.csv
-  - docs/三屆概況.md
-  - README.md
-  - scratch/measure_auth_existing.py
-  - scratch/probe_legacy_build.py
-  - scratch/review_q4.md
-  - scratch/probe7.py
-  - AGENTS.md
-  - scratch/verify_pop.py
-  - scratch/measure_2005e.py
-  - scratch/verify_review.py
-  - scripts/mutate_build_legislative_election.py
-  - scratch/probe5.py
-  - scratch/measure_2005b.py
-  - scratch/verify_21c.py
-  - scratch/verify_crosswalk.py
   - scratch/verify_identity.py
-  - GEMINI.md
-  - scratch/measure_pop.py
-  - scratch/verify_auth.py
-  - scratch/probe_districts.py
-  - HANDOFF.md
-  - scratch/add_legacy_sources.py
-  - scratch/measure_2005_towns.py
-  - scratch/probe_districts2.py
-  - scratch/verify_32.py
-  - scratch/gen_town_anom.py
-  - scratch/verify_33.py
-  - scratch/verify_pop2.py
-  - scripts/oracles.py
-  - scratch/measure_ws2.py
-  - scratch/measure_trunc.py
-  - scratch/baseline/votes.csv
-  - scripts/mutate_build_site_data.py
-  - scripts/build_local_election.py
-  - scratch/measure_2005c.py
   - scratch/measure_pop2.py
-  - scratch/measure_whitespace.py
-  - data/sources.json
-  - scratch/strip_experiment.py
+  - scratch/review_q4.md
+  - scratch/verify_strip.py
+  - README.md
+  - scratch/measure_trunc.py
+  - scratch/probe7.py
   - scratch/probe6.py
-  - scratch/review_q3.md
-  - scratch/verify_claims.py
-  - scratch/add_defect7.py
+  - CLAUDE.md
+  - scratch/measure_2005e.py
+  - scratch/probe_1994.py
+  - scratch/verify_pop2.py
+  - scratch/verify_pop.py
+  - scratch/probe_legacy_build.py
+  - scratch/review_q5.md
+  - scratch/inventory_legacy.py
+  - scratch/baseline/summary.csv
+  - scratch/measure_ws2.py
+  - scratch/measure_town_codes.py
+  - scratch/measure_2005c.py
+  - scratch/dryrun_manifest.py
+  - scratch/measure_2005_towns.py
+  - scratch/verify_21c.py
+  - scratch/measure_whitespace.py
+  - scratch/chk1998t2.py
   - scratch/probe3.py
-  - data/reference/cec-county-code-crosswalk-1998-2002.csv
+  - scratch/review_q2.md
+  - scratch/review_q6.md
+  - docs/legislative.html
+  - scratch/verify_crosswalk.py
+  - scratch/chk_cw.py
+  - scratch/measure_2005.py
+  - scratch/probe2.py
+  - scratch/probe_districts2.py
+  - docs/schema/palette-legislative.md
   - scratch/gen_expected.py
-  - scripts/mutate_build_local_election.py
-  - data/processed/cec-county-code-crosswalk-1998-2002.csv
+  - scripts/palette_metrics.py
+  - scratch/probe4.py
+  - HANDOFF.md
+  - scratch/measure_auth_existing.py
+  - scratch/probe_districts.py
+  - .spectra.yaml
+  - docs/sitemap.xml
+  - scripts/mutate_build_site_data.py
+  - scratch/measure_2005d.py
+  - scratch/expected.txt
+  - docs/roster.html
+  - scratch/gen_town_anom.py
+  - scratch/probe_anomalies.py
+  - scratch/verify_21.py
+  - scratch/baseline/votes.csv
+  - scratch/strip_experiment.py
+  - GEMINI.md
+  - AGENTS.md
+  - scratch/add_defect7.py
+  - scratch/list_zip.py
+  - scratch/measure_pop.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/add_legacy_sources.py
+  - docs/index.html
+  - scratch/verify_auth.py
+  - scratch/probe5.py
+  - scratch/verify_11.py
+  - scratch/measure_2005f.py
+  - scripts/build_site_data.py
+  - scratch/measure_town_feasible.py
+  - scratch/review_question.md
+  - scratch/verify_32.py
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005b.py
+  - scratch/review_q3.md
+  - scratch/measure_2005g.py
+  - scratch/zip_names.json
+  - scratch/verify_claims.py
+  - scratch/gen_anomalies.py
+  - scratch/verify_review.py
+  - scratch/verify_33.py
+  - scratch/inventory_legacy.json
 tests:
-  - scripts/test_build_legislative_election.py
-  - scripts/test_build_local_election.py
-  - scripts/test_site_invariants.py
   - scripts/test_build_site_data.py
 -->
