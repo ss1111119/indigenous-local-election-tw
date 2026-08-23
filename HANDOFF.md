@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：8 個能力、**60 條 Requirement**
+### 主 specs：9 個能力、**64 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -39,20 +39,14 @@
 | `site-chart-accessibility` | 6 |
 | `party-list-votes` | 5 |
 | `bounded-estimates` | 4 |
+| `election-period-publication` | 4 |
 | `historical-terms-1994-2006` | 4 |
 | `site-multi-dataset` | 3 |
 
-⚠️ 進行中的 `election-period-publication` 歸檔後會變成
-**9 個能力、64 條**（新增 4 條）。這裡寫的是**現況**，
-不是歸檔後的數字——本檔第一節屢次停在過期狀態，寫未來值會讓它更難分辨。
-
 ### 已歸檔的 change（續）
 
-`site-legislative-and-party-preference` 於 2026-08-23 完成 11/11 並歸檔。
-
-### 進行中的 change
-
-`election-period-publication` —— 把選舉期間的發布規則寫成需求並逐頁判定。
+`site-legislative-and-party-preference`（11/11）與 `election-period-publication`
+（10/10）皆於 2026-08-23 歸檔。**目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
 
