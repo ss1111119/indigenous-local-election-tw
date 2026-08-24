@@ -328,6 +328,15 @@ EN_WEAKEN_MUTATION = (
     "&#9888; Figures on these pages cover different populations. They cannot be compared with each other, and they cannot be added.",
     "&#9888; Figures on these pages differ.")
 
+# 成對驗證專用的破壞：把 T 裡的限定語字串換掉，**保留 JS 的用法**。
+#
+# ⚠️ 必須只觸發條件一。拿掉 JS 的用法會觸發條件二，那樣不論條件一拿什麼比
+#    都會中止，這一對就證明不了任何事（實測 RAISED/RAISED）。
+LEG_T_STRING_MUTATION = (
+    "成對驗證用：T 裡的限定語字串被換掉（JS 的用法保留）",
+    "本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。",
+    "（此處原為本屆限定語）")
+
 # 每個被變異的檔各一個 canary。
 #
 # ⚠️ **這是必要的，不是保險。** 本專案在政黨票那個 change 遇過「36 個變異
@@ -478,7 +487,7 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
     if not git_is_clean(LEG_HTML):
         return False, "★ 跳過「具名字串 vs 年份」：docs/legislative.html 有未提交的改動"
 
-    desc, old, new = LEG_NOTICE_MUTATION
+    desc, old, new = LEG_T_STRING_MUTATION
     src = LEG_HTML.read_text(encoding="utf-8")
     if src.count(old) != 1:
         return False, (f"★ 限定語字串在 legislative.html 出現 "
