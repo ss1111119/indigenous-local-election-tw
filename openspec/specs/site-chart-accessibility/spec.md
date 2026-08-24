@@ -848,3 +848,200 @@ code:
 tests:
   - scripts/test_build_site_data.py
 -->
+
+---
+### Requirement: Hover-Only Content Is Also Reachable By Keyboard
+Any information a chart reveals only on pointer hover SHALL be reachable by keyboard focus as well. A tooltip that appears on `pointerenter` and disappears on `pointerleave` SHALL appear on `focus` and disappear on `blur` using the same content and the same trigger element, not a separate keyboard-only implementation.
+
+#### Scenario: A chart data point is tabbed to
+- **WHEN** a keyboard user tabs to a chart's hit target
+- **THEN** the same tooltip content that pointer hover would show SHALL appear, and it SHALL disappear on blur
+
+#### Scenario: Keyboard and pointer paths diverge
+- **WHEN** a tooltip's content or trigger condition is implemented separately for keyboard than for pointer
+- **THEN** that duplication SHALL be treated as a defect, because a rule implemented twice drifts
+
+
+<!-- @trace
+source: site-chart-interactivity
+updated: 2026-08-24
+code:
+  - scratch/review_q4.md
+  - scratch/verify_21c.py
+  - scratch/verify_32.py
+  - scratch/verify_review.py
+  - scratch/expected.txt
+  - scratch/measure_2005c.py
+  - scratch/measure_pop2.py
+  - scratch/probe4.py
+  - scratch/review_q5.md
+  - scratch/verify_strip.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/measure_2005b.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/zip_names.json
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005f.py
+  - scratch/probe_anomalies.py
+  - scratch/probe_districts.py
+  - scratch/gen_anomalies.py
+  - CLAUDE.md
+  - scratch/probe6.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_whitespace.py
+  - scratch/verify_auth.py
+  - scratch/measure_pop.py
+  - scratch/verify_claims.py
+  - docs/index.html
+  - scratch/verify_pop2.py
+  - docs/legislative.html
+  - scratch/inventory_legacy.py
+  - scratch/verify_identity.py
+  - scratch/verify_21.py
+  - .spectra.yaml
+  - scripts/mutate_build_site_data.py
+  - docs/en/legislative.html
+  - scratch/measure_2005g.py
+  - AGENTS.md
+  - scratch/list_zip.py
+  - scratch/review_q6.md
+  - scratch/measure_ws2.py
+  - scratch/measure_auth_existing.py
+  - scratch/add_legacy_sources.py
+  - scratch/dryrun_manifest.py
+  - scratch/verify_11.py
+  - scratch/verify_crosswalk.py
+  - GEMINI.md
+  - scratch/add_defect7.py
+  - scratch/measure_town_codes.py
+  - scratch/gen_town_anom.py
+  - scratch/probe7.py
+  - scratch/chk_cw.py
+  - scratch/measure_2005e.py
+  - scratch/measure_2005d.py
+  - scratch/strip_experiment.py
+  - scratch/probe_legacy_build.py
+  - HANDOFF.md
+  - scratch/probe3.py
+  - scratch/review_q2.md
+  - scratch/baseline/summary.csv
+  - scratch/gen_expected.py
+  - scratch/verify_pop.py
+  - docs/en/index.html
+  - scratch/measure_trunc.py
+  - scratch/review_q3.md
+  - scratch/review_question.md
+  - scratch/baseline/votes.csv
+  - scratch/probe_1994.py
+  - scratch/verify_33.py
+  - scratch/probe5.py
+  - scratch/probe2.py
+  - scratch/chk1998t2.py
+  - scratch/measure_town_feasible.py
+  - scratch/probe_districts2.py
+tests:
+  - scripts/test_build_site_data.py
+-->
+
+---
+### Requirement: A Chart Point Representing A Term And Category May Link To Its Detail Page
+Where a page presents an aggregate figure for one (term, election type) pair, and another page on the site presents the record-level detail for that same pair, the aggregate's chart SHALL let a reader navigate from the point to that detail — reachable by pointer click, keyboard activation, and touch alike — using a native link element rather than a script-driven redirect.
+
+This linking SHALL NOT be added where no corresponding detail page exists for the dataset being charted.
+
+#### Scenario: A turnout or seat chart point is activated
+- **WHEN** a reader clicks, taps, or presses Enter on a chart point for a given term and election type
+- **THEN** navigation SHALL go to the detail page filtered to that same term and election type, using the page's existing addressing scheme rather than a new one
+
+#### Scenario: A dataset has no detail page
+- **WHEN** a chart presents a dataset for which the site has no record-level detail page
+- **THEN** its points SHALL remain keyboard- and pointer-accessible for their tooltip content, but SHALL NOT be turned into links to an unrelated or non-existent page
+
+#### Scenario: The link target is native, not scripted
+- **WHEN** a chart point becomes navigable
+- **THEN** it SHALL be implemented as an anchor element a browser handles natively — opening in a new tab, copying the link, and screen-reader link semantics SHALL all work without additional script
+
+<!-- @trace
+source: site-chart-interactivity
+updated: 2026-08-24
+code:
+  - scratch/review_q4.md
+  - scratch/verify_21c.py
+  - scratch/verify_32.py
+  - scratch/verify_review.py
+  - scratch/expected.txt
+  - scratch/measure_2005c.py
+  - scratch/measure_pop2.py
+  - scratch/probe4.py
+  - scratch/review_q5.md
+  - scratch/verify_strip.py
+  - scratch/measure_2005.py
+  - scratch/measure_2005_towns.py
+  - scratch/review_q7.md
+  - scratch/measure_2005b.py
+  - scratch/build_1998_2002_crosswalk.py
+  - scratch/zip_names.json
+  - scratch/baseline/candidates.csv
+  - scratch/measure_2005f.py
+  - scratch/probe_anomalies.py
+  - scratch/probe_districts.py
+  - scratch/gen_anomalies.py
+  - CLAUDE.md
+  - scratch/probe6.py
+  - scratch/inventory_legacy.json
+  - scratch/measure_whitespace.py
+  - scratch/verify_auth.py
+  - scratch/measure_pop.py
+  - scratch/verify_claims.py
+  - docs/index.html
+  - scratch/verify_pop2.py
+  - docs/legislative.html
+  - scratch/inventory_legacy.py
+  - scratch/verify_identity.py
+  - scratch/verify_21.py
+  - .spectra.yaml
+  - scripts/mutate_build_site_data.py
+  - docs/en/legislative.html
+  - scratch/measure_2005g.py
+  - AGENTS.md
+  - scratch/list_zip.py
+  - scratch/review_q6.md
+  - scratch/measure_ws2.py
+  - scratch/measure_auth_existing.py
+  - scratch/add_legacy_sources.py
+  - scratch/dryrun_manifest.py
+  - scratch/verify_11.py
+  - scratch/verify_crosswalk.py
+  - GEMINI.md
+  - scratch/add_defect7.py
+  - scratch/measure_town_codes.py
+  - scratch/gen_town_anom.py
+  - scratch/probe7.py
+  - scratch/chk_cw.py
+  - scratch/measure_2005e.py
+  - scratch/measure_2005d.py
+  - scratch/strip_experiment.py
+  - scratch/probe_legacy_build.py
+  - HANDOFF.md
+  - scratch/probe3.py
+  - scratch/review_q2.md
+  - scratch/baseline/summary.csv
+  - scratch/gen_expected.py
+  - scratch/verify_pop.py
+  - docs/en/index.html
+  - scratch/measure_trunc.py
+  - scratch/review_q3.md
+  - scratch/review_question.md
+  - scratch/baseline/votes.csv
+  - scratch/probe_1994.py
+  - scratch/verify_33.py
+  - scratch/probe5.py
+  - scratch/probe2.py
+  - scratch/chk1998t2.py
+  - scratch/measure_town_feasible.py
+  - scratch/probe_districts2.py
+tests:
+  - scripts/test_build_site_data.py
+-->

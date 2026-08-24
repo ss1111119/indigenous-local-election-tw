@@ -29,14 +29,14 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：10 個能力、**68 條 Requirement**
+### 主 specs：10 個能力、**70 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
 | `legacy-source-quirks` | 22 |
 | `site-data-generation` | 9 |
+| `site-chart-accessibility` | 8 |
 | `indigenous-legislative-elections` | 7 |
-| `site-chart-accessibility` | 6 |
 | `party-list-votes` | 5 |
 | `bounded-estimates` | 4 |
 | `election-period-publication` | 4 |
@@ -47,7 +47,8 @@
 ### 已歸檔的 change（續）
 
 `site-legislative-and-party-preference`（11/11）與 `election-period-publication`
-（10/10）於 2026-08-23 歸檔，`site-english-pages`（12/12）於 2026-08-24 歸檔。
+（10/10）於 2026-08-23 歸檔，`site-english-pages`（12/12）與
+`site-chart-interactivity`（8/8）於 2026-08-24 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
