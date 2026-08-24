@@ -14,6 +14,16 @@
 📊 **線上瀏覽**：<https://ss1111119.github.io/indigenous-local-election-tw/>
 （[名錄](https://ss1111119.github.io/indigenous-local-election-tw/roster.html)、[原住民立委與政黨傾向](https://ss1111119.github.io/indigenous-local-election-tw/legislative.html)）
 
+🌐 **English**:
+[local elections](https://ss1111119.github.io/indigenous-local-election-tw/en/index.html) ·
+[legislators & party leaning](https://ss1111119.github.io/indigenous-local-election-tw/en/legislative.html)
+（專案自譯、未經母語者覆核，以中文版為準）
+
+⚠️ **名錄沒有英文版，而且不打算做。** 那一頁有 4,607 位候選人姓名與 27 個選舉區名稱，
+那是**音譯**工程不是翻譯：臺灣的人名羅馬拼音有威妥瑪／漢語／通用數套並存，
+原住民候選人另有族語名與漢名的問題。本專案沒有權威來源可以決定每個人的名字怎麼拼，
+而猜出來的拼法會被當成那個人的英文名。
+
 ## 這是什麼
 
 中選會選舉資料庫裡，地方公職人員選舉有十種選舉種類，其中**四種是原住民專屬**：

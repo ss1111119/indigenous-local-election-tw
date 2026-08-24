@@ -298,7 +298,7 @@ MUTATIONS = [
      '        html = re.sub(r"<script>.*?</script>", "",\n'
      '                      page.read_text(encoding="utf-8"), flags=re.S)',
      '        html = page.read_text(encoding="utf-8")'),
-    ("多語：本屆限定語只驗 T 有、不驗 JS 用到",
+    ("多語：本屆限定語只驗 T 有、不驗 JS 用到（讀者看不到的限定語等於沒有）",
      '        if "T.current_term_notice" not in html:',
      '        if False:'),
 ]
@@ -314,16 +314,19 @@ LEG_HTML_MUTATION = (
 # 立委頁的第二個真檔變異：拿掉本屆限定語。
 LEG_NOTICE_MUTATION = (
     "立委頁：拿掉本屆限定語（選舉期間保留歷史資料卻不標示）",
-    "        + `本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。`;",
-    "        ;")
+    "        notice: T.current_term_notice });",
+    "        notice: \"\" });")
 
 
 # 英文頁的真檔變異：把限定語「翻順」——這正是翻譯時最容易發生的弱化。
 EN_HTML = ROOT / "docs" / "en" / "legislative.html"
 EN_WEAKEN_MUTATION = (
     "英文頁：限定語被翻弱（拿掉 not the whole 那一句）",
-    "Figures on these pages cover different populations. They cannot be compared with each other, and they cannot be added.",
-    "Figures on these pages differ.")
+    # ⚠️ 前綴的 &#9888; 是必要的：這段限定語同時存在於頁面的 const T 裡，
+    #    不帶前綴會出現兩次，變異腳本會拒絕執行（字串須恰好一次）。
+    #    要變異的是**讀者看得到的那一份**。
+    "&#9888; Figures on these pages cover different populations. They cannot be compared with each other, and they cannot be added.",
+    "&#9888; Figures on these pages differ.")
 
 # 每個被變異的檔各一個 canary。
 #
@@ -349,8 +352,8 @@ HTML_CANARIES = [
      '最嚴的一組是 11.0%',
      '最嚴的一組是 99.9%'),
     (EN_HTML, "docs/en/legislative.html",
-     '11.0% at the strictest threshold',
-     '99.9% at the strictest threshold'),
+     'indigenous electors &mdash; 11.0% at',
+     'indigenous electors &mdash; 99.9% at'),
 ]
 
 # 只能改真檔的那一項。見模組 docstring。

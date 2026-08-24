@@ -1396,6 +1396,43 @@ def test_recursive_enumeration_is_load_bearing() -> None:
 
 
 @reports
+def test_notice_must_be_used_not_merely_declared() -> None:
+    """限定語在 T 裡有，還不夠——JS 必須真的把它畫出來。
+
+    ⚠️ 兩個條件缺一不可，而**只有這條測試會觸發第二個**：
+       只驗「T 裡有」→ 把 JS 裡用到它的那行刪掉，限定語就從畫面上消失了，
+       而檢查照樣通過。實測那項變異就是這樣漏網的。
+    """
+    print("\n[真實] 限定語必須被用到，不只是被宣告")
+    page = ROOT / "docs" / "en" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到英文立委頁")
+        skipped.append("test_notice_must_be_used_not_merely_declared")
+        return
+    orig = page.read_text(encoding="utf-8")
+    check("基準：JS 有用到 T.current_term_notice",
+          "T.current_term_notice" in orig, True)
+    check("基準：T 裡也有那段字",
+          build_site_data.STRINGS["current_term_notice"]["en"] in orig, True)
+
+    print("\n       只拿掉 JS 的用法、T 保持不變 → 必須中止")
+    try:
+        page.write_text(orig.replace("notice: T.current_term_notice",
+                                     'notice: ""', 1), encoding="utf-8")
+        broken = page.read_text(encoding="utf-8")
+        check("T 裡仍有那段字（所以只驗 T 的檢查會通過）",
+              build_site_data.STRINGS["current_term_notice"]["en"] in broken, True)
+        check("但 JS 已不再用它", "T.current_term_notice" in broken, False)
+        check_raises_msg("沒有任何地方用到它即中止",
+                         build_site_data.check_current_term_notice,
+                         "沒有任何地方用到它")
+    finally:
+        page.write_text(orig, encoding="utf-8")
+    check("還原後通過",
+          build_site_data.check_current_term_notice() is None, True)
+
+
+@reports
 def test_static_qualifiers_match_strings() -> None:
     """靜態限定語必須與 STRINGS 逐字相同。"""
     print("\n[真實] 靜態限定語與 STRINGS 逐字相同")
@@ -1453,6 +1490,7 @@ def main() -> int:
                test_english_pages_share_the_same_data,
                test_english_bounds_states_coverage_first,
                test_recursive_enumeration_is_load_bearing,
+               test_notice_must_be_used_not_merely_declared,
                test_static_qualifiers_match_strings):
         try:
             fn()
