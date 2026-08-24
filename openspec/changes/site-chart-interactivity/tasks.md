@@ -16,8 +16,8 @@
 
 - [x] 3.1 擴充 `scripts/test_build_site_data.py`：斷言 `bind()` 監聽 `focus`／`blur`；斷言 `index.html` 與 `en/index.html` 的可導航連結涵蓋 `DATA` 裡 `MAIN` 每一個實際存在的 `(year, type)`（用「兩邊 (year, type) 集合相等」驗證，不逐一測連結，依 Implementation Contract 的 Failure modes）；斷言 `legislative.html` 沒有任何 `<a href="roster.html`。⚠️ 每一條 Failure mode 都要有一組會觸發它的輸入，且斷言錯誤訊息含只有該檢查會輸出的字串。驗證方式：`pytest scripts/test_build_site_data.py` 通過，且該檔的檢查項數比變更前增加不少於 6 項。
 
-- [ ] 3.2 擴充 `scripts/mutate_build_site_data.py`，新增三項變異並確認全部被偵測：（1）拿掉 `bind()` 的 focus 監聽（只留 pointerenter，模擬「鍵盤使用者拿不到 tooltip」的迴歸）；（2）可點擊的 hit target 改回不含 `<a>` 包裝的普通元素（模擬「導航消失」的迴歸）；（3）立委頁被誤加上導航連結（模擬決策 3 被違反）。驗證方式：執行後輸出「全部通過」，三項皆被偵測到，基準對照通過，無測試被跳過。
+- [x] 3.2 擴充 `scripts/mutate_build_site_data.py`，新增三項變異並確認全部被偵測：（1）拿掉 `bind()` 的 focus 監聽（只留 pointerenter，模擬「鍵盤使用者拿不到 tooltip」的迴歸）；（2）可點擊的 hit target 改回不含 `<a>` 包裝的普通元素（模擬「導航消失」的迴歸）；（3）立委頁被誤加上導航連結（模擬決策 3 被違反）。驗證方式：執行後輸出「全部通過」，三項皆被偵測到，基準對照通過，無測試被跳過。
 
 ## 4. 文件
 
-- [ ] 4.1 `README.md` 或 `docs/發布判定紀錄.md` 視需要註記本次改動不影響任何頁面的判定分類（純導航與可及性，未改變任何資料或算式）；`HANDOFF.md` 地雷區新增一條：`bind()` 的 focus／blur 與 pointerenter／pointerleave 是同一段邏輯，未來加新圖表要沿用它、不要另寫一套。驗證方式：以指令確認 `HANDOFF.md` 含「focus」與「bind()」。
+- [x] 4.1 `README.md` 或 `docs/發布判定紀錄.md` 視需要註記本次改動不影響任何頁面的判定分類（純導航與可及性，未改變任何資料或算式）；`HANDOFF.md` 地雷區新增一條：`bind()` 的 focus／blur 與 pointerenter／pointerleave 是同一段邏輯，未來加新圖表要沿用它、不要另寫一套。驗證方式：以指令確認 `HANDOFF.md` 含「focus」與「bind()」。
