@@ -357,18 +357,31 @@ const PARTIES = [
 ];
 const NF = n => n.toLocaleString("en-US");
 const tip = document.getElementById("tip");
+/* hover 與鍵盤 focus 走同一段邏輯，不是兩套實作——本專案已經因為
+   「同一規則兩處實作」出過兩次 bug（名錄 MAIN 手寫、政黨分桶只認一種名稱）。
+   pointerenter/focus 共用顯示、pointerleave/blur 共用隱藏；
+   pointermove 只在指標裝置上跟游標走，focus 時改用元素自身的座標定位。
+   el 若原生不可 focus（<circle>／<g>），這裡補上 tabindex；
+   已是 <a> 的話 tabindex="0" 只是顯式化原生行為，不會產生第二個停駐點。 */
 function bind(el, text){
-  el.addEventListener("pointerenter", e => {
-    tip.textContent = text; tip.style.opacity = 1;
-  });
-  el.addEventListener("pointermove", e => {
+  if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
+  const show = () => { tip.textContent = text; tip.style.opacity = 1; };
+  const hide = () => tip.style.opacity = 0;
+  const placeAt = (x, y) => {
     const r = tip.getBoundingClientRect();
-    let x = e.clientX + 14, y = e.clientY - r.height - 10;
-    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
-    if (y < 8) y = e.clientY + 16;
+    if (x + r.width > innerWidth - 8) x -= r.width + 28;
+    if (y < 8) y += r.height + 26;
     tip.style.left = x + "px"; tip.style.top = y + "px";
+  };
+  el.addEventListener("pointerenter", show);
+  el.addEventListener("pointermove", e => placeAt(e.clientX + 14, e.clientY - tip.getBoundingClientRect().height - 10));
+  el.addEventListener("pointerleave", hide);
+  el.addEventListener("focus", () => {
+    show();
+    const r = el.getBoundingClientRect();
+    placeAt(r.left + r.width + 8, r.top - tip.getBoundingClientRect().height - 8);
   });
-  el.addEventListener("pointerleave", () => tip.style.opacity = 0);
+  el.addEventListener("blur", hide);
 }
 const svgEl = (n, a) => {
   const e = document.createElementNS("http://www.w3.org/2000/svg", n);
@@ -429,11 +442,16 @@ function panel(t, extra){
       const d = t.years[ys[i]];
       s.append(svgEl("circle",{cx:p[0],cy:p[1],r:4.5,fill:"var(--panel)",
         stroke: t.indigenous ? "var(--accent)" : "var(--ink3)", "stroke-width":2}));
+      // 巨觀連結微觀：用原生 <a> 包住 hit target，不是 JS 監聽 click 再
+      // 手動導頁——瀏覽器免費附贈新分頁開啟、複製連結、螢幕閱讀器的
+      // 「連結」語意。roster.html 早已支援 #屆別/代碼 的雜湊定位。
+      const a = svgEl("a", { href: `roster.html#${ys[i]}/${t.code}` });
       const hit = svgEl("circle",{cx:p[0],cy:p[1],r:14,fill:"transparent"});
-      bind(hit, fmt(T.tip_turnout_typed, { year: ys[i], code: t.code,
+      a.append(hit);
+      bind(a, fmt(T.tip_turnout_typed, { year: ys[i], code: t.code,
         name: LB(t.name), turnout: d.turnout,
         electors: NF(d.electors), votes: NF(d.votes) }));
-      s.append(hit);
+      s.append(a);
       // ⚠️ 只標首尾兩點。九屆之後每個面板最多七個資料點擠在 168px 寬，
       //    逐點標數字會疊成一團（實測 T2 會變成「56.354.2 55.9…」）。
       //    中間各點的數值在 tooltip 與下方表格都讀得到。
@@ -480,6 +498,9 @@ function panel(t, extra){
         const seats = d.party[key][0], cands = d.party[key][1];
         if (!seats) return;
         const w = seats / total * (W - LW);
+        // 巨觀連結微觀：導向該屆＋該選舉種類的名錄，不分政黨——政黨層級的
+        // 篩選超出 roster.html 既有的 #屆別/代碼 雜湊格式。
+        const a = svgEl("a", { href: `roster.html#${yr}/${t.code}` });
         const g = svgEl("g");
         g.append(svgEl("rect",{x:cx,y:top,width:Math.max(w-2,1),height:BH,rx:2,fill:`var(${cv})`}));
         if (w > 20){
@@ -487,9 +508,10 @@ function panel(t, extra){
             "font-size":9.5,fill:`var(${lv})`,"font-family":"IBM Plex Mono, monospace","font-weight":500});
           lb.textContent = seats; g.append(lb);
         }
-        bind(g, fmt(T.tip_party_seats, { year: yr, code: t.code, label: T[label],
+        a.append(g);
+        bind(a, fmt(T.tip_party_seats, { year: yr, code: t.code, label: T[label],
           seats, total, cands }));
-        s.append(g); cx += w;
+        s.append(a); cx += w;
       });
     });
     box.append(panel(t, s));

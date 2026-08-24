@@ -301,16 +301,29 @@ const PARTIES = [
 ];
 
 const tip = document.getElementById("tip");
+/* hover 與鍵盤 focus 走同一段邏輯，不是兩套實作——本專案已經因為
+   「同一規則兩處實作」出過兩次 bug。pointerenter/focus 共用顯示、
+   pointerleave/blur 共用隱藏；focus 時用元素自身座標定位，不需要滑鼠座標。
+   ⚠️ 立委頁只做鍵盤可達性，不加導航連結——L2／L3 沒有對應的名錄頁。 */
 function bind(el, text){
-  el.addEventListener("pointerenter", () => { tip.textContent = text; tip.style.opacity = 1; });
-  el.addEventListener("pointermove", e => {
+  if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
+  const show = () => { tip.textContent = text; tip.style.opacity = 1; };
+  const hide = () => tip.style.opacity = 0;
+  const placeAt = (x, y) => {
     const r = tip.getBoundingClientRect();
-    let x = e.clientX + 14, y = e.clientY - r.height - 10;
-    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
-    if (y < 8) y = e.clientY + 16;
+    if (x + r.width > innerWidth - 8) x -= r.width + 28;
+    if (y < 8) y += r.height + 26;
     tip.style.left = x + "px"; tip.style.top = y + "px";
+  };
+  el.addEventListener("pointerenter", show);
+  el.addEventListener("pointermove", e => placeAt(e.clientX + 14, e.clientY - tip.getBoundingClientRect().height - 10));
+  el.addEventListener("pointerleave", hide);
+  el.addEventListener("focus", () => {
+    show();
+    const r = el.getBoundingClientRect();
+    placeAt(r.left + r.width + 8, r.top - tip.getBoundingClientRect().height - 8);
   });
-  el.addEventListener("pointerleave", () => tip.style.opacity = 0);
+  el.addEventListener("blur", hide);
 }
 const svgEl = (n, a) => {
   const e = document.createElementNS("http://www.w3.org/2000/svg", n);

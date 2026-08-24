@@ -1458,6 +1458,98 @@ def test_static_qualifiers_match_strings() -> None:
           build_site_data.check_static_qualifiers() is None, True)
 
 
+
+# --------------------------------------------- 圖表互動性（本變更新增）
+
+@reports
+def test_bind_listens_focus_and_blur() -> None:
+    """`bind()` 必須同時處理 hover 與鍵盤 focus，不是兩套實作。
+
+    ⚠️ 這條斷言的是**同一個函式體**同時監聽兩組事件，不是「有沒有某個
+       關鍵字出現在檔案某處」——那樣改成兩套各自獨立的實作也會通過。
+    """
+    print("\n[真實] bind() 同時監聽 pointerenter/focus 與 pointerleave/blur")
+    for name in ("docs/index.html", "docs/en/index.html",
+                "docs/legislative.html", "docs/en/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_bind_listens_focus_and_blur")
+            continue
+        html = page.read_text(encoding="utf-8")
+        m = re.search(r"function bind\(el, text\)\{(.*?)\n\}", html, re.S)
+        check(f"{name} 有 bind() 函式", m is not None, True)
+        if not m:
+            continue
+        body = m.group(1)
+        check(f"{name}: bind() 監聽 focus", '"focus"' in body, True)
+        check(f"{name}: bind() 監聽 blur", '"blur"' in body, True)
+        check(f"{name}: bind() 監聽 pointerenter", '"pointerenter"' in body, True)
+        check(f"{name}: bind() 監聽 pointerleave", '"pointerleave"' in body, True)
+
+
+@reports
+def test_index_charts_link_every_main_term_and_type() -> None:
+    """`index.html` 與 `en/index.html` 的可導航連結涵蓋 MAIN 的每個 (year, type)。
+
+    ⚠️ 這條是**靜態**檢查（樣板字串與迴圈範圍），不是渲染後的逐點比對——
+       渲染後的完整驗證（27／79 個連結、點擊後導向正確的名錄頁）已在
+       任務 2.1／2.2／2.3 用 playwright 手動跑過，見 tasks.md 的驗證紀錄。
+       這裡要擋的是「樣板字串被改壞或整段被砍掉」這種靜態就看得出來的迴歸。
+    """
+    print("\n[真實] 圖表連結的樣板與涵蓋迴圈範圍")
+    summ, cands = load_long_tables()
+    data = build_index_data(summ, cands)
+    types = election_types(summ)
+    main_pairs = {(y, t["code"]) for t in data["types"] if types[t["code"]]["mainSequence"]
+                  for y in data["years"] if t["years"].get(y)}
+    check("MAIN 的 (year, type) 組合數 > 0", len(main_pairs) > 0, True)
+
+    for name in ("docs/index.html", "docs/en/index.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_index_charts_link_every_main_term_and_type")
+            continue
+        html = page.read_text(encoding="utf-8")
+        prefix = r"\.\./" if "en/" in name else ""
+        turnout_tmpl = re.search(
+            rf'href: `{prefix}roster\.html#\$\{{ys\[i\]\}}/\$\{{t\.code\}}`', html)
+        party_tmpl = re.search(
+            rf'href: `{prefix}roster\.html#\$\{{yr\}}/\$\{{t\.code\}}`', html)
+        check(f"{name}: 01 投票率圖的連結樣板逐字正確",
+              turnout_tmpl is not None, True)
+        check(f"{name}: 02 政黨席次圖的連結樣板逐字正確",
+              party_tmpl is not None, True)
+
+        turnout_block = html[html.index("/* 01"):html.index("/* 02")]
+        party_block = html[html.index("/* 02"):html.index("/* 03")]
+        check(f"{name}: 01 的 <a> 在 MAIN.forEach 範圍內",
+              "MAIN.forEach" in turnout_block and 'svgEl("a"' in turnout_block, True)
+        check(f"{name}: 02 的 <a> 在 MAIN.forEach 範圍內",
+              "MAIN.forEach" in party_block and 'svgEl("a"' in party_block, True)
+
+
+@reports
+def test_legislative_page_has_no_roster_navigation() -> None:
+    """立委頁不得出現任何導向 `roster.html` 的圖表連結（決策 3 的邊界）。
+
+    ⚠️ 導覽列本來就有連到 roster.html 的連結（名錄分頁），那是正常的、
+       不該被這條檢查誤判——只查 SVG 圖表區塊內，不查整個檔案。
+    """
+    print("\n[真實] 立委頁的圖表區塊沒有導向 roster.html 的連結")
+    for name in ("docs/legislative.html", "docs/en/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_legislative_page_has_no_roster_navigation")
+            continue
+        html = page.read_text(encoding="utf-8")
+        script = html[html.index("<script>"):html.index("</script>")]
+        check(f"{name}: script 區塊不含 roster.html 連結樣板",
+              "roster.html" not in script, True)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -1491,7 +1583,10 @@ def main() -> int:
                test_english_bounds_states_coverage_first,
                test_recursive_enumeration_is_load_bearing,
                test_notice_must_be_used_not_merely_declared,
-               test_static_qualifiers_match_strings):
+               test_static_qualifiers_match_strings,
+               test_bind_listens_focus_and_blur,
+               test_index_charts_link_every_main_term_and_type,
+               test_legislative_page_has_no_roster_navigation):
         try:
             fn()
         except AssertionError:
