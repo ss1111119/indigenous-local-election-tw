@@ -548,6 +548,272 @@ def build_legislative_data(summary: list[dict], cands: list[dict],
 # 規則在 openspec/specs/election-period-publication/spec.md，
 # 逐頁判定在 docs/發布判定紀錄.md。
 
+# ── 多語文案：限定語只有一份來源 ──────────────────────────────────
+#
+# ⚠️ **限定語是資料，不是頁面裡的靜態文字。** 這是本專案最容易在翻譯時
+#    被弱化的東西——譯者（包括我自己）會下意識把「這不是全體原住民的
+#    政黨傾向」翻得比較順、比較短，順帶把限定拿掉。做成產生的資料，
+#    兩個語言版本就不可能各自漂移。
+#
+# ⚠️ 這裡只放**限定語與圖表標籤**，不放散文段落。散文留在各自的 HTML：
+#    它們可以有不同的寫法，限定語不可以。
+#
+# `{...}` 是執行期由 JS 代入的欄位，兩種語言必須有**相同的欄位集合**——
+# 少一個欄位會在頁面上留下未替換的 `{coverage}`。
+STRINGS: dict[str, dict[str, str]] = {
+    "current_term_notice": {
+        "zh": "本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。",
+        "en": ("These are historical figures from 2008–2024. They do not "
+               "represent the 2026 election now under way."),
+    },
+    "bounds_qual": {
+        # ⚠️ 本屆限定語以 {notice} 併進來，**不是在 JS 裡用 + 接**——
+        #    中文不需要空格、英文需要，接法交給各語言自己決定。
+        "zh": ("以上是這 {stations} 個投開票所的數字，涵蓋 {coverage}% 的"
+               "原住民選舉人，不是全體原住民的政黨傾向。"
+               "其餘 {rest}% 的原住民選舉人，同樣的算術給不出有用的界限。"
+               "{notice}"),
+        "en": ("These figures describe {stations} polling stations covering "
+               "{coverage}% of indigenous electors. They are not the party "
+               "leaning of indigenous people as a whole. For the remaining "
+               "{rest}%, the same arithmetic yields no useful bound. {notice}"),
+    },
+    "bounds_coverage_label": {
+        "zh": "全體原住民選舉人的涵蓋率　{electors} 人",
+        "en": "share of all indigenous electors covered　{electors} people",
+    },
+    "bounds_station_heading": {
+        "zh": "原住民選舉人佔比 ≥{pct}% 的 {stations} 個投開票所",
+        "en": ("{stations} polling stations where indigenous electors are "
+               "≥{pct}% of the roll"),
+    },
+    "bounds_caption": {
+        "zh": "{term} 年不分區政黨票，這 {stations} 個所的觀察值與原住民得票率的界限",
+        "en": ("{term} party-list vote: observed shares at these {stations} "
+               "stations, and the bounds on the indigenous vote share"),
+    },
+    "bounds_retained_original": {
+        "zh": "沒有官方英文名的政黨保留原文。",
+        "en": ("Parties with no established English name are shown under "
+               "their original Chinese name."),
+    },
+    "not_party_identification": {
+        "zh": "這不等於政黨認同",
+        "en": "This is not party identification",
+    },
+    "datasets_not_comparable": {
+        "zh": "兩頁的數字不可互相比較，也不可相加。",
+        "en": ("Figures on these pages cover different populations. They "
+               "cannot be compared with each other, and they cannot be added."),
+    },
+    # ── 圖表與表格的 UI 文字 ─────────────────────────────────
+    #
+    # ⚠️ 這些收進來之後，**兩版頁面的 JS 完全相同、只有 T 與 L 不同**。
+    #    原本只打算收限定語，但那樣會產生兩份各自演化的繪圖程式碼——
+    #    本專案在名錄的 MAIN 上踩過那個坑。
+    "chart_party_aria": {
+        "zh": "九屆政黨得票率折線圖，數值見下方表格",
+        "en": "Party vote share across nine terms; values in the table below",
+    },
+    "chart_seat_aria": {
+        "zh": "逐屆政黨席次堆疊條，數值見下方表格",
+        "en": "Seats by party and term, stacked; values in the table below",
+    },
+    "chart_turnout_aria": {
+        "zh": "{code} 投票率 {series}",
+        "en": "{code} turnout {series}",
+    },
+    "tip_party": {
+        "zh": "{year}　{party}\n得票率 {share}%\n席次 {seats}",
+        "en": "{year}　{party}\nvote share {share}%\nseats {seats}",
+    },
+    "tip_seat": {
+        "zh": "{year}　{party}\n席次 {n} / {total}\n得票率 {share}%",
+        "en": "{year}　{party}\nseats {n} / {total}\nvote share {share}%",
+    },
+    "tip_turnout": {
+        "zh": "{year}　{name}\n投票率 {turnout}%\n選舉人 {electors}\n投票數 {votes}",
+        "en": ("{year}　{name}\nturnout {turnout}%\nelectors {electors}\n"
+               "votes cast {votes}"),
+    },
+    "th_party": {"zh": "政黨", "en": "Party"},
+    "th_term": {"zh": "屆別", "en": "Term"},
+    "th_total": {"zh": "合計", "en": "Total"},
+    "th_turnout_total": {"zh": "合計投票率", "en": "Combined turnout"},
+    "th_turnout_suffix": {"zh": "{name} 投票率", "en": "{name} turnout"},
+    "th_electors_suffix": {"zh": "{name} 選舉人", "en": "{name} electors"},
+    "th_threshold": {"zh": "門檻", "en": "Threshold"},
+    "th_stations": {"zh": "所數", "en": "Stations"},
+    "th_coverage": {"zh": "涵蓋率", "en": "Coverage"},
+    "th_observed": {"zh": "觀察", "en": "Observed"},
+    "th_observed_full": {"zh": "觀察得票率", "en": "Observed vote share"},
+    "th_bounds": {"zh": "界限", "en": "Bounds"},
+    "th_lower": {"zh": "界限下界", "en": "Lower bound"},
+    "th_upper": {"zh": "界限上界", "en": "Upper bound"},
+    "term_option": {"zh": "{term} 年", "en": "{term}"},
+    "covbar_aria": {
+        "zh": "涵蓋 {coverage}%，未涵蓋 {rest}%",
+        "en": "{coverage}% covered, {rest}% not covered",
+    },
+    # ── index 頁的 UI 文字 ───────────────────────────────────
+    "ref_group": {"zh": "參考組", "en": "Reference"},
+    "ref_group_paren": {"zh": "（參考組）", "en": " (reference)"},
+    "scope_election_name": {"zh": "{name}選舉", "en": "{name}"},
+    "scope_indigenous_only": {"zh": "原住民專屬", "en": "Indigenous-only"},
+    "scope_r2_seats": {"zh": "平地原住民代表席次",
+                       "en": "Plain indigenous seats only"},
+    "scope_reference": {"zh": "參考組，非原住民資料",
+                        "en": "Reference group, not indigenous data"},
+    "tip_turnout_typed": {
+        "zh": "{year}　{code} {name}\n投票率 {turnout}%\n選舉人 {electors}\n投票數 {votes}",
+        "en": ("{year}　{code} {name}\nturnout {turnout}%\nelectors {electors}\n"
+               "votes cast {votes}"),
+    },
+    "chart_party_seats_aria": {
+        "zh": "{code} 各屆政黨席次組成",
+        "en": "{code}: composition of seats by party, each term",
+    },
+    "tip_party_seats": {
+        "zh": "{year}　{code}\n{label}\n當選 {seats} 席 / 共 {total} 席\n候選人紀錄 {cands} 筆",
+        "en": ("{year}　{code}\n{label}\nelected {seats} of {total} seats\n"
+               "{cands} candidate records"),
+    },
+    "tip_gender": {
+        "zh": "{year}　{code} {name}\n女性當選 {fseats} / {seats} 席\n女性候選人紀錄 {fcands} / {cands} 筆",
+        "en": ("{year}　{code} {name}\nwomen elected {fseats} of {seats} seats\n"
+               "women candidate records {fcands} of {cands}"),
+    },
+    "note_candidates_prefix": {"zh": "候選人 ", "en": "candidates "},
+    "th_election_type": {"zh": "選舉種類", "en": "Election type"},
+    "th_total_seats": {"zh": "總席次", "en": "Total seats"},
+    "th_electors": {"zh": "選舉人數", "en": "Electors"},
+    "th_votes": {"zh": "投票數", "en": "Votes cast"},
+    "th_turnout": {"zh": "投票率", "en": "Turnout"},
+    "th_seats": {"zh": "席次", "en": "Seats"},
+    "th_cand_records": {"zh": "候選人紀錄", "en": "Candidate records"},
+    "th_districts": {"zh": "選舉區", "en": "Districts"},
+    "th_incumbent": {"zh": "現任當選/參選", "en": "Incumbents won/ran"},
+    "th_uncontested": {"zh": "同額選區/席次", "en": "Uncontested districts/seats"},
+    "no_such_election": {"zh": "無此選舉", "en": "no such election"},
+    "no_incumbent": {"zh": "無現任", "en": "no incumbent"},
+    "zero_women_note": {
+        "zh": "T3、D2 各屆皆為 0（已確認，非漏算）",
+        "en": "T3 and D2 are 0 in every term (confirmed, not a gap in the data)",
+    },
+    "party_label_kmt": {"zh": "中國國民黨", "en": "Kuomintang (KMT)"},
+    "party_label_independent": {
+        "zh": "999 無黨籍及未經政黨推薦",
+        "en": "999 Independent / not party-nominated",
+    },
+    "party_label_dpp": {"zh": "民主進步黨", "en": "Democratic Progressive Party (DPP)"},
+    "party_label_other": {"zh": "其他各政黨", "en": "All other parties"},
+    "self_translated": {
+        "zh": "本頁為專案自譯。",
+        "en": ("This page is translated by the project and has not been "
+               "reviewed by a native speaker. The Chinese version governs."),
+    },
+}
+
+LANGUAGES = ("zh", "en")
+
+
+def check_strings_complete() -> None:
+    """每個 key 在每種語言都要有值，且代入欄位的集合要一致。
+
+    ⚠️ 少一個語言 → 那一版的限定語會整句消失，而頁面照樣畫得出來。
+    ⚠️ 欄位集合不一致 → 頁面上會留下未替換的 `{coverage}` 這種字樣。
+    """
+    missing = [f"{k}.{lang}" for k, v in STRINGS.items()
+               for lang in LANGUAGES if not v.get(lang, "").strip()]
+    if missing:
+        raise SiteDataError(
+            f"STRINGS 缺少這些語言的值：{missing}。"
+            f"限定語少一種語言，那一版就會整句消失而頁面照樣畫得出來。"
+        )
+    bad_fields = []
+    for k, v in STRINGS.items():
+        fields = {lang: set(re.findall(r"\{(\w+)\}", v[lang]))
+                  for lang in LANGUAGES}
+        if len({frozenset(f) for f in fields.values()}) != 1:
+            bad_fields.append((k, {lang: sorted(f) for lang, f in fields.items()}))
+    if bad_fields:
+        raise SiteDataError(
+            f"STRINGS 的代入欄位在不同語言間不一致：{bad_fields}。"
+            f"欄位少一個，頁面上會留下未替換的大括號。"
+        )
+
+
+# ── 顯示標籤的英譯：逐項宣告，且每一項都要標出處 ───────────────────
+#
+# ⚠️ **出處不是裝飾。** 這個專案對「數字的出處」要求到寫進 spec，
+#    對「名稱的出處」不該用另一套標準。造出來的譯名如果不標明，
+#    讀者會當成官方譯名。
+#
+# 出處三值：
+#   cec     —— 中選會英文站可查證的用法
+#   common  —— 該組織自己公布的英文名
+#   project —— **本專案自訂**，找不到官方或通行英文名
+#
+# ⚠️ 中選會英文站是 JS 渲染的，`WebFetch` 讀不到本文（與查政府資料開放
+#    授權條款時同一個限制）。能查證到的只有搜尋摘要顯示的
+#    "Lowland and Highland Indigene Legislator" 一類用法，所以
+#    **選舉種類多數是 `project`**。查不到就標 project，不可標 cec 充數。
+LABEL_SOURCES = ("cec", "common", "project")
+
+LABELS_EN: dict[str, tuple[str, str]] = {
+    # 選舉種類（地方公職）
+    "議員(平地原住民)": ("City/County Councilor (Plain Indigenous)", "project"),
+    "議員(山地原住民)": ("City/County Councilor (Mountain Indigenous)", "project"),
+    "議員(區域)": ("City/County Councilor (Regional)", "project"),
+    "直轄市原住民區長": ("Indigenous District Chief (Special Municipality)", "project"),
+    "直轄市原住民區民代表": ("Indigenous District Representative (Special Municipality)", "project"),
+    "鄉(鎮、市)民代表(平原)": ("Township Representative (Plain Indigenous)", "project"),
+    "直轄市議員(原住民，未分平地／山地)": (
+        "Special Municipality Councilor (Indigenous, plain/mountain not split)", "project"),
+    "臺灣省議員(山地原住民)": ("Taiwan Provincial Assembly Member (Mountain Indigenous)", "project"),
+    "臺灣省議員(平地原住民)": ("Taiwan Provincial Assembly Member (Plain Indigenous)", "project"),
+    # 選舉種類（立委）——中選會英文站用 "Lowland/Highland Indigene Legislator"
+    "立法委員(平地原住民)選舉": ("Legislator (Lowland Indigenous)", "cec"),
+    "立法委員(山地原住民)選舉": ("Legislator (Highland Indigenous)", "cec"),
+    # 政黨桶名
+    "中國國民黨": ("Kuomintang (KMT)", "common"),
+    "民主進步黨": ("Democratic Progressive Party (DPP)", "common"),
+    "親民黨": ("People First Party (PFP)", "common"),
+    "無黨團結聯盟": ("Non-Partisan Solidarity Union (NPSU)", "common"),
+    "無黨籍": ("Independent", "project"),
+    "無黨籍及未經政黨推薦": ("Independent / not party-nominated", "project"),
+    "其他": ("Other", "project"),
+    # 界限面板實際顯示得到的政黨（各屆各門檻前四名）
+    "台灣民眾黨": ("Taiwan People's Party (TPP)", "common"),
+    "時代力量": ("New Power Party (NPP)", "common"),
+    "台灣團結聯盟": ("Taiwan Solidarity Union (TSU)", "common"),
+    "新黨": ("New Party", "common"),
+    "信心希望聯盟": ("Faith and Hope League", "common"),
+}
+
+
+def check_labels_have_provenance() -> None:
+    """每個英譯標籤都要有合法的出處。"""
+    bad = [(k, v) for k, v in LABELS_EN.items()
+           if not (isinstance(v, tuple) and len(v) == 2
+                   and v[0].strip() and v[1] in LABEL_SOURCES)]
+    if bad:
+        raise SiteDataError(
+            f"這些標籤的英譯缺出處或出處不在 {LABEL_SOURCES}：{bad}。"
+            f"造出來的譯名不標明出處，讀者會當成官方譯名。"
+        )
+
+
+def label_en(zh: str) -> str:
+    """中文標籤的英譯。未宣告者**保留原文**，不猜。
+
+    ⚠️ 保留原文是刻意的：界限的完整表格裡有 37 個沒有通行英文名的小黨，
+       造 37 個英文名，讀者無從判斷哪些是真的。
+    """
+    hit = LABELS_EN.get(zh)
+    return hit[0] if hit else zh
+
+
 PUBLICATION_RECORD = ROOT / "docs" / "發布判定紀錄.md"
 
 # 保留的歷史資料必須明文說它不代表本屆。
@@ -555,15 +821,21 @@ PUBLICATION_RECORD = ROOT / "docs" / "發布判定紀錄.md"
 # ⚠️ **檢查一律比對這個具名字串，不可比對「2026」。** 頁尾本來就有
 #    `更新：2026-08`，用年份當判準的檢查在標示被刪掉之後【照樣通過】——
 #    那正是本專案在變異測試上反覆踩到的「斷言的是別的東西」。
-CURRENT_TERM_NOTICE = (
-    "本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。"
-)
+#
+# ⚠️ 值由 STRINGS 導出，**不在這裡再寫一份**——中英兩版的限定語必須
+#    出自同一個來源，否則翻譯時會各自漂移。
+CURRENT_TERM_NOTICE = STRINGS["current_term_notice"]["zh"]
 
-# 判定為「含歷史選舉數字」而必須帶上 CURRENT_TERM_NOTICE 的頁面。
+# 判定為「含歷史選舉數字」而必須帶上本屆限定語的頁面 → 該頁的語言。
 #
 # ⚠️ 這份清單不是判定本身——判定在紀錄檔裡。這裡只列出「判定的後果是
 #    要標示」的那些頁面，讓檢查有東西可比。兩邊不一致時以紀錄檔為準。
-PAGES_REQUIRING_NOTICE = ("legislative.html",)
+# ⚠️ 英文頁要比對**英文版**的限定語。比對中文版會讓英文頁永遠失敗，
+#    比對「有沒有這個 key」則等於沒驗。
+PAGES_REQUIRING_NOTICE = {
+    "legislative.html": "zh",
+    "en/legislative.html": "en",
+}
 
 # 被凍結的指標及其形狀。凍結的意思是**形狀不長大**，不只是數字不更新。
 FROZEN_BOUNDS_SHAPE = {"terms": 5, "thresholds": 3}
@@ -579,8 +851,13 @@ def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
         raise SiteDataError(f"找不到發布判定紀錄 {record}")
     text = record.read_text(encoding="utf-8")
 
+    # ⚠️ **必須遞迴。** `glob("*.html")` 不含子目錄——加了 docs/en/ 之後
+    #    那兩頁會被安靜地跳過而不報錯，而「多了一頁沒人判定」正是這條
+    #    檢查存在的理由。鍵用**相對路徑**而不是檔名：docs/index.html 與
+    #    docs/en/index.html 的檔名相同，用檔名兩者會互相掩護。
     listed = set(re.findall(r"^\| `([^`]+\.html)` \|", text, re.M))
-    on_disk = {p.name for p in (ROOT / "docs").glob("*.html")}
+    docs = ROOT / "docs"
+    on_disk = {p.relative_to(docs).as_posix() for p in docs.rglob("*.html")}
 
     missing = sorted(on_disk - listed)
     if missing:
@@ -605,14 +882,81 @@ def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
                 "查證前不會誤放行，只會誤攔截。"
             )
 
-    for name in PAGES_REQUIRING_NOTICE:
+
+
+# 頁面上以**靜態 HTML** 呈現的限定語：頁面 → (語言, 必須逐字出現的 key)。
+#
+# ⚠️ **為什麼不把這些也交給 JS 從 `T` 注入**：那會讓「沒有 JS 就沒有限定語」。
+#    限定語是這個專案的主要價值，不能依賴腳本執行成功。
+#    所以文字留在 HTML 裡，改用檢查釘住它與 STRINGS 逐字相同——
+#    單一來源的效果一樣達到，而且限定語在原始碼裡看得到。
+STATIC_QUALIFIERS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "legislative.html": ("zh", ("not_party_identification",
+                                "datasets_not_comparable")),
+    "en/legislative.html": ("en", ("not_party_identification",
+                                   "datasets_not_comparable",
+                                   "self_translated")),
+}
+
+
+def check_static_qualifiers() -> None:
+    """靜態限定語必須與 STRINGS 逐字相同。
+
+    ⚠️ 這條擋的是**翻譯時把限定語改順、順帶改弱**。文字在 HTML 裡，
+       所以有人可以直接改它而不動 STRINGS——那正是兩份來源會漂移的路徑。
+    """
+    check_strings_complete()
+    for name, (lang, keys) in STATIC_QUALIFIERS.items():
         page = ROOT / "docs" / name
-        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):
+        if not page.exists():
+            continue
+        # ⚠️ **排除 script 區塊。** 限定語同時存在於頁面的 `const T` 常數裡，
+        #    grep 整個檔案的話，把讀者看得到的那份刪掉也照樣通過——
+        #    量到的是 T，不是頁面上的字。實測就是這樣漏掉的。
+        html = re.sub(r"<script>.*?</script>", "",
+                      page.read_text(encoding="utf-8"), flags=re.S)
+        for key in keys:
+            want = STRINGS[key][lang]
+            if want not in html:
+                raise SiteDataError(
+                    f"{name} 缺少限定語 {key}（{lang}）：{want!r}。"
+                    f"頁面上的限定語必須與 STRINGS 逐字相同——"
+                    f"改頁面不改 STRINGS，兩份來源就開始漂移。"
+                )
+
+
+def check_current_term_notice() -> None:
+    """判定為含歷史選舉數字的頁面，必須帶該語言的本屆限定語。
+
+    ⚠️ **這支必須在 `--write` 之後跑。** 限定語由 STRINGS 產生、寫進頁面的
+       `T` 常數，寫入之前它不在檔案裡——放在寫入前會讓每次 `--write` 都被
+       自己還沒寫入的東西擋下。涵蓋檢查沒有這個問題（它只看檔案集合），
+       所以那一支留在最前面。
+
+    ⚠️ 英文頁比對**英文版**的限定語。比對中文版會讓英文頁永遠失敗；
+       只檢查「有沒有這個 key」則等於沒驗。
+    """
+    check_strings_complete()
+    for name, lang in PAGES_REQUIRING_NOTICE.items():
+        page = ROOT / "docs" / name
+        if not page.exists():
+            continue
+        html = page.read_text(encoding="utf-8")
+        # ⚠️ 兩個條件都要，缺一個都沒有辨識力：
+        #    (1) 該語言的限定語在頁面的 T 常數裡
+        #    (2) JS 真的把它畫出來
+        #    只驗 (1) → 把 JS 裡用它的那行刪掉照樣通過。
+        #    只驗 (2) → T 是空的也照樣通過。
+        if STRINGS["current_term_notice"][lang] not in html:
             raise SiteDataError(
-                f"{name} 判定為含歷史選舉數字，但頁面沒有本屆限定語。"
+                f"{name} 判定為含歷史選舉數字，但頁面沒有 {lang} 版的本屆限定語。"
                 f"選舉期間保留的歷史資料必須明文標示不代表本屆。"
             )
-
+        if "T.current_term_notice" not in html:
+            raise SiteDataError(
+                f"{name} 的 T 常數裡有本屆限定語，但頁面沒有任何地方用到它——"
+                f"讀者看不到的限定語等於沒有。"
+            )
 
 def check_frozen_indicator_shape(bounds: dict) -> None:
     """被凍結的指標，形狀不得長大。
@@ -627,6 +971,29 @@ def check_frozen_indicator_shape(bounds: dict) -> None:
             f"宣告 {FROZEN_BOUNDS_SHAPE}、實際 {got}。"
             f"解凍條件見 docs/發布判定紀錄.md（2026-12-04 公告當選人名單後）。"
         )
+
+
+def build_strings(lang: str) -> dict:
+    """該語言的限定語與圖表文案。
+
+    ⚠️ 中英兩版都從 STRINGS 取值，**頁面裡不再寫第二份**。
+    """
+    check_strings_complete()
+    if lang not in LANGUAGES:
+        raise SiteDataError(f"未知的語言 {lang!r}（已宣告 {LANGUAGES}）")
+    return {k: v[lang] for k, v in STRINGS.items()}
+
+
+def build_labels(lang: str) -> dict:
+    """資料裡的中文標籤 → 該語言的顯示字。
+
+    中文版是恆等對映（讓兩版的 JS 走同一條路），英文版查 LABELS_EN，
+    **查不到就保留原文**。
+    """
+    check_labels_have_provenance()
+    if lang == "zh":
+        return {}
+    return {zh: en for zh, (en, _src) in LABELS_EN.items()}
 
 
 BOUNDS_THRESHOLDS = ("0.95", "0.90", "0.80")
@@ -886,6 +1253,8 @@ ROSTER_MARKER = "const D = "
 ROSTER_MAIN_MARKER = "const MAIN = "
 LEG_MARKER = "const LEG = "
 BOUNDS_MARKER = "const BOUNDS = "
+STRINGS_MARKER = "const T = "
+LABELS_MARKER = "const L = "
 
 
 def build_roster_main() -> dict[str, int]:
@@ -1093,6 +1462,12 @@ def main() -> None:
             _direct[BOUNDS_MARKER] = build_bounds_data(leg_b)
         return _direct
 
+    # ⚠️ 語言相關的常數依頁面而不同，所以不能放進 direct_values()
+    #    那個共用快取——它是以標記行為鍵的。
+    def lang_values(lang: str) -> dict[str, dict]:
+        return {STRINGS_MARKER: build_strings(lang),
+                LABELS_MARKER: build_labels(lang)}
+
     if args.diff_index:
         index_html = ROOT / "docs" / "index.html"
         old = read_embedded_constant(index_html, DATA_MARKER)
@@ -1117,16 +1492,32 @@ def main() -> None:
         #    第二次替換會把第一次的結果安靜丟掉。
         outputs = []
         for html, replacements in (
-            (ROOT / "docs" / "index.html", [(DATA_MARKER, build_index_data)]),
+            (ROOT / "docs" / "index.html", [(DATA_MARKER, build_index_data),
+                                            (STRINGS_MARKER, "zh"),
+                                            (LABELS_MARKER, "zh")]),
+            # 英文 index：DATA 與中文版完全相同，只有文案與標籤不同。
+            (ROOT / "docs" / "en" / "index.html",
+             [(DATA_MARKER, build_index_data),
+              (STRINGS_MARKER, "en"), (LABELS_MARKER, "en")]),
             (ROOT / "docs" / "roster.html", [(ROSTER_MARKER, build_roster_data),
                                              (ROSTER_MAIN_MARKER, None)]),
             # 立委頁的兩個常數都不吃地方公職長表，走 direct 分支。
             (ROOT / "docs" / "legislative.html", [(LEG_MARKER, "direct"),
-                                                  (BOUNDS_MARKER, "direct")]),
+                                                  (BOUNDS_MARKER, "direct"),
+                                                  (STRINGS_MARKER, "zh"),
+                                                  (LABELS_MARKER, "zh")]),
+            # 英文頁：**資料常數與中文版完全相同**，只有文案與標籤不同。
+            (ROOT / "docs" / "en" / "legislative.html",
+             [(LEG_MARKER, "direct"), (BOUNDS_MARKER, "direct"),
+              (STRINGS_MARKER, "en"), (LABELS_MARKER, "en")]),
         ):
+            if not html.exists():
+                continue
             data = html.read_bytes()
             for marker, builder in replacements:
-                if builder == "direct":
+                if builder in LANGUAGES:
+                    value = lang_values(builder)[marker]
+                elif builder == "direct":
                     value = direct_values()[marker]
                 elif builder is None:    # MAIN 不吃長表，只由對照表投影
                     value = build_roster_main()
@@ -1190,23 +1581,38 @@ def main() -> None:
         # 立委頁：沒有「既有屆別」要重現（它是本變更新增的），
         # 但「資料未變 → 檔案未變」這個不變量一樣要守——LEG 或 BOUNDS
         # 過時了，頁面照樣畫得出來，沒有人會發現。
-        leg_html = ROOT / "docs" / "legislative.html"
-        if leg_html.exists():
+        for leg_html, lang in ((ROOT / "docs" / "legislative.html", "zh"),
+                               (ROOT / "docs" / "en" / "legislative.html", "en")):
+            if not leg_html.exists():
+                continue
+            label = leg_html.relative_to(ROOT / "docs").as_posix()
             rebuilt = leg_html.read_bytes()
             for marker in (LEG_MARKER, BOUNDS_MARKER):
                 rebuilt = replace_constant_bytes(
-                    rebuilt, marker, direct_values()[marker], leg_html.name)
+                    rebuilt, marker, direct_values()[marker], label)
+            for marker in (STRINGS_MARKER, LABELS_MARKER):
+                if marker.encode() in rebuilt:
+                    rebuilt = replace_constant_bytes(
+                        rebuilt, marker, lang_values(lang)[marker], label)
             print()
             if rebuilt != leg_html.read_bytes():
                 rc = 1
-                print(f"★ {leg_html.name} 的位元組與現況不同"
+                print(f"★ {label} 的位元組與現況不同"
                       f"（{len(leg_html.read_bytes()):,} vs {len(rebuilt):,} bytes）——"
-                      f"LEG 或 BOUNDS 未跟著長表重建")
+                      f"常數未跟著長表或 STRINGS 重建")
             else:
-                print(f"✓ {leg_html.name} 的 LEG 與 BOUNDS 與長表一致")
+                print(f"✓ {label} 的資料常數與文案與來源一致")
 
         if rc:
             raise SystemExit(rc)
+
+    # 內容面的檢查放在最後：限定語由 STRINGS 產生並寫入頁面，
+    # 在 --write 完成之前它不在檔案裡。
+    if args.write or args.check:
+        check_static_qualifiers()
+        print("✓ 靜態限定語與 STRINGS 逐字相同")
+        check_current_term_notice()
+        print("✓ 該標示本屆限定語的頁面都帶了對應語言的版本")
 
     if args.diff_roster:
         roster_html = ROOT / "docs" / "roster.html"

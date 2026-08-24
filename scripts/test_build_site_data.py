@@ -1055,14 +1055,20 @@ def test_bounds_section_states_coverage_first() -> None:
 
     script = raw.split("/* 04 界限", 1)[1]
     i_cov = script.index("covnum")
-    i_tbl = script.index('tableFrom(t, ["政黨"')
+    # ⚠️ 這個字串隨頁面在地化改過一次（原本是 `tableFrom(t, ["政黨"`）。
+    #    斷言的是**順序**不是字面，所以字串變了要跟著改——但改的時候
+    #    必須確認新字串一樣只出現在該處，否則量到的是別的位置。
+    i_tbl = script.index("tableFrom(t, [T.th_party")
     i_qual = script.index("qual")
     check("涵蓋率的主視覺排在表格之前", i_cov < i_tbl, True)
     check("限定語排在同一個 .bnd 區塊內的表格之後", i_tbl < i_qual, True)
     check("限定語含「不是全體原住民」",
-          "不是全體原住民的政黨傾向" in script, True)
+          "不是全體原住民的政黨傾向" in build_site_data.STRINGS["bounds_qual"]["zh"],
+          True)
     check("限定語帶著涵蓋率一起走", "coverage.toFixed(1)" in
           script[i_qual:i_qual + 500], True)
+    check("限定語與本屆註記在同一個字串裡（不是用 + 接）",
+          "{notice}" in build_site_data.STRINGS["bounds_qual"]["zh"], True)
     check("三個門檻都畫，不挑一個",
           "BOUNDS.thresholds.forEach" in script, True)
 
@@ -1169,8 +1175,10 @@ def test_current_term_notice_is_present_and_named() -> None:
     print("\n       拿掉限定語 → 具名字串的檢查抓得到")
     try:
         page.write_text(orig.replace(notice, "", 1), encoding="utf-8")
+        # ⚠️ 限定語的檢查已從 check_publication_record 拆出來——
+        #    前者只驗涵蓋（檔案集合），後者驗內容。呼叫錯的那支會永遠通過。
         check_raises_msg("缺少限定語即中止",
-                         build_site_data.check_publication_record,
+                         build_site_data.check_current_term_notice,
                          "legislative.html")
 
         print("\n       同一份被改壞的頁面：改用「有沒有提到 2026」當判準就抓不到")
@@ -1219,6 +1227,200 @@ def test_frozen_indicator_shape_does_not_grow() -> None:
           build_site_data.check_frozen_indicator_shape(built) is None, True)
 
 
+
+# ------------------------------------------------------- 英文版（本變更新增）
+
+EN_PAGES = ("en/index.html", "en/legislative.html")
+
+
+@reports
+def test_strings_complete_and_fields_match() -> None:
+    """STRINGS 每個 key 都要有 zh 與 en，且代入欄位集合一致。"""
+    print("\n[真實] STRINGS 的完整性")
+    check("兩種語言", build_site_data.LANGUAGES, ("zh", "en"))
+    check("基準通過", build_site_data.check_strings_complete() is None, True)
+    check("key 數 ≥ 50", len(build_site_data.STRINGS) >= 50, True)
+
+    print("\n       拿掉一個 en 值 → 中止並具名該 key")
+    orig = build_site_data.STRINGS["bounds_qual"]["en"]
+    build_site_data.STRINGS["bounds_qual"]["en"] = ""
+    try:
+        check_raises_msg("缺 en 即中止",
+                         build_site_data.check_strings_complete, "bounds_qual.en")
+    finally:
+        build_site_data.STRINGS["bounds_qual"]["en"] = orig
+
+    print("\n       en 少一個代入欄位 → 中止（頁面上會留下未替換的大括號）")
+    build_site_data.STRINGS["bounds_qual"]["en"] = orig.replace("{rest}", "REST")
+    try:
+        check_raises_msg("欄位集合不一致即中止",
+                         build_site_data.check_strings_complete, "代入欄位")
+    finally:
+        build_site_data.STRINGS["bounds_qual"]["en"] = orig
+    check("還原後通過",
+          build_site_data.check_strings_complete() is None, True)
+
+
+@reports
+def test_labels_have_provenance() -> None:
+    """每個英譯標籤都要有合法出處，且未宣告者保留原文。"""
+    print("\n[真實] LABELS_EN 的出處")
+    check("基準通過",
+          build_site_data.check_labels_have_provenance() is None, True)
+    srcs = {v[1] for v in build_site_data.LABELS_EN.values()}
+    check("出處都在允許值內",
+          srcs <= set(build_site_data.LABEL_SOURCES), True)
+    check("未宣告者保留原文", build_site_data.label_en("台灣綠黨"), "台灣綠黨")
+    check("已宣告者取英譯", build_site_data.label_en("中國國民黨"),
+          "Kuomintang (KMT)")
+
+    print("\n       出處改成不允許的值 → 中止並具名該標籤")
+    old = build_site_data.LABELS_EN["新黨"]
+    build_site_data.LABELS_EN["新黨"] = ("New Party", "official")
+    try:
+        check_raises_msg("非法出處即中止",
+                         build_site_data.check_labels_have_provenance, "新黨")
+    finally:
+        build_site_data.LABELS_EN["新黨"] = old
+    check("還原後通過",
+          build_site_data.check_labels_have_provenance() is None, True)
+
+    print("\n       界限表 45 個政黨中，未宣告英譯者保留原文")
+    tables = _leg_tables()
+    if tables is None:
+        print("  SKIP  找不到界限表")
+        return
+    bounds = build_bounds_data(tables[3])
+    allp = {r[0] for y in bounds["rows"] for t in bounds["rows"][y]
+            for r in bounds["rows"][y][t]}
+    retained = [p for p in allp if p not in build_site_data.LABELS_EN]
+    check("政黨總數", len(allp), 45)
+    check("保留原文者", len(retained), 36)
+
+
+@reports
+def test_english_pages_share_the_same_data() -> None:
+    """英文頁與中文頁的資料常數**逐鍵完全相同**。
+
+    ⚠️ 這條守的是「翻譯不得改動數字」。兩版若各自產生，某一版的資料
+       過時了不會有任何東西報錯——頁面照樣畫得出來。
+    """
+    print("\n[真實] 中英兩版的資料常數逐鍵相同")
+    for zh_name, en_name, markers in (
+        ("index.html", "en/index.html", (build_site_data.DATA_MARKER,)),
+        ("legislative.html", "en/legislative.html",
+         (build_site_data.LEG_MARKER, build_site_data.BOUNDS_MARKER)),
+    ):
+        zh_page = ROOT / "docs" / zh_name
+        en_page = ROOT / "docs" / en_name
+        if not en_page.exists():
+            print(f"  SKIP  找不到 {en_name}")
+            skipped.append("test_english_pages_share_the_same_data")
+            return
+        for marker in markers:
+            a = read_embedded_constant(zh_page, marker)
+            b = read_embedded_constant(en_page, marker)
+            check(f"{en_name} 的 {marker.strip()} 與中文版相同", a == b, True)
+        t_zh = read_embedded_constant(zh_page, build_site_data.STRINGS_MARKER)
+        t_en = read_embedded_constant(en_page, build_site_data.STRINGS_MARKER)
+        check(f"{en_name} 的文案 key 集合與中文版相同",
+              set(t_zh) == set(t_en), True)
+        check(f"{en_name} 的文案實際是英文（與中文版不同值）",
+              t_zh != t_en, True)
+
+
+@reports
+def test_english_bounds_states_coverage_first() -> None:
+    """英文界限區塊：涵蓋率與 mountain indigenous 在任何百分比之前。"""
+    print("\n[頁面] 英文界限區塊的涵蓋率優先於任何百分比")
+    page = ROOT / "docs" / "en" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到英文立委頁")
+        skipped.append("test_english_bounds_states_coverage_first")
+        return
+    raw = page.read_text(encoding="utf-8")
+    body = raw.split('<section id="bounds">', 1)[1].split("</section>", 1)[0]
+    text = re.sub(r"<[^>]+>", "\n", body)
+    pcts = [m for m in re.finditer(r"[0-9]+(?:\.[0-9]+)?%", text)]
+    check("靜態文字裡有百分比", bool(pcts), True)
+    check("第一個百分比是涵蓋率 11.0%", pcts[0].group(0), "11.0%")
+    check("mountain indigenous 早於第一個百分比",
+          text.index("mountain indigenous") < pcts[0].start(), True)
+    heading = re.search(r"<h2>(.*?)</h2>", body, re.S).group(1)
+    check("標題不宣稱是全體原住民的政黨傾向",
+          "party leaning of indigenous" in heading, False)
+
+
+@reports
+def test_recursive_enumeration_is_load_bearing() -> None:
+    """涵蓋檢查必須遞迴，否則子目錄的頁面會被靜默跳過。
+
+    ⚠️ 成對驗證：同一個破壞下，列入英文頁的檢查抓得到、未列入的抓不到。
+       這證明「列舉涵蓋子目錄」不是可有可無。
+    """
+    print("\n[真實] 遞迴列舉是承重的")
+    docs = ROOT / "docs"
+    rg = {p.relative_to(docs).as_posix() for p in docs.rglob("*.html")}
+    g = {p.relative_to(docs).as_posix() for p in docs.glob("*.html")}
+    check("rglob 看到五頁", len(rg), 5)
+    check("glob 只看到三頁", len(g), 3)
+    check("差集正是兩個英文頁", rg - g,
+          {"en/index.html", "en/legislative.html"})
+
+    page = ROOT / "docs" / "en" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到英文立委頁")
+        skipped.append("test_recursive_enumeration_is_load_bearing")
+        return
+    notice = build_site_data.STRINGS["current_term_notice"]["en"]
+    orig = page.read_text(encoding="utf-8")
+    try:
+        page.write_text(orig.replace(notice, "", 1), encoding="utf-8")
+        check_raises_msg("列入英文頁 → 抓得到",
+                         build_site_data.check_current_term_notice,
+                         "en/legislative.html")
+        old = dict(build_site_data.PAGES_REQUIRING_NOTICE)
+        del build_site_data.PAGES_REQUIRING_NOTICE["en/legislative.html"]
+        try:
+            build_site_data.check_current_term_notice()
+            check("未列入英文頁 → 抓不到（所以列舉必須涵蓋子目錄）", True, True)
+        except SiteDataError:
+            check("未列入英文頁 → 抓不到（所以列舉必須涵蓋子目錄）", False, True)
+        finally:
+            build_site_data.PAGES_REQUIRING_NOTICE.clear()
+            build_site_data.PAGES_REQUIRING_NOTICE.update(old)
+    finally:
+        page.write_text(orig, encoding="utf-8")
+    check("還原後通過",
+          build_site_data.check_current_term_notice() is None, True)
+
+
+@reports
+def test_static_qualifiers_match_strings() -> None:
+    """靜態限定語必須與 STRINGS 逐字相同。"""
+    print("\n[真實] 靜態限定語與 STRINGS 逐字相同")
+    check("基準通過",
+          build_site_data.check_static_qualifiers() is None, True)
+    page = ROOT / "docs" / "en" / "legislative.html"
+    if not page.exists():
+        print("  SKIP  找不到英文立委頁")
+        skipped.append("test_static_qualifiers_match_strings")
+        return
+    orig = page.read_text(encoding="utf-8")
+    want = build_site_data.STRINGS["datasets_not_comparable"]["en"]
+    try:
+        # 把限定語「改順」——這正是翻譯時最容易發生的弱化
+        page.write_text(orig.replace(want, "Figures differ between pages.", 1),
+                        encoding="utf-8")
+        check_raises_msg("限定語被改寫即中止",
+                         build_site_data.check_static_qualifiers,
+                         "datasets_not_comparable")
+    finally:
+        page.write_text(orig, encoding="utf-8")
+    check("還原後通過",
+          build_site_data.check_static_qualifiers() is None, True)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -1245,7 +1447,13 @@ def main() -> int:
                test_existing_pages_still_reproduce,
                test_publication_record_covers_every_page,
                test_current_term_notice_is_present_and_named,
-               test_frozen_indicator_shape_does_not_grow):
+               test_frozen_indicator_shape_does_not_grow,
+               test_strings_complete_and_fields_match,
+               test_labels_have_provenance,
+               test_english_pages_share_the_same_data,
+               test_english_bounds_states_coverage_first,
+               test_recursive_enumeration_is_load_bearing,
+               test_static_qualifiers_match_strings):
         try:
             fn()
         except AssertionError:

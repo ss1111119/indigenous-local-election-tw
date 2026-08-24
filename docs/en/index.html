@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>原住民族地方選舉九屆</title>
-<meta name="description" content="1994–2022 九屆原住民族相關地方公職選舉的投票率、政黨、性別與席次規模，資料來自中選會選舉資料庫。">
+<title>Indigenous Local Elections, Nine Terms</title>
+<meta name="description" content="Turnout, party composition, gender and seat scale across nine terms (1994-2022) of Taiwan's indigenous local public office elections, from the Central Election Commission's election database.">
 <meta property="og:type" content="article">
-<meta property="og:title" content="原住民族地方選舉九屆">
-<meta property="og:description" content="1994–2022 九屆原住民族相關地方公職選舉的投票率、政黨、性別與席次規模，資料來自中選會選舉資料庫。">
-<meta property="og:locale" content="zh_TW">
-<link rel="alternate" hreflang="zh-Hant" href="index.html">
-<link rel="alternate" hreflang="en" href="en/index.html">
+<meta property="og:title" content="Indigenous Local Elections, Nine Terms">
+<meta property="og:description" content="Turnout, party composition, gender and seat scale across nine terms (1994-2022) of Taiwan's indigenous local public office elections.">
+<meta property="og:locale" content="en">
+<link rel="alternate" hreflang="zh-Hant" href="../index.html">
+<link rel="alternate" hreflang="en" href="index.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
@@ -140,194 +140,219 @@ svg{display:block;overflow:visible}
 
 <div class="wrap">
 <header>
-  <p class="eyebrow">中選會選舉資料庫 · 1994 / 1998 / 2002 / 2005 / 2006 / 2009-2010 / 2014 / 2018 / 2022</p>
-  <h1>原住民族相關<br>地方選舉九屆概況</h1>
-  <p class="lede">以數字呈現為主，另說明比較限制與不可由本資料推出的結論。<strong>不解釋成因。</strong>
-    每個數字都可從專案的三張長表重新算出。</p>
+  <p class="eyebrow">CEC election database &middot; 1994 / 1998 / 2002 / 2005 / 2006 / 2009-2010 / 2014 / 2018 / 2022</p>
+  <h1>Indigenous Local Elections<br>Nine Terms</h1>
+  <p class="lede">Mostly figures, plus the limits on comparing them and the conclusions this data cannot support.
+    <strong>No causes are explained.</strong>
+    Every number here can be recomputed from the project's three long tables.</p>
   <div class="meta">
-    <span>來源　中央選舉委員會 votedata.zip</span>
-    <span>雜湊　84740535…</span>
-    <span>授權　政府資料開放授權條款第 1 版</span>
+    <span>Source&nbsp;&nbsp;Central Election Commission votedata.zip</span>
+    <span>Hash&nbsp;&nbsp;84740535&hellip;</span>
+    <span>Licence&nbsp;&nbsp;Open Government Data Licence v1.0</span>
   </div>
-  <nav class="nav"><a href="index.html" aria-current="page">概況</a><a href="roster.html">名錄：逐選舉區的候選人與當選人</a><a href="legislative.html">立委與政黨傾向 →</a><a href="en/index.html" hreflang="en">English</a></nav>
+  <nav class="nav"><a href="index.html" aria-current="page">Overview</a><a href="../roster.html">Roster (Chinese)</a><a href="legislative.html">Legislators &amp; party leaning</a><a href="../index.html" hreflang="zh-Hant">中文</a></nav>
+  <div class="limit">
+    <p class="lt">About this translation</p>
+    <p>This page is translated by the project and has not been reviewed by a native speaker. The Chinese version governs.
+      Election-type names are rendered by this project and are not official translations; where a name has no established
+      English form it is kept in Chinese. The Chinese original is at <a href="../index.html" hreflang="zh-Hant">index.html</a>.
+      The roster page has no English version: it lists 4,607 candidate names, and this project has no authoritative
+      romanisation for them.</p>
+  </div>
 </header>
 
 <section>
-  <div class="sh"><span class="sn">範圍</span><h2>涵蓋什麼、不涵蓋什麼</h2></div>
-  <div class="col"><p>這不是原住民族地方選舉的完整清單。<strong>T1 議員（區域）是參考組，不是原住民資料</strong>；
-    R2 只是該鄉鎮的平地原住民代表席次，不是全部席次。</p></div>
+  <div class="sh"><span class="sn">Scope</span><h2>What is covered, and what is not</h2></div>
+  <div class="col"><p>This is not a complete list of indigenous local elections.
+    <strong>T1 (regional councilors) is a reference group, not indigenous data</strong>;
+    R2 covers only the plain indigenous representative seats in those townships, not all of their seats.</p></div>
   <div class="tw"><table><thead><tr>
-    <th>代碼</th><th style="text-align:left">選舉種類</th><th style="text-align:left">性質</th><th>2022 席次</th>
+    <th>Code</th><th style="text-align:left">Election type</th><th style="text-align:left">Nature</th><th>2022 seats</th>
   </tr></thead><tbody id="t-scope"></tbody></table></div>
   <div class="limit">
-    <p class="lt">屆別與缺漏</p>
-    <p><strong>2009-2010 是同一輪任期、分兩次投票</strong>——2014 年九合一整併之前，
-      縣市議員（2009-12-05）與直轄市議員（2010-11-27）的選舉不同天。
-      這是<strong>本專案的建模判斷</strong>，不是來源直接給的分屆方式。</p>
-    <p>該屆<strong>只有 T2／T3／T1</strong>：D2／R3 當時不存在；R2 因 2010 年的鄉鎮市民代表
-      為全國合併檔、無法分離平地原住民席次而未納入。
-      <strong>該屆沒有的選舉種類一律標示為不存在，不以 0 填補</strong>——
-      折線圖留空、表格寫「無此選舉」或「—」。</p>
-    <p>⚠️ <strong>該屆的行政區代碼是完全不同的編碼</strong>，與 2014 起的不可互通
-      （2009 宜蘭縣 <code>03,002</code>、2010 臺北市 <code>01,000</code>，而 2014+ 是
-      <code>10,002</code>／<code>63,000</code>）。跨屆比對行政區時必須排除。</p>
-    <p><strong>未涵蓋</strong>：原住民族地區的鄉鎮市長與鄉鎮市民代表（區域席次）、村里長、縣市長。</p>
-    <p>⚠️ <strong>1994 沒有縣市議員資料</strong>——壓縮檔內只有台灣省議員與直轄市議員。
-      該選舉是否舉行過本專案未查證，只能說 zip 裡沒有。所以 1994 的原住民席次只有 6 席、
-      1998 是 55 席，<strong>兩者不可畫成同一條折線</strong>——會被讀成參政權在 1998 爆炸性擴張。</p>
-    <p>⚠️ <strong>1994 台灣省議員與各屆直轄市「原住民」合併類別不進任何跨屆圖表</strong>，
-      在最後一節單獨呈現。省議會 1998 年精省後廢除；合併類別未分平地／山地，
-      與 T2／T3 的粒度不同。</p>
+    <p class="lt">Terms and gaps</p>
+    <p><strong>2009-2010 is one term of office voted on two dates</strong> &mdash; before the 2014 consolidation,
+      county councilors (2009-12-05) and special municipality councilors (2010-11-27) did not vote on the same day.
+      Treating them as one term is <strong>this project's modelling judgement</strong>, not a division the source supplies.</p>
+    <p>That term has <strong>only T2, T3 and T1</strong>: D2 and R3 did not yet exist; R2 is excluded because the 2010
+      township representative file is a single national file from which plain indigenous seats cannot be separated.
+      <strong>An election type absent in a term is marked as absent, never filled with 0</strong> &mdash;
+      the line is left blank and the table says "no such election" or an em dash.</p>
+    <p>&#9888; <strong>That term's administrative codes are an entirely different encoding</strong>, not interchangeable
+      with 2014 onward (2009 Yilan County <code>03,002</code>, 2010 Taipei City <code>01,000</code>; from 2014 they are
+      <code>10,002</code> and <code>63,000</code>). Cross-term comparison by administrative unit must exclude it.</p>
+    <p><strong>Not covered</strong>: township mayors and township representatives (regional seats) in indigenous areas,
+      village chiefs, and county magistrates or city mayors.</p>
+    <p>&#9888; <strong>There is no 1994 county councilor data</strong> &mdash; the archive contains only Taiwan Provincial
+      Assembly members and special municipality councilors. Whether that election was held is not something this project
+      verified; only that it is not in the zip. So 1994 shows 6 indigenous seats and 1998 shows 55, and
+      <strong>the two must not be drawn as one line</strong> &mdash; it would read as an explosion of representation in 1998.</p>
+    <p>&#9888; <strong>1994 provincial assembly members and the combined special-municipality "indigenous" category are
+      excluded from every cross-term chart</strong> and shown separately in the last section. The provincial assembly was
+      abolished in 1998; the combined category does not split plain from mountain, so its granularity differs from T2/T3.</p>
   </div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">01</span><h2>投票率</h2></div>
-  <div class="col"><p>縣市議員（T2／T3）的序列自 1998 年起連續，共七個時間點；
-    D2／R3／R2 三種 2014 年才成立，只有三個時間點。以下的敘述只涵蓋
-    <strong>2009-2010 以後</strong>——更早的屆別本次首度納入，尚未逐段比對。</p>
-    <p><strong>T2 與 T3 從 2009-2010 一路上升到 2018</strong>（分別 +3.08／+1.00 與 +4.98／+0.56 個百分點），
-    <strong>2018→2022 才全部下降</strong>，六種幅度 4.51 至 7.33。
-    參考組 T1 則是三段都下降，但前兩段各僅 0.86 與 0.69，最後一段降 5.83。</p></div>
+  <div class="sh"><span class="sn">01</span><h2>Turnout</h2></div>
+  <div class="col"><p>The county councilor series (T2/T3) runs continuously from 1998, seven points in all;
+    D2, R3 and R2 were created only in 2014 and have three. The description below covers
+    <strong>2009-2010 onward</strong> only &mdash; the earlier terms were added in this round and have not yet been
+    compared segment by segment.</p>
+    <p><strong>T2 and T3 rose from 2009-2010 through 2018</strong> (+3.08/+1.00 and +4.98/+0.56 percentage points),
+    and <strong>only 2018&rarr;2022 fell across the board</strong>, by 4.51 to 7.33 points in all six types.
+    The reference group T1 fell in all three segments, but the first two by only 0.86 and 0.69; the last by 5.83.</p></div>
   <figure>
     <div class="grid" id="c-turnout"></div>
-    <figcaption>各面板共用 45–85% 的縱軸，故高低可直接比較。
-      <strong>只標首尾兩點的數值</strong>——七個資料點擠在同一個小面板裡，逐點標會疊在一起；
-      中間各點請看下方表格或滑過資料點。
-      <strong>沒有資料點的屆別表示該屆沒有這種選舉</strong>，不是 0——D2／R3 的直轄市原住民區依 2014 年修正的
-      地方制度法設立，R2 則因 2010 年的鄉鎮市民代表為全國合併檔而無法分離平地原住民席次。
-      算法為投票數 ÷ 選舉人數；分兩份檔案者為相加後重算的<strong>本專案計算值</strong>。</figcaption>
+    <figcaption>All panels share a 45&ndash;85% axis, so heights are directly comparable.
+      <strong>Only the first and last point are labelled</strong> &mdash; seven points in one small panel would overlap;
+      the values in between are in the table below or on hover.
+      <strong>A missing point means that election did not exist in that term</strong>, not that it was 0: the
+      indigenous districts behind D2 and R3 were created by the 2014 amendment to the Local Government Act, and R2 could
+      not be separated out of the 2010 national township file.
+      Turnout is votes cast divided by electors; where an election spans two files it is
+      <strong>recomputed by this project</strong> after adding them.</figcaption>
   </figure>
   <div class="limit">
-    <p class="lt">本資料不足以支持</p>
-    <p>「投票率持續下滑」——2009-2010 以後的四個時間點顯示，T2／T3 在 2022 之前是<strong>上升</strong>的，
-      下降集中在最後一屆。<br>
-      「原住民投票意願下降」——參考組 T1 同期亦下降 5.83 個百分點。<br>
-      任何成因。</p>
-    <p><strong>本專案在這裡犯錯過兩次。</strong>只有 2018／2022 兩屆時寫成「下滑」；
-      加入 2014 後改成「前段持平」；加入 2009-2010 後才看出 T2／T3 前段其實是<strong>上升</strong>。
-      <strong>每多一個點，前面的解讀就被改寫一次。</strong></p>
+    <p class="lt">What this data does not support</p>
+    <p>"Turnout is in continuous decline" &mdash; across the four points from 2009-2010 onward, T2 and T3
+      <strong>rose</strong> until 2022; the fall is concentrated in the final term.<br>
+      "Indigenous willingness to vote is falling" &mdash; the reference group T1 fell 5.83 points over the same period.<br>
+      Any causal claim.</p>
+    <p><strong>This project got this wrong twice.</strong> With only 2018 and 2022 it wrote "declining";
+      adding 2014 changed it to "flat then declining"; only after adding 2009-2010 did it become clear that T2 and T3
+      had been <strong>rising</strong>. <strong>Each additional point rewrote the previous reading.</strong></p>
   </div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">02</span><h2>政黨</h2></div>
-  <div class="col"><p>下圖為<strong>當選席次</strong>的政黨組成，每段直接標註席次數。
-    「無黨籍」是原始檔政黨代碼 <code>999</code>，官方名稱為「無黨籍及未經政黨推薦」，
-    包含未獲任何政黨推薦者。<strong>1994–2005 的原始檔用的是代碼 <code>99</code>、名稱「無」</strong>，
-    本頁併入同一類，所以舊屆也看得到無黨籍席次。</p></div>
+  <div class="sh"><span class="sn">02</span><h2>Parties</h2></div>
+  <div class="col"><p>The chart shows the party composition of <strong>seats won</strong>, each segment labelled with its
+    seat count. "Independent" is party code <code>999</code> in the source, officially
+    "independent / not party-nominated", which includes anyone without a party nomination.
+    <strong>The 1994&ndash;2005 files use code <code>99</code> and the name "none"</strong>; this page merges them into the
+    same category, which is why the older terms show independent seats at all.</p></div>
   <figure>
     <div class="legend" id="l-party"></div>
     <div class="grid" id="c-party"></div>
-    <figcaption>每個面板由上而下為該種選舉存在的各屆，條長按該屆總席次歸一化。
-      段內數字為席次；<strong>段太窄時不標</strong>，那些數字在下方表格裡都有。
-      「其他各政黨」含親民黨、台灣民眾黨等。</figcaption>
+    <figcaption>Each panel runs top to bottom through the terms in which that election existed; bar length is normalised
+      to that term's total seats. Numbers inside a segment are seats;
+      <strong>segments too narrow to label are left unlabelled</strong>, and those values are all in the table below.
+      "All other parties" includes the People First Party, the Taiwan People's Party and others.</figcaption>
     <details class="dt">
-      <summary>以表格檢視（含圖中未標註的窄段）</summary>
+      <summary>View as a table (including the narrow segments left unlabelled)</summary>
       <div class="tw"><table id="t-party"></table></div>
     </details>
   </figure>
   <div class="limit">
-    <p class="lt">限制</p>
-    <p>以上為<strong>席次數，不是得票數</strong>。政黨得票率需另從得票長表計算，本頁未計。</p>
-    <p>民主進步黨在 T3 三屆共出現 <strong>10 筆候選人紀錄，皆未當選</strong>；在 R3 三屆無候選人紀錄。
-      原始檔<strong>沒有跨屆候選人識別碼</strong>，故一律稱「候選人紀錄數」而非「人數」。</p>
+    <p class="lt">Limits</p>
+    <p>These are <strong>seat counts, not votes</strong>. Party vote share would have to be computed from the votes long
+      table, which this page does not do.</p>
+    <p>The DPP appears in T3 across three terms as <strong>10 candidate records, none elected</strong>, and has no
+      candidate records in R3. The source files carry <strong>no cross-term candidate identifier</strong>, so this page
+      always says "candidate records" rather than "people".</p>
   </div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">03</span><h2>性別</h2></div>
-  <div class="col"><p>每個方格代表一個當選席次，實心為女性當選人。</p></div>
+  <div class="sh"><span class="sn">03</span><h2>Gender</h2></div>
+  <div class="col"><p>Each cell is one seat won; filled cells are women.</p></div>
   <figure>
     <div class="grid" id="c-gender"></div>
-    <figcaption>T1 席次逾 800，改以比例條呈現。括號內為女性候選人紀錄數／總候選人紀錄數。</figcaption>
+    <figcaption>T1 has over 800 seats and is shown as a proportion bar instead. Figures in parentheses are women's
+      candidate records over total candidate records.</figcaption>
   </figure>
   <div class="limit">
-    <p class="lt">D2 直轄市原住民區長</p>
-    <p><strong>三屆共 18 個當選席次，女性當選 0 席。</strong>同期女性候選人紀錄為
-      2014 年 1 筆、2018 年 2 筆、2022 年 0 筆——<strong>有女性參選，但三屆都沒有當選。</strong></p>
-    <p>D2 每屆僅 6 席，<strong>每 1 席就相當於 16.7 個百分點</strong>。以上為這 6 席的全數觀察，
-      不是抽樣估計，但不足以支撐任何關於原因或一般規律的推論。</p>
+    <p class="lt">D2, indigenous district chiefs</p>
+    <p><strong>18 seats won across three terms; women won 0.</strong> Women's candidate records over the same period were
+      1 in 2014, 2 in 2018 and 0 in 2022 &mdash; <strong>women did stand, and none were elected in any of the three terms.</strong></p>
+    <p>D2 has only 6 seats per term, so <strong>one seat is 16.7 percentage points</strong>. This is a complete count of
+      those 6 seats, not a sample estimate, but it cannot support any claim about causes or general patterns.</p>
   </div>
   <div class="tw"><table><thead><tr>
-    <th style="text-align:left">婦女保障當選（原始檔註記 <code>!</code>）</th>
+    <th style="text-align:left">Elected under the women's quota (source mark <code>!</code>)</th>
   </tr></thead><tbody id="t-quota"></tbody></table></div>
   <div class="limit">
-    <p class="lt">容易漏算</p>
-    <p><strong>只數 <code>*</code> 會漏掉這些席次，而且不會報錯。</strong>
-      本專案保留原始註記於「當選註記」欄，<code>*</code> 與 <code>!</code> 都屬當選；
-      本站的席次一律取自「當選」欄——它是跨 elcand／elctks／elprof 比對後的權威判定，
-      不直接沿用註記（2005 兩個檔的註記已損壞，少標 19 席）。
-      原始檔另有 <code>-</code>（因婦女保障被排擠未當選）。
-      ⚠️ <strong>本專案先前誤稱三屆中未出現 <code>-</code></strong>——實際上 2014 年 12 筆、
-      2018 年 8 筆，全部為男性且全部計為未當選。</p>
+    <p class="lt">Easily miscounted</p>
+    <p><strong>Counting only <code>*</code> misses these seats, and nothing reports an error.</strong>
+      This project keeps the source mark in its own field; both <code>*</code> and <code>!</code> count as elected.
+      Seats on this site always come from the authoritative elected field &mdash; a judgement reconciled across the
+      candidate, vote and profile files &mdash; not from the source mark, which is corrupt in two 2005 files and
+      under-counts 19 seats. The source also uses <code>-</code> for a candidate displaced by the women's quota.
+      &#9888; <strong>This project previously claimed <code>-</code> never appears in the three recent terms</strong> &mdash;
+      in fact there are 12 in 2014 and 8 in 2018, all men, all correctly counted as not elected.</p>
   </div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">04</span><h2>規模、現任者與同額競選</h2></div>
+  <div class="sh"><span class="sn">04</span><h2>Scale, incumbents and uncontested seats</h2></div>
   <div class="tw"><table id="t-scale"></table></div>
   <div class="limit">
-    <p class="lt">限制</p>
-    <p>D2 與 R3 在同一批原住民區、同日舉行，選舉人母體高度重疊，
-      但<strong>兩者的官方選舉人數並不完全相同</strong>（2022：31,807 與 31,803）。
-      <strong>不同選舉種類之間不可相加</strong>，相加會嚴重重複計算。</p>
-    <p>T1 涵蓋<strong>從六都會區到農業縣的全部區域議員選區</strong>，放在這裡只是提供全國背景基線；
-      把它當成「其他條件相同的對照」是錯的。</p>
-    <p>D2 與 R3 在 2014 年沒有任何現任者參選——直轄市原住民區依 2014 年修正的地方制度法設立，
-      該屆是第一次選舉。</p>
+    <p class="lt">Limits</p>
+    <p>D2 and R3 are held in the same indigenous districts on the same day and their electorates overlap heavily, but
+      <strong>their official elector counts are not identical</strong> (2022: 31,807 and 31,803).
+      <strong>Different election types must not be added together</strong>; doing so double-counts severely.</p>
+    <p>T1 covers <strong>every regional councilor district, from the six metropolitan areas to rural counties</strong>.
+      It is here only as a national baseline; treating it as an otherwise-comparable control is wrong.</p>
+    <p>D2 and R3 had no incumbents standing in 2014 &mdash; the indigenous districts were created by the 2014 amendment
+      to the Local Government Act, and that was the first election.</p>
   </div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">附錄</span><h2>全國選舉人數 ÷ 席次的粗略比值</h2></div>
+  <div class="sh"><span class="sn">Appendix</span><h2>National electors divided by seats, as a rough ratio</h2></div>
   <div class="limit">
-    <p class="lt">這不是代表性指標</p>
-    <p>本專案<strong>尚未定義</strong>地方層級的代表性指標。此處僅呈現一個可重現的描述性比值。</p>
-    <p>它是全國加總後相除，<strong>會掩蓋地方差異</strong>；且<strong>不宜將不同選舉種類的比值
-      直接用來比較代表性或公平性</strong>——R3 與 T1 測量的是不同制度單位，
-      職位層級、選區地理範圍、職權皆不同。</p>
+    <p class="lt">This is not a representation metric</p>
+    <p>This project <strong>has not defined</strong> a representation metric at the local level. What follows is only a
+      reproducible descriptive ratio.</p>
+    <p>It divides a national total, so it <strong>hides local variation</strong>; and
+      <strong>ratios from different election types should not be compared as representation or fairness</strong> &mdash;
+      R3 and T1 measure different institutional units, differing in level of office, geographic scope and powers.</p>
   </div>
   <div class="tw"><table id="t-perseat"></table></div>
 </section>
 
 <section>
-  <div class="sh"><span class="sn">另計</span><h2>不進跨屆折線的兩種職位</h2></div>
+  <div class="sh"><span class="sn">Separate</span><h2>Two office types kept out of the cross-term lines</h2></div>
   <div class="col">
-    <p>上面所有圖表都<strong>不含</strong>這一節的資料。它們是本專案自訂的選舉種類代碼
-      （官方對照表只涵蓋 2022 年，這兩類職位在其中不存在），代碼刻意含連字號以示區別。</p>
-    <p><strong>臺灣省議員（<code>T-PRV2</code>／<code>T-PRV3</code>）</strong>——
-      省議會於 1998 年精省後<strong>廢除</strong>，與現行縣市議員是不同的職位，不可相加。
-      1994 年的「平原」與「平原2」是<strong>兩個選舉區</strong>，不是重複檔（候選人完全不同）。
-      該檔的 <code>elbase</code> 只有「臺灣省」一列，來源沒有選舉區的名稱。</p>
-    <p><strong>直轄市議員「原住民」合併類別（<code>T-COMBO</code>）</strong>——
-      1994／1998／2002／2006 各 2 席（臺北市、高雄市各 1）。
-      <strong>未分平地／山地</strong>：來源的 <code>elbase</code> 沒有選舉區層級、
-      <code>elcand</code> 的選舉區欄全是 <code>00</code>，<strong>沒有任何欄位可以拆分</strong>。
-      T2 與 T3 互斥，而這個類別是兩者的聯集，所以它<strong>兩者都不是</strong>。</p>
+    <p>None of the charts above include this section's data. These are election-type codes coined by this project
+      (the official code table covers only 2022, and neither office exists in it); the codes contain a hyphen to mark
+      them as such.</p>
+    <p><strong>Taiwan Provincial Assembly members (<code>T-PRV2</code> / <code>T-PRV3</code>)</strong> &mdash;
+      the provincial assembly was <strong>abolished</strong> when the province was streamlined in 1998. It is a different
+      office from today's county councilors and must not be added to them.
+      The 1994 "plain" and "plain 2" files are <strong>two constituencies</strong>, not a duplicate
+      (the candidates are entirely different). That file's base record has a single row for "Taiwan Province";
+      the source gives no constituency name.</p>
+    <p><strong>The combined special-municipality "indigenous" councilor category (<code>T-COMBO</code>)</strong> &mdash;
+      2 seats in each of 1994, 1998, 2002 and 2006 (one each in Taipei and Kaohsiung).
+      <strong>Plain and mountain are not split</strong>: the source base file has no constituency level and the
+      candidate file's constituency column is <code>00</code> throughout, so <strong>no field can separate them</strong>.
+      T2 and T3 are mutually exclusive, and this category is their union &mdash; so it is <strong>neither</strong>.</p>
   </div>
   <div class="limit">
-    <p class="lt">為什麼不畫成折線</p>
-    <p>1994 年的原住民席次只有 <strong>6 席</strong>（省議員 4＋直轄市合併 2），1998 年是
-      <strong>55 席</strong>。把兩者接成一條線會被讀成<strong>參政權在 1998 年爆炸性擴張</strong>——
-      實際只是壓縮檔內<strong>沒有 1994 年的縣市議員資料</strong>。
-      該選舉是否舉行過本專案未查證，只能說 zip 裡沒有。</p>
+    <p class="lt">Why this is not drawn as a line</p>
+    <p>1994 has <strong>6</strong> indigenous seats (4 provincial plus 2 combined municipality); 1998 has
+      <strong>55</strong>. Joining them into one line would read as an
+      <strong>explosion of representation in 1998</strong> &mdash; when in fact the archive simply
+      <strong>has no 1994 county councilor data</strong>. Whether that election was held is not something this project
+      verified; only that it is not in the zip.</p>
   </div>
   <div class="tw"><table id="t-custom"></table></div>
 </section>
 
-<p class="foot">重現：<code>python scripts/build_local_election.py</code> 產生三張長表，
-  <code>python scripts/test_build_local_election.py</code> 跑 22 組、451 項檢查。
-  建置時執行 74 個中止點的自我驗證（讀檔期、鄉鎮市區正規化、當選權威值、年齡哨兵、跨檔對帳五階段），
-  任何一項不通過即中止。站台的資料常數由
-  <code>python scripts/build_site_data.py</code> 產生，不手動維護。</p>
+<p class="foot">Reproduce: <code>python scripts/build_local_election.py</code> builds the three long tables;
+  <code>python scripts/test_build_local_election.py</code> runs 22 groups and 451 checks.
+  The build runs 74 abort points of self-verification (read time, township code normalisation, authoritative elected
+  value, age sentinel, and five stages of cross-file reconciliation); any failure aborts the build.
+  The site's data constants are generated by <code>python scripts/build_site_data.py</code> and never maintained by hand.</p>
 </div>
 <div id="tip"></div>
 
 <script>
 const DATA = {"types":[{"code":"T2","name":"議員(平地原住民)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":{"electors":106061,"votes":57609,"turnout":54.32,"seats":23,"cands":69,"districts":14,"party":{"中國國民黨":[23,51],"無黨籍及未經政黨推薦":[0,14],"民主進步黨":[0,3],"其他":[0,1]},"femaleSeats":3,"femaleCands":9,"quota":0,"displaced":0,"incCands":17,"incWon":12,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4611},"2002":{"electors":118940,"votes":60706,"turnout":51.04,"seats":26,"cands":67,"districts":16,"party":{"中國國民黨":[17,33],"無黨籍及未經政黨推薦":[2,17],"民主進步黨":[1,3],"其他":[6,14]},"femaleSeats":5,"femaleCands":7,"quota":0,"displaced":0,"incCands":20,"incWon":13,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4575},"2005":{"electors":133766,"votes":72501,"turnout":54.2,"seats":27,"cands":65,"districts":17,"party":{"中國國民黨":[16,32],"無黨籍及未經政黨推薦":[7,21],"民主進步黨":[0,3],"其他":[4,9]},"femaleSeats":6,"femaleCands":12,"quota":0,"displaced":0,"incCands":25,"incWon":19,"uncontestedDist":3,"uncontestedSeats":4,"perSeat":4954},"2006":null,"2009-2010":{"electors":160576,"votes":89731,"turnout":55.88,"seats":31,"cands":69,"districts":19,"party":{"中國國民黨":[22,41],"無黨籍及未經政黨推薦":[6,22],"民主進步黨":[2,3],"其他":[1,3]},"femaleSeats":8,"femaleCands":18,"quota":1,"displaced":1,"incCands":18,"incWon":12,"uncontestedDist":3,"uncontestedSeats":4,"perSeat":5180},"2014":{"electors":179268,"votes":105688,"turnout":58.96,"seats":33,"cands":77,"districts":21,"party":{"中國國民黨":[22,40],"無黨籍及未經政黨推薦":[7,27],"民主進步黨":[2,4],"其他":[2,6]},"femaleSeats":12,"femaleCands":25,"quota":0,"displaced":0,"incCands":25,"incWon":19,"uncontestedDist":4,"uncontestedSeats":5,"perSeat":5432},"2018":{"electors":192460,"votes":115407,"turnout":59.96,"seats":34,"cands":84,"districts":22,"party":{"中國國民黨":[22,34],"無黨籍及未經政黨推薦":[11,35],"民主進步黨":[1,7],"其他":[0,8]},"femaleSeats":13,"femaleCands":28,"quota":0,"displaced":0,"incCands":25,"incWon":16,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5661},"2022":{"electors":202477,"votes":106573,"turnout":52.63,"seats":34,"cands":73,"districts":22,"party":{"中國國民黨":[18,28],"無黨籍及未經政黨推薦":[14,32],"民主進步黨":[2,8],"其他":[0,5]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":33,"incWon":28,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5955}}},{"code":"T3","name":"議員(山地原住民)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":{"electors":121727,"votes":86261,"turnout":70.86,"seats":30,"cands":80,"districts":30,"party":{"中國國民黨":[26,51],"無黨籍及未經政黨推薦":[3,23],"民主進步黨":[0,3],"其他":[1,3]},"femaleSeats":5,"femaleCands":15,"quota":0,"displaced":0,"incCands":17,"incWon":11,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":4058},"2002":{"electors":133338,"votes":91031,"turnout":68.27,"seats":30,"cands":85,"districts":30,"party":{"中國國民黨":[22,44],"無黨籍及未經政黨推薦":[4,27],"民主進步黨":[0,0],"其他":[4,14]},"femaleSeats":5,"femaleCands":15,"quota":0,"displaced":0,"incCands":14,"incWon":9,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":4445},"2005":{"electors":147145,"votes":101690,"turnout":69.11,"seats":30,"cands":66,"districts":30,"party":{"中國國民黨":[20,39],"無黨籍及未經政黨推薦":[8,21],"民主進步黨":[0,1],"其他":[2,5]},"femaleSeats":4,"femaleCands":9,"quota":0,"displaced":0,"incCands":15,"incWon":12,"uncontestedDist":7,"uncontestedSeats":7,"perSeat":4905},"2006":null,"2009-2010":{"electors":170513,"votes":115572,"turnout":67.78,"seats":32,"cands":79,"districts":32,"party":{"中國國民黨":[26,51],"無黨籍及未經政黨推薦":[6,24],"民主進步黨":[0,2],"其他":[0,2]},"femaleSeats":6,"femaleCands":15,"quota":0,"displaced":0,"incCands":19,"incWon":13,"uncontestedDist":4,"uncontestedSeats":4,"perSeat":5329},"2014":{"electors":189042,"votes":137544,"turnout":72.76,"seats":33,"cands":79,"districts":32,"party":{"中國國民黨":[20,42],"無黨籍及未經政黨推薦":[12,30],"民主進步黨":[0,3],"其他":[1,4]},"femaleSeats":9,"femaleCands":20,"quota":0,"displaced":0,"incCands":22,"incWon":15,"uncontestedDist":3,"uncontestedSeats":3,"perSeat":5729},"2018":{"electors":204127,"votes":149675,"turnout":73.32,"seats":35,"cands":98,"districts":33,"party":{"中國國民黨":[15,34],"無黨籍及未經政黨推薦":[18,54],"民主進步黨":[0,3],"其他":[2,7]},"femaleSeats":12,"femaleCands":24,"quota":0,"displaced":0,"incCands":25,"incWon":15,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5832},"2022":{"electors":216262,"votes":144164,"turnout":66.66,"seats":35,"cands":80,"districts":33,"party":{"中國國民黨":[18,25],"無黨籍及未經政黨推薦":[16,48],"民主進步黨":[0,4],"其他":[1,3]},"femaleSeats":14,"femaleCands":28,"quota":0,"displaced":0,"incCands":28,"incWon":21,"uncontestedDist":5,"uncontestedSeats":5,"perSeat":6179}}},{"code":"D2","name":"直轄市原住民區長","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":28850,"votes":23348,"turnout":80.93,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[3,8],"無黨籍及未經政黨推薦":[2,10],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":0,"femaleCands":1,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4808},"2018":{"electors":30904,"votes":24862,"turnout":80.45,"seats":6,"cands":19,"districts":6,"party":{"中國國民黨":[3,4],"無黨籍及未經政黨推薦":[3,15],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":0,"femaleCands":2,"quota":0,"displaced":0,"incCands":5,"incWon":3,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5151},"2022":{"electors":31807,"votes":23712,"turnout":74.55,"seats":6,"cands":20,"districts":6,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[5,15],"民主進步黨":[0,2],"其他":[0,1]},"femaleSeats":0,"femaleCands":0,"quota":0,"displaced":0,"incCands":4,"incWon":3,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":5301}}},{"code":"R3","name":"直轄市原住民區民代表","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":28842,"votes":23346,"turnout":80.94,"seats":50,"cands":94,"districts":16,"party":{"中國國民黨":[17,30],"無黨籍及未經政黨推薦":[33,64],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":12,"femaleCands":21,"quota":0,"displaced":0,"incCands":0,"incWon":0,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":577},"2018":{"electors":30895,"votes":24856,"turnout":80.45,"seats":50,"cands":98,"districts":16,"party":{"中國國民黨":[12,15],"無黨籍及未經政黨推薦":[38,83],"民主進步黨":[0,0],"其他":[0,0]},"femaleSeats":11,"femaleCands":18,"quota":1,"displaced":1,"incCands":39,"incWon":27,"uncontestedDist":1,"uncontestedSeats":1,"perSeat":618},"2022":{"electors":31803,"votes":23712,"turnout":74.56,"seats":50,"cands":92,"districts":16,"party":{"中國國民黨":[5,7],"無黨籍及未經政黨推薦":[45,84],"民主進步黨":[0,0],"其他":[0,1]},"femaleSeats":11,"femaleCands":19,"quota":0,"displaced":0,"incCands":43,"incWon":33,"uncontestedDist":2,"uncontestedSeats":4,"perSeat":636}}},{"code":"R2","name":"鄉(鎮、市)民代表(平原)","indigenous":true,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":{"electors":88079,"votes":55604,"turnout":63.13,"seats":68,"cands":118,"districts":24,"party":{"中國國民黨":[44,66],"無黨籍及未經政黨推薦":[23,50],"民主進步黨":[0,0],"其他":[1,2]},"femaleSeats":16,"femaleCands":31,"quota":3,"displaced":3,"incCands":50,"incWon":36,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":1295},"2018":{"electors":90281,"votes":58870,"turnout":65.21,"seats":71,"cands":131,"districts":25,"party":{"中國國民黨":[30,45],"無黨籍及未經政黨推薦":[41,81],"民主進步黨":[0,2],"其他":[0,3]},"femaleSeats":18,"femaleCands":30,"quota":3,"displaced":3,"incCands":52,"incWon":40,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":1272},"2022":{"electors":91627,"votes":55614,"turnout":60.7,"seats":72,"cands":134,"districts":27,"party":{"中國國民黨":[23,33],"無黨籍及未經政黨推薦":[47,95],"民主進步黨":[2,5],"其他":[0,1]},"femaleSeats":23,"femaleCands":42,"quota":2,"displaced":0,"incCands":57,"incWon":45,"uncontestedDist":1,"uncontestedSeats":2,"perSeat":1273}}},{"code":"T1","name":"議員(區域)","indigenous":false,"mainSequence":true,"years":{"1994":null,"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":{"electors":17335124,"votes":11883466,"turnout":68.55,"seats":843,"cands":1433,"districts":162,"party":{"中國國民黨":[371,551],"無黨籍及未經政黨推薦":[203,521],"民主進步黨":[256,302],"其他":[13,59]},"femaleSeats":255,"femaleCands":396,"quota":15,"displaced":15,"incCands":466,"incWon":396,"uncontestedDist":6,"uncontestedSeats":9,"perSeat":20564},"2014":{"electors":18084841,"votes":12241793,"turnout":67.69,"seats":841,"cands":1444,"districts":164,"party":{"中國國民黨":[344,472],"無黨籍及未經政黨推薦":[184,471],"民主進步黨":[289,363],"其他":[24,138]},"femaleSeats":257,"femaleCands":409,"quota":9,"displaced":9,"incCands":646,"incWon":542,"uncontestedDist":9,"uncontestedSeats":19,"perSeat":21504},"2018":{"electors":18656541,"votes":12499109,"turnout":67.0,"seats":843,"cands":1569,"districts":159,"party":{"中國國民黨":[357,422],"無黨籍及未經政黨推薦":[205,600],"民主進步黨":[237,397],"其他":[44,150]},"femaleSeats":282,"femaleCands":480,"quota":4,"displaced":4,"incCands":639,"incWon":528,"uncontestedDist":3,"uncontestedSeats":5,"perSeat":22131},"2022":{"electors":18710006,"votes":11445404,"turnout":61.17,"seats":841,"cands":1524,"districts":160,"party":{"中國國民黨":[331,404],"無黨籍及未經政黨推薦":[197,533],"民主進步黨":[275,368],"其他":[38,219]},"femaleSeats":314,"femaleCands":485,"quota":4,"displaced":0,"incCands":684,"incWon":600,"uncontestedDist":6,"uncontestedSeats":10,"perSeat":22247}}},{"code":"T-COMBO","name":"直轄市議員(原住民，未分平地／山地)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":5965,"votes":4115,"turnout":68.99,"seats":2,"cands":13,"districts":2,"party":{"中國國民黨":[1,2],"無黨籍及未經政黨推薦":[1,10],"民主進步黨":[0,1],"其他":[0,0]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":0,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":2983},"1998":{"electors":8146,"votes":6049,"turnout":74.26,"seats":2,"cands":10,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,7],"民主進步黨":[0,1],"其他":[0,0]},"femaleSeats":0,"femaleCands":2,"quota":0,"displaced":0,"incCands":3,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":4073},"2002":{"electors":11417,"votes":7263,"turnout":63.62,"seats":2,"cands":12,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,6],"民主進步黨":[0,2],"其他":[0,2]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":5709},"2005":null,"2006":{"electors":13758,"votes":7210,"turnout":52.41,"seats":2,"cands":6,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,1],"民主進步黨":[0,1],"其他":[0,2]},"femaleSeats":0,"femaleCands":3,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":6879},"2009-2010":null,"2014":null,"2018":null,"2022":null}},{"code":"T-PRV3","name":"臺灣省議員(山地原住民)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":116398,"votes":73619,"turnout":63.25,"seats":2,"cands":5,"districts":1,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,2],"民主進步黨":[0,1],"其他":[0,0]},"femaleSeats":0,"femaleCands":1,"quota":0,"displaced":0,"incCands":2,"incWon":2,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":58199},"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":null,"2018":null,"2022":null}},{"code":"T-PRV2","name":"臺灣省議員(平地原住民)","indigenous":true,"mainSequence":false,"years":{"1994":{"electors":102156,"votes":54616,"turnout":53.46,"seats":2,"cands":5,"districts":2,"party":{"中國國民黨":[2,2],"無黨籍及未經政黨推薦":[0,2],"民主進步黨":[0,1],"其他":[0,0]},"femaleSeats":0,"femaleCands":0,"quota":0,"displaced":0,"incCands":1,"incWon":1,"uncontestedDist":0,"uncontestedSeats":0,"perSeat":51078},"1998":null,"2002":null,"2005":null,"2006":null,"2009-2010":null,"2014":null,"2018":null,"2022":null}}],"years":["1994","1998","2002","2005","2006","2009-2010","2014","2018","2022"],"note2009":"2009-2010 是同一輪任期分兩次投票（縣市 2009-12-05、直轄市 2010-11-27）"};
-const T = {"current_term_notice":"本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。","bounds_qual":"以上是這 {stations} 個投開票所的數字，涵蓋 {coverage}% 的原住民選舉人，不是全體原住民的政黨傾向。其餘 {rest}% 的原住民選舉人，同樣的算術給不出有用的界限。{notice}","bounds_coverage_label":"全體原住民選舉人的涵蓋率　{electors} 人","bounds_station_heading":"原住民選舉人佔比 ≥{pct}% 的 {stations} 個投開票所","bounds_caption":"{term} 年不分區政黨票，這 {stations} 個所的觀察值與原住民得票率的界限","bounds_retained_original":"沒有官方英文名的政黨保留原文。","not_party_identification":"這不等於政黨認同","datasets_not_comparable":"兩頁的數字不可互相比較，也不可相加。","chart_party_aria":"九屆政黨得票率折線圖，數值見下方表格","chart_seat_aria":"逐屆政黨席次堆疊條，數值見下方表格","chart_turnout_aria":"{code} 投票率 {series}","tip_party":"{year}　{party}\n得票率 {share}%\n席次 {seats}","tip_seat":"{year}　{party}\n席次 {n} / {total}\n得票率 {share}%","tip_turnout":"{year}　{name}\n投票率 {turnout}%\n選舉人 {electors}\n投票數 {votes}","th_party":"政黨","th_term":"屆別","th_total":"合計","th_turnout_total":"合計投票率","th_turnout_suffix":"{name} 投票率","th_electors_suffix":"{name} 選舉人","th_threshold":"門檻","th_stations":"所數","th_coverage":"涵蓋率","th_observed":"觀察","th_observed_full":"觀察得票率","th_bounds":"界限","th_lower":"界限下界","th_upper":"界限上界","term_option":"{term} 年","covbar_aria":"涵蓋 {coverage}%，未涵蓋 {rest}%","ref_group":"參考組","ref_group_paren":"（參考組）","scope_election_name":"{name}選舉","scope_indigenous_only":"原住民專屬","scope_r2_seats":"平地原住民代表席次","scope_reference":"參考組，非原住民資料","tip_turnout_typed":"{year}　{code} {name}\n投票率 {turnout}%\n選舉人 {electors}\n投票數 {votes}","chart_party_seats_aria":"{code} 各屆政黨席次組成","tip_party_seats":"{year}　{code}\n{label}\n當選 {seats} 席 / 共 {total} 席\n候選人紀錄 {cands} 筆","tip_gender":"{year}　{code} {name}\n女性當選 {fseats} / {seats} 席\n女性候選人紀錄 {fcands} / {cands} 筆","note_candidates_prefix":"候選人 ","th_election_type":"選舉種類","th_total_seats":"總席次","th_electors":"選舉人數","th_votes":"投票數","th_turnout":"投票率","th_seats":"席次","th_cand_records":"候選人紀錄","th_districts":"選舉區","th_incumbent":"現任當選/參選","th_uncontested":"同額選區/席次","no_such_election":"無此選舉","no_incumbent":"無現任","zero_women_note":"T3、D2 各屆皆為 0（已確認，非漏算）","party_label_kmt":"中國國民黨","party_label_independent":"999 無黨籍及未經政黨推薦","party_label_dpp":"民主進步黨","party_label_other":"其他各政黨","self_translated":"本頁為專案自譯。"};
-const L = {};
+const T = {"current_term_notice":"These are historical figures from 2008–2024. They do not represent the 2026 election now under way.","bounds_qual":"These figures describe {stations} polling stations covering {coverage}% of indigenous electors. They are not the party leaning of indigenous people as a whole. For the remaining {rest}%, the same arithmetic yields no useful bound. {notice}","bounds_coverage_label":"share of all indigenous electors covered　{electors} people","bounds_station_heading":"{stations} polling stations where indigenous electors are ≥{pct}% of the roll","bounds_caption":"{term} party-list vote: observed shares at these {stations} stations, and the bounds on the indigenous vote share","bounds_retained_original":"Parties with no established English name are shown under their original Chinese name.","not_party_identification":"This is not party identification","datasets_not_comparable":"Figures on these pages cover different populations. They cannot be compared with each other, and they cannot be added.","chart_party_aria":"Party vote share across nine terms; values in the table below","chart_seat_aria":"Seats by party and term, stacked; values in the table below","chart_turnout_aria":"{code} turnout {series}","tip_party":"{year}　{party}\nvote share {share}%\nseats {seats}","tip_seat":"{year}　{party}\nseats {n} / {total}\nvote share {share}%","tip_turnout":"{year}　{name}\nturnout {turnout}%\nelectors {electors}\nvotes cast {votes}","th_party":"Party","th_term":"Term","th_total":"Total","th_turnout_total":"Combined turnout","th_turnout_suffix":"{name} turnout","th_electors_suffix":"{name} electors","th_threshold":"Threshold","th_stations":"Stations","th_coverage":"Coverage","th_observed":"Observed","th_observed_full":"Observed vote share","th_bounds":"Bounds","th_lower":"Lower bound","th_upper":"Upper bound","term_option":"{term}","covbar_aria":"{coverage}% covered, {rest}% not covered","ref_group":"Reference","ref_group_paren":" (reference)","scope_election_name":"{name}","scope_indigenous_only":"Indigenous-only","scope_r2_seats":"Plain indigenous seats only","scope_reference":"Reference group, not indigenous data","tip_turnout_typed":"{year}　{code} {name}\nturnout {turnout}%\nelectors {electors}\nvotes cast {votes}","chart_party_seats_aria":"{code}: composition of seats by party, each term","tip_party_seats":"{year}　{code}\n{label}\nelected {seats} of {total} seats\n{cands} candidate records","tip_gender":"{year}　{code} {name}\nwomen elected {fseats} of {seats} seats\nwomen candidate records {fcands} of {cands}","note_candidates_prefix":"candidates ","th_election_type":"Election type","th_total_seats":"Total seats","th_electors":"Electors","th_votes":"Votes cast","th_turnout":"Turnout","th_seats":"Seats","th_cand_records":"Candidate records","th_districts":"Districts","th_incumbent":"Incumbents won/ran","th_uncontested":"Uncontested districts/seats","no_such_election":"no such election","no_incumbent":"no incumbent","zero_women_note":"T3 and D2 are 0 in every term (confirmed, not a gap in the data)","party_label_kmt":"Kuomintang (KMT)","party_label_independent":"999 Independent / not party-nominated","party_label_dpp":"Democratic Progressive Party (DPP)","party_label_other":"All other parties","self_translated":"This page is translated by the project and has not been reviewed by a native speaker. The Chinese version governs."};
+const L = {"議員(平地原住民)":"City/County Councilor (Plain Indigenous)","議員(山地原住民)":"City/County Councilor (Mountain Indigenous)","議員(區域)":"City/County Councilor (Regional)","直轄市原住民區長":"Indigenous District Chief (Special Municipality)","直轄市原住民區民代表":"Indigenous District Representative (Special Municipality)","鄉(鎮、市)民代表(平原)":"Township Representative (Plain Indigenous)","直轄市議員(原住民，未分平地／山地)":"Special Municipality Councilor (Indigenous, plain/mountain not split)","臺灣省議員(山地原住民)":"Taiwan Provincial Assembly Member (Mountain Indigenous)","臺灣省議員(平地原住民)":"Taiwan Provincial Assembly Member (Plain Indigenous)","立法委員(平地原住民)選舉":"Legislator (Lowland Indigenous)","立法委員(山地原住民)選舉":"Legislator (Highland Indigenous)","中國國民黨":"Kuomintang (KMT)","民主進步黨":"Democratic Progressive Party (DPP)","親民黨":"People First Party (PFP)","無黨團結聯盟":"Non-Partisan Solidarity Union (NPSU)","無黨籍":"Independent","無黨籍及未經政黨推薦":"Independent / not party-nominated","其他":"Other","台灣民眾黨":"Taiwan People's Party (TPP)","時代力量":"New Power Party (NPP)","台灣團結聯盟":"Taiwan Solidarity Union (TSU)","新黨":"New Party","信心希望聯盟":"Faith and Hope League"};
 /* 顯示字一律走 T（文案）與 L（標籤）。中英兩版的 JS 完全相同，
    只有這兩個常數不同——圖表程式碼因此不可能在兩個語言間漂移。 */
 const LB = k => (L && L[k]) || k;
