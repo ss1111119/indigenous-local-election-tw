@@ -365,6 +365,34 @@ HTML_CANARIES = [
      'indigenous electors &mdash; 99.9% at'),
 ]
 
+# ── 圖表互動性的真檔變異（本變更新增）───────────────────────────
+#
+# 三項都改真檔：bind() 與可導航的 <a> 包裝都活在 docs/*.html 的 JS 裡，
+# 副本法測不到——測試讀的是 ROOT/docs/ 底下的真檔。
+
+INDEX_FOCUS_MUTATION = (
+    "index.html：bind() 拿掉 focus 監聽（鍵盤使用者拿不到 tooltip）",
+    'el.addEventListener("focus", () => {',
+    'el.addEventListener("focusXXX", () => {')
+
+INDEX_NAV_MUTATION = (
+    "index.html：投票率圖的 <a> 包裝被拿掉（導航消失）",
+    'const a = svgEl("a", { href: `roster.html#${ys[i]}/${t.code}` });',
+    'const a = svgEl("g");')
+
+LEG_STRAY_LINK_MUTATION = (
+    "legislative.html：立委頁被誤加上導航連結（違反決策 3）",
+    '      bind(hit, fmt(T.tip_party, { year: YS[i], party: LB(key),\n'
+    '        share: LEG.parties[YS[i]][key].toFixed(2),\n'
+    '        seats: LEG.partySeats[YS[i]][key] }));\n'
+    '      s.append(hit);',
+    '      bind(hit, fmt(T.tip_party, { year: YS[i], party: LB(key),\n'
+    '        share: LEG.parties[YS[i]][key].toFixed(2),\n'
+    '        seats: LEG.partySeats[YS[i]][key] }));\n'
+    '      const stray = svgEl("a", { href: "roster.html#x/L3" });\n'
+    '      stray.append(hit); s.append(stray); return;\n'
+    '      s.append(hit);')
+
 # 只能改真檔的那一項。見模組 docstring。
 HTML_MUTATION = ("前端：MAIN 不再過濾（Python 端全綠、站台卻畫錯）",
                  'const MAIN = DATA.types.filter(t => t.mainSequence);',
@@ -572,7 +600,10 @@ def main() -> int:
     for caught, msg in (mutate_index_html(),
                         mutate_real_html(LEG_HTML, *LEG_HTML_MUTATION),
                         mutate_real_html(LEG_HTML, *LEG_NOTICE_MUTATION),
-                        mutate_real_html(EN_HTML, *EN_WEAKEN_MUTATION)):
+                        mutate_real_html(EN_HTML, *EN_WEAKEN_MUTATION),
+                        mutate_real_html(HTML, *INDEX_FOCUS_MUTATION),
+                        mutate_real_html(HTML, *INDEX_NAV_MUTATION),
+                        mutate_real_html(LEG_HTML, *LEG_STRAY_LINK_MUTATION)):
         print(msg)
         if not caught:
             if msg.lstrip().startswith("★ 跳過"):
