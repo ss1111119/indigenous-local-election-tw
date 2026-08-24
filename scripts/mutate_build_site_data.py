@@ -488,14 +488,17 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
         '        if STRINGS["current_term_notice"][lang] not in html:',
         '        if "2026" not in html:')
 
-    # 只呼叫 check_publication_record()，不跑測試套件。
+    # ⚠️ 只呼叫**限定語的那一支**，不跑測試套件。
+    #    限定語的檢查已從 check_publication_record 拆到
+    #    check_current_term_notice；呼叫舊的那支永遠是 OK——
+    #    探針量錯函式，輸出看起來像「檢查沒抓到」。
     # 印出 RAISED / OK，讓「工具自己壞掉」與「檢查沒抓到」分得開。
     snippet = (
         "import sys\n"
         "sys.path.insert(0, sys.argv[1])\n"
         "import build_site_data as B\n"
         "try:\n"
-        "    B.check_publication_record()\n"
+        "    B.check_current_term_notice()\n"
         "    print('OK')\n"
         "except B.SiteDataError:\n"
         "    print('RAISED')\n"
