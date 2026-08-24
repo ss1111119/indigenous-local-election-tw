@@ -263,14 +263,44 @@ MUTATIONS = [
      '    phantom = sorted(listed - on_disk)',
      '    phantom = []'),
     ("發布：本屆限定語的檢查改成比對「2026」（頁尾本來就有，永遠通過）",
-     '        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):',
-     '        if "2026" not in page.read_text(encoding="utf-8"):'),
+     '        if STRINGS["current_term_notice"][lang] not in html:',
+     '        if "2026" not in html:'),
     ("發布：凍結形狀的檢查被拿掉（指標可以無聲長大）",
      '    if got != FROZEN_BOUNDS_SHAPE:',
      '    if False:'),
     ("發布：未查證時的從嚴預設被拿掉",
      '    if "未查證" in text.split("## 逐頁判定")[0]:',
      '    if False:'),
+
+    # ---- 多語（英文版）----
+    ("多語：STRINGS 少一個 en 值（那一版的限定語整句消失）",
+     '        "en": ("These figures describe {stations} polling stations covering "\n'
+     '               "{coverage}% of indigenous electors. They are not the party "\n'
+     '               "leaning of indigenous people as a whole. For the remaining "\n'
+     '               "{rest}%, the same arithmetic yields no useful bound. {notice}"),',
+     '        "en": "",'),
+    ("多語：STRINGS 完整性檢查被拿掉",
+     '    missing = [f"{k}.{lang}" for k, v in STRINGS.items()\n'
+     '               for lang in LANGUAGES if not v.get(lang, "").strip()]',
+     '    missing = []'),
+    ("多語：代入欄位一致性檢查被拿掉（頁面會留下未替換的大括號）",
+     '        if len({frozenset(f) for f in fields.values()}) != 1:',
+     '        if False:'),
+    ("多語：LABELS_EN 的出處檢查被拿掉",
+     '    bad = [(k, v) for k, v in LABELS_EN.items()\n'
+     '           if not (isinstance(v, tuple) and len(v) == 2\n'
+     '                   and v[0].strip() and v[1] in LABEL_SOURCES)]',
+     '    bad = []'),
+    ("多語：涵蓋列舉改回非遞迴（docs/en/ 的兩頁被靜默跳過）",
+     '    on_disk = {p.relative_to(docs).as_posix() for p in docs.rglob("*.html")}',
+     '    on_disk = {p.relative_to(docs).as_posix() for p in docs.glob("*.html")}'),
+    ("多語：靜態限定語的檢查改回 grep 整個檔案（const T 會掩護它）",
+     '        html = re.sub(r"<script>.*?</script>", "",\n'
+     '                      page.read_text(encoding="utf-8"), flags=re.S)',
+     '        html = page.read_text(encoding="utf-8")'),
+    ("多語：本屆限定語只驗 T 有、不驗 JS 用到",
+     '        if "T.current_term_notice" not in html:',
+     '        if False:'),
 ]
 
 # 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。
@@ -287,6 +317,13 @@ LEG_NOTICE_MUTATION = (
     "        + `本節為 2008–2024 年的歷史數字，不代表 2026 年本屆選舉結果。`;",
     "        ;")
 
+
+# 英文頁的真檔變異：把限定語「翻順」——這正是翻譯時最容易發生的弱化。
+EN_HTML = ROOT / "docs" / "en" / "legislative.html"
+EN_WEAKEN_MUTATION = (
+    "英文頁：限定語被翻弱（拿掉 not the whole 那一句）",
+    "Figures on these pages cover different populations. They cannot be compared with each other, and they cannot be added.",
+    "Figures on these pages differ.")
 
 # 每個被變異的檔各一個 canary。
 #
@@ -311,6 +348,9 @@ HTML_CANARIES = [
     (LEG_HTML, "docs/legislative.html",
      '最嚴的一組是 11.0%',
      '最嚴的一組是 99.9%'),
+    (EN_HTML, "docs/en/legislative.html",
+     '11.0% at the strictest threshold',
+     '99.9% at the strictest threshold'),
 ]
 
 # 只能改真檔的那一項。見模組 docstring。
@@ -442,8 +482,8 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
                        f"{src.count(old)} 次（需恰好 1 次）")
 
     year_check = (
-        '        if CURRENT_TERM_NOTICE not in page.read_text(encoding="utf-8"):',
-        '        if "2026" not in page.read_text(encoding="utf-8"):')
+        '        if STRINGS["current_term_notice"][lang] not in html:',
+        '        if "2026" not in html:')
 
     # 只呼叫 check_publication_record()，不跑測試套件。
     # 印出 RAISED / OK，讓「工具自己壞掉」與「檢查沒抓到」分得開。
@@ -516,7 +556,8 @@ def main() -> int:
     skipped_msgs: list[str] = []
     for caught, msg in (mutate_index_html(),
                         mutate_real_html(LEG_HTML, *LEG_HTML_MUTATION),
-                        mutate_real_html(LEG_HTML, *LEG_NOTICE_MUTATION)):
+                        mutate_real_html(LEG_HTML, *LEG_NOTICE_MUTATION),
+                        mutate_real_html(EN_HTML, *EN_WEAKEN_MUTATION)):
         print(msg)
         if not caught:
             if msg.lstrip().startswith("★ 跳過"):
