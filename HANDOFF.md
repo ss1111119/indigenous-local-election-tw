@@ -7,7 +7,7 @@
 
 ## 一、現在停在哪裡
 
-**最後更新：2026-08-23。**
+**最後更新：2026-08-25。**
 
 ### 資料集
 
@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：10 個能力、**70 條 Requirement**
+### 主 specs：11 個能力、**74 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -42,13 +42,17 @@
 | `election-period-publication` | 4 |
 | `historical-terms-1994-2006` | 4 |
 | `site-translation` | 4 |
+| `site-heading-segmentation` | 4 |
 | `site-multi-dataset` | 3 |
 
 ### 已歸檔的 change（續）
 
 `site-legislative-and-party-preference`（11/11）與 `election-period-publication`
 （10/10）於 2026-08-23 歸檔，`site-english-pages`（12/12）與
-`site-chart-interactivity`（8/8）於 2026-08-24 歸檔。
+`site-chart-interactivity`（8/8）於 2026-08-24 歸檔，`budoux-heading-wrap`
+（10/10，新增 `site-heading-segmentation` 能力：建置期用 BudouX 替
+`docs/index.html`、`docs/legislative.html` 的靜態中文標題插入語意斷詞點）
+於 2026-08-25 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
@@ -226,6 +230,24 @@
 ⚠️ **互動性的安全邊界是「篩選、定位、可及性」，不能讓讀者在前端自選欄位算比值**——
 即使算式跑在瀏覽器端、沒有寫死進 HTML，一樣算是在選舉期間發布了新的解讀性指標。
 2026-08-24 與 Codex、Antigravity 分別討論後的共同結論。
+
+### 1h. 本專案第一個第三方 Python 依賴：`requirements.txt` 的 `budoux`
+
+`docs/index.html`、`docs/legislative.html` 的靜態中文 `<h1>`／`<h2>` 由
+`build_site_data.py` 的 `segment_headings()` 在 `--write` 時插入 BudouX
+語意斷詞的 `<wbr>`，避免窄螢幕把「投票率」「地方」這類詞從中間切開。
+**跑 `--write`／`--check` 之前要先 `pip install -r requirements.txt`。**
+
+⚠️ 只有這兩個檔的 `<h1>`／`<h2>` 在範圍內（見 `ZH_HEADING_PAGES`）。
+英文頁原生依空白斷行不需要；`roster.html` 的 `<h2>` 是 JS 在瀏覽器端
+用縣市名稱動態產生，縣市名固定 2-4 字不會有這問題，也不是建置期靜態文字。
+
+⚠️ **只插 `<wbr>` 不夠**——CJK 文字瀏覽器預設每個字之間都能斷行，`<wbr>`
+只是多一個選項，不會蓋掉預設規則。兩個檔各自的 `<style>` 都在 `h1{...}`／
+`h2{...}` 規則加了 `word-break:keep-all` 與 `overflow-wrap:anywhere`，
+斷詞點才真正生效。少了這兩個 CSS 屬性，語意片段照樣會在窄螢幕被切開，
+且純文字比對測不出來（`test_heading_segmentation_preserves_visible_text`
+只驗字沒少沒多，不驗有沒有生效）。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 
