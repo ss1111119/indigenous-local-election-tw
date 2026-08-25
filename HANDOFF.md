@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：12 個能力、**78 條 Requirement**
+### 主 specs：12 個能力、**79 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -43,7 +43,7 @@
 | `historical-terms-1994-2006` | 4 |
 | `site-translation` | 4 |
 | `site-heading-segmentation` | 4 |
-| `column-oracle-documentation` | 4 |
+| `column-oracle-documentation` | 5 |
 | `site-multi-dataset` | 3 |
 
 ### 已歸檔的 change（續）
@@ -56,8 +56,12 @@
 `legislative-oracle-doc-and-population-check`（6/6，新增
 `column-oracle-documentation` 能力：立委的欄位 oracle 對外曝光＋人口數
 驗證）、`population-decimal-hardening-and-atomic-oracle-write`（5/5，
-強化人口數驗證邊界情況＋oracle 文件原子寫入）與 `party-list-oracle-doc`
-（2/2，補上政黨票長表同一類的 oracle 對外曝光缺口）於 2026-08-25 歸檔。
+強化人口數驗證邊界情況＋oracle 文件原子寫入）、`party-list-oracle-doc`
+（2/2，補上政黨票長表同一類的 oracle 對外曝光缺口）與
+`oracles-shared-fn-mutation-coverage`（7/7，補齊
+check_population_column／write_oracle_document／
+_render_manifest_sections 的變異測試覆蓋，含修過期的 mutate SEL 篩選器）
+於 2026-08-25 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
@@ -271,6 +275,29 @@
 **已處理**：`scratch/` 加進 `.gitignore`（2026-08-25），從此不會再被
 `git status` 掃到。若之後又看到 `@trace` 裡出現不相干的檔案，先檢查
 工作目錄乾不乾淨（`git status --short`），不要假設是別的邏輯錯誤。
+
+### 1j. `mutate_build_legislative_election.py`／`mutate_build_party_list_election.py` 用 `pytest -k SEL` 篩選要跑的測試——新增測試必須手動加進 `SEL`，否則變異測試看不到它
+
+這兩支腳本不是跑整份 `test_build_*.py`，而是用一段明確列舉測試函式名稱的
+`SEL` 字串（`"test_a or test_b or ..."`）配 `-k` 篩選。2026-08-25 實測發現：
+這個 session 新增的五個測試函式（`test_legislative_oracle_rendered_into_shared_document`
+等）加進 `test_build_legislative_election.py`／`test_build_party_list_election.py`
+之後，**沒有人同步更新對應 mutate 腳本的 `SEL`**——即使之後補上針對性的變異，
+`pytest -k SEL` 也會直接把這些測試排除在被執行的集合之外，變異測試永遠
+看不出差別，卻不會報錯，看起來就像「這個函式沒有專屬變異」而不是
+「變異加了但沒被跑到」。
+
+⚠️ **在這兩支腳本裡新增任何測試函式，都要記得同步把函式名稱加進 `SEL`。**
+這條規矩沒有自動化檢查會提醒你，只能人工記得。
+
+⚠️ **`write_oracle_document()` 的 `ROOT` 即使從 `_mut_leg/`／`_mut/` 副本呼叫
+也解析到真正的專案根目錄**，因為它是用 `Path(__file__).resolve().parent.parent`
+算的，副本檔案的路徑結構跟真檔一樣深。手動測試「置換寫入內容」這類變異時，
+**會真的把 `docs/schema/oracles.md` 寫壞**（實測寫成過字面 `"MUTATED"`，
+已用 `git checkout` 復原）。`mutate_build_legislative_election.py` 的
+`main()` 現在跑之前會檢查這個真檔乾不乾淨、跑完不論成功失敗都會
+`git checkout` 復原一次——任何以後在這支腳本裡新增會呼叫
+`write_oracle_document()` 的測試路徑，都要意識到這個風險。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 
