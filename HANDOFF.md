@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：11 個能力、**74 條 Requirement**
+### 主 specs：12 個能力、**78 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -43,6 +43,7 @@
 | `historical-terms-1994-2006` | 4 |
 | `site-translation` | 4 |
 | `site-heading-segmentation` | 4 |
+| `column-oracle-documentation` | 4 |
 | `site-multi-dataset` | 3 |
 
 ### 已歸檔的 change（續）
@@ -51,8 +52,11 @@
 （10/10）於 2026-08-23 歸檔，`site-english-pages`（12/12）與
 `site-chart-interactivity`（8/8）於 2026-08-24 歸檔，`budoux-heading-wrap`
 （10/10，新增 `site-heading-segmentation` 能力：建置期用 BudouX 替
-`docs/index.html`、`docs/legislative.html` 的靜態中文標題插入語意斷詞點）
-於 2026-08-25 歸檔。
+`docs/index.html`、`docs/legislative.html` 的靜態中文標題插入語意斷詞點）、
+`legislative-oracle-doc-and-population-check`（6/6，新增
+`column-oracle-documentation` 能力：立委的欄位 oracle 對外曝光＋人口數
+驗證）與 `population-decimal-hardening-and-atomic-oracle-write`（5/5，
+強化人口數驗證邊界情況＋oracle 文件原子寫入）於 2026-08-25 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
@@ -248,6 +252,24 @@
 斷詞點才真正生效。少了這兩個 CSS 屬性，語意片段照樣會在窄螢幕被切開，
 且純文字比對測不出來（`test_heading_segmentation_preserves_visible_text`
 只驗字沒少沒多，不驗有沒有生效）。
+
+### 1i. `spectra task done` 記的「touched files」是掃當下整個 git status，不是只抓這個任務真正碰過的檔案
+
+實測驗證過（丟一個假任務進假 change，只標記完成、不做任何真正的編輯）：
+`.spectra/touched/<change>.json` 記進了 130 幾個檔案，包含 `scratch/`
+底下一堆探索性腳本——這些檔案跟那個假任務完全無關，只是剛好那時候整個
+工作目錄裡全部處於未追蹤狀態。
+
+⚠️ **這會污染 `spectra archive` 產生的 `@trace` 註解**：`code:` 清單抓的
+就是這份被污染的 touched.json，2026-08-25 archive 過的三個 change
+（`budoux-heading-wrap`、`legislative-oracle-doc-and-population-check`、
+`population-decimal-hardening-and-atomic-oracle-write`）的 `@trace`
+裡全部混進了無關的 `scratch/*.py`。只影響 HTML 註解形式的溯源 metadata，
+不影響任何實際建置或測試行為。
+
+**已處理**：`scratch/` 加進 `.gitignore`（2026-08-25），從此不會再被
+`git status` 掃到。若之後又看到 `@trace` 裡出現不相干的檔案，先檢查
+工作目錄乾不乾淨（`git status --short`），不要假設是別的邏輯錯誤。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 
