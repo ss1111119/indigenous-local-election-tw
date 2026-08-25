@@ -30,10 +30,12 @@ _sys.path.insert(0, str(Path(__file__).resolve().parent))
 from oracles import (  # noqa: E402
     CUSTOM_ELECTION_TYPES,
     MANIFEST,
+    ValidationError,
     check_manifest,
+    check_population_column,
     comparability_flags,
     population_applicability,
-    render_markdown,
+    write_oracle_document,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -724,10 +726,6 @@ KEY_COLS = {
     "elprof": (0, 1, 2, 3, 4, 5),        # 6 碼行政區代碼
     "elctks": (0, 1, 2, 3, 4, 5, 6),     # 6 碼代碼 + 號次
 }
-
-
-class ValidationError(Exception):
-    """自我驗證未通過。中止而不是套用預設值。"""
 
 
 def zip_names(zf: zipfile.ZipFile) -> dict[str, str]:
@@ -1506,22 +1504,13 @@ def cross_validate(parts: list[dict], report: list[dict],
             prof_by_area[k] = s
 
         # --- 2. 數值合理性 ---
+        # 人口數原樣保留字串（舊屆含小數），不能與 0 直接比大小，仍要驗它是
+        # 可解析、有限、非負的十進位數——不驗的話非數字或負值會靜默流到輸出。
+        check_population_column(p["summary"], label)
         for s in p["summary"]:
             for col in ("有效票", "無效票", "投票數", "選舉人數"):
                 if s[col] < 0:
                     raise ValidationError(f"{label} {col} 為負數：{s[col]}（{area_key(s)}）")
-            # 人口數是原樣保留的字串（舊屆含小數），不能與 0 直接比大小。
-            # 仍要驗它是個非負的十進位數——不驗的話非數字或負值會靜默流到輸出。
-            try:
-                pop = Decimal(s["人口數"])
-            except ArithmeticError as exc:
-                raise ValidationError(
-                    f"{label} 人口數不是十進位數：{s['人口數']!r}（{area_key(s)}）"
-                ) from exc
-            if pop < 0:
-                raise ValidationError(
-                    f"{label} 人口數為負數：{s['人口數']}（{area_key(s)}）"
-                )
             if s["選舉人數"] and s["投票數"] > s["選舉人數"]:
                 # 具名的已知來源異常（1998 山原寶山鄉）才放行，並要求上層級正常。
                 allow_e = KNOWN_ELECTOR_ANOMALIES.get(
@@ -2262,10 +2251,8 @@ def main() -> None:
         "validation-report.json": report_json.encode("utf-8"),
     })
 
-    # oracle 文件由 manifest 生成，手寫會脫節
-    (ROOT / "docs" / "schema" / "oracles.md").write_text(
-        render_markdown(), encoding="utf-8"
-    )
+    # oracle 文件由 manifest 生成，手寫會脫節。原子寫入見 oracles.py。
+    write_oracle_document()
 
     print(f"來源 sha256: {digest}")
     for key, n in national.items():

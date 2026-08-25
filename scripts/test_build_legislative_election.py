@@ -697,30 +697,53 @@ def test_manifest_rendering_reflects_new_columns() -> None:
 
 @reports
 def test_population_is_valid_decimal() -> None:
-    """人口數原樣保留字串，但仍須是可解析、非負的十進位數。"""
-    print("\n[合成] 立委人口數的可解析性與非負值驗證")
+    """人口數原樣保留字串，但仍須是可解析、有限、非負的十進位數。
 
-    def row(pop: str) -> dict:
+    這支函式現在住在 `oracles.py`（`check_population_column`），
+    `build_legislative_election.py` 直接匯入使用，不再自己維護一份。
+    """
+    print("\n[合成] 立委人口數的可解析性、有限值與非負值驗證")
+
+    def row(pop) -> dict:
         return {"層級": "縣市", "省市": "10", "縣市": "001",
                 "鄉鎮市區": "000", "行政區名稱": "測試縣", "人口數": pop}
 
-    try:
-        B.check_population_is_valid_decimal([row("abc")], "測試")
-        check("非數字字串會中止", "沒有中止", "中止")
-    except ValidationError as e:
-        check("非數字字串的錯誤訊息含「不是十進位數」", "不是十進位數" in str(e), True)
+    for bad_value, needle, desc in (
+        ("abc", "不是十進位數", "非數字字串"),
+        ("Infinity", "不是有限值", "正無限大"),
+        ("-Infinity", "不是有限值", "負無限大"),
+        ("NaN", "不是有限值", "NaN"),
+        (None, "不是十進位數", "非字串輸入"),
+        ("-5", "為負數", "負值"),
+    ):
+        try:
+            B.check_population_column([row(bad_value)], "測試")
+            check(f"{desc}會中止", "沒有中止", "中止")
+        except ValidationError as e:
+            check(f"{desc}的錯誤訊息含「{needle}」", needle in str(e), True)
+        except Exception as e:  # noqa: BLE001
+            check(f"{desc}應拋出 ValidationError（卻是 {type(e).__name__}）",
+                  False, True)
 
     try:
-        B.check_population_is_valid_decimal([row("-5")], "測試")
-        check("負值會中止", "沒有中止", "中止")
-    except ValidationError as e:
-        check("負值的錯誤訊息含「為負數」", "為負數" in str(e), True)
-
-    try:
-        B.check_population_is_valid_decimal([row("0"), row("1234.5")], "測試")
+        B.check_population_column([row("0"), row("1234.5")], "測試")
         check("合法值（含 0 與小數）不中止", True, True)
     except ValidationError as e:
         check(f"合法值不應中止（卻拋出 {e}）", False, True)
+
+
+@reports
+def test_oracle_document_written_atomically() -> None:
+    """render_markdown() 的輸出要原子寫入，且不留殘餘暫存檔。"""
+    print("\n[真實] oracle 文件的原子寫入")
+    before = oracles.render_markdown()
+    oracles.write_oracle_document()
+    target = oracles.ROOT / "docs" / "schema" / "oracles.md"
+    check("寫入後的檔案內容與 render_markdown() 一致",
+          target.read_text(encoding="utf-8"), before)
+    leftovers = [f for f in (oracles.ROOT / "docs" / "schema").iterdir()
+                 if f.name.startswith(".oracles-")]
+    check("沒有殘留暫存檔", leftovers, [])
 
 
 def main() -> int:
@@ -732,7 +755,8 @@ def main() -> int:
                test_reproducible, test_source_guards,
                test_legislative_oracle_rendered_into_shared_document,
                test_manifest_rendering_reflects_new_columns,
-               test_population_is_valid_decimal):
+               test_population_is_valid_decimal,
+               test_oracle_document_written_atomically):
         try:
             fn()
         except AssertionError:

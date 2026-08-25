@@ -40,6 +40,27 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+from decimal import Decimal
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+class ValidationError(Exception):
+    """自我驗證未通過。中止而不是套用預設值。
+
+    ⚠️ 這個類別原本定義在 `build_local_election.py`，2026-08-25 搬到這裡
+       （見 population-decimal-hardening-and-atomic-oracle-write）——
+       `check_population_column()` 需要拋這個例外，而 `oracles.py` 是
+       兩支腳本共用的基礎模組，不能反過來匯入任何一支腳本。
+       `build_local_election.py` 改為 `from oracles import ValidationError`，
+       其他既有的 `from build_local_election import ValidationError`
+       不必修改，仍拿到同一個類別物件。
+    """
+
+
 # ---------------------------------------------------------------------------
 # 本專案自訂的選舉種類代碼
 #
@@ -710,6 +731,56 @@ PARTY_LIST_MANIFEST = {
             semantic="official-doc", note=None),
     },
 }
+
+def check_population_column(rows: list[dict], label: str,
+                            column: str = "人口數") -> None:
+    """指定欄位原樣保留字串，但仍須是可解析、有限、非負的十進位數。
+
+    ⚠️ 順序很重要：`is_finite()` 要放在負值比較之前。`Decimal("NaN")` 能被
+       `Decimal()` 解析成功（不會觸發下面的 `except`），但拿 NaN 跟 0 比較
+       會拋出 `decimal.InvalidOperation`——那不是本專案統一的
+       `ValidationError`，且發生在這個函式的 `try` 區塊之外，不會被攔截。
+       `is_finite()` 對 `NaN`／`Infinity`／`-Infinity` 皆回傳 False，
+       在比較負值之前先擋下，兩種非法值都不會走到比較那一步。
+    """
+    for r in rows:
+        raw = r[column]
+        try:
+            pop = Decimal(raw)
+        except (ArithmeticError, TypeError) as exc:
+            raise ValidationError(
+                f"{label} {column}不是十進位數：{raw!r}（{r})"
+            ) from exc
+        if not pop.is_finite():
+            raise ValidationError(
+                f"{label} {column}不是有限值（Infinity 或 NaN）：{raw!r}（{r}）"
+            )
+        if pop < 0:
+            raise ValidationError(
+                f"{label} {column}為負數：{raw}（{r}）"
+            )
+
+
+def write_oracle_document() -> None:
+    """把 render_markdown() 的輸出原子寫入 docs/schema/oracles.md。
+
+    ⚠️ 暫存檔建在目標檔案【同一個目錄】下，`os.replace()` 才能保證是同一個
+       檔案系統內的原子替換——系統預設暫存目錄可能在別的磁碟分割區，
+       跨檔案系統的 replace 會退化成非原子的複製＋刪除。
+    """
+    target = ROOT / "docs" / "schema" / "oracles.md"
+    content = render_markdown()
+    fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=".oracles-",
+                                    suffix=".md.tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp_name, target)
+    except BaseException:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+        raise
+
 
 def render_markdown() -> str:
     """由 manifest 生成文件。手寫一份會脫節，所以用生成的。"""

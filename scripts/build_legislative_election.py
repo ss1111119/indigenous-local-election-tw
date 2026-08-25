@@ -49,7 +49,8 @@ from build_local_election import (  # noqa: E402
 from oracles import (  # noqa: E402
     LEGISLATIVE_MANIFEST,
     check_manifest_against,
-    render_markdown,
+    check_population_column,
+    write_oracle_document,
 )
 
 # 各來源檔的欄數。逐列檢查，只驗「至少幾欄」會讓多出來的欄位靜默通過。
@@ -859,28 +860,6 @@ def check_zero_turnout(year: str, etype: str,
             for k, v in sorted(named.items())]
 
 
-def check_population_is_valid_decimal(rows: list[dict], label: str) -> None:
-    """`人口數` 原樣保留字串，但仍須是可解析、非負的十進位數。
-
-    比照 `build_local_election.py` 對地方公職同一欄位的既有驗證：
-    不驗的話非數字或負值字串會靜默流到輸出。「原樣保留」只保證不重算、
-    不轉型，不代表允許任意字串。
-    """
-    for r in rows:
-        area = (r.get("層級"), r.get("省市"), r.get("縣市"),
-                r.get("鄉鎮市區"), r.get("行政區名稱"))
-        try:
-            pop = Decimal(r["人口數"])
-        except ArithmeticError as exc:
-            raise ValidationError(
-                f"{label} 人口數不是十進位數：{r['人口數']!r}（{area}）"
-            ) from exc
-        if pop < 0:
-            raise ValidationError(
-                f"{label} 人口數為負數：{r['人口數']}（{area}）"
-            )
-
-
 def check_crosswalk_fully_used(crosswalk: dict, used: set) -> None:
     """對照表不得有從未被使用的列。
 
@@ -1229,7 +1208,7 @@ def main() -> int:
     if problems:
         raise ValidationError(
             "欄位 oracle 清單與實際輸出不符：" + "；".join(problems))
-    check_population_is_valid_decimal(summary, "立委選舉概況")
+    check_population_column(summary, "立委選舉概況")
     print(f"\n  欄位 oracle：三張表共 "
           f"{sum(len(v) for v in LEGISLATIVE_MANIFEST.values())} 欄全部已宣告")
 
@@ -1249,10 +1228,8 @@ def main() -> int:
     for kind, items in sorted(anomalies.items()):
         print(f"    {kind}: {len(items)} 筆")
 
-    # oracle 文件由 manifest 生成，手寫會脫節。
-    (ROOT / "docs" / "schema" / "oracles.md").write_text(
-        render_markdown(), encoding="utf-8"
-    )
+    # oracle 文件由 manifest 生成，手寫會脫節。原子寫入見 oracles.py。
+    write_oracle_document()
 
     print("  所有自我驗證通過。")
     return 0
