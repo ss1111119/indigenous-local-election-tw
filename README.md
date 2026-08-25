@@ -450,18 +450,18 @@ R2 68→71→72、T1 841→843→841。
 漏洞：`city`／`prv` 互斥檢查原本寫死只比對前兩份，分組寫錯也照樣通過，
 已改為組內全配對。**驗證通過不代表驗證有效。**
 
-`python scripts/test_build_site_data.py` 跑 14 組、95 項檢查，
+`python scripts/test_build_site_data.py` 跑 44 組、339 項檢查，
 **只放 `--check` 抓不到的東西**——`--check` 的辨識力全部來自「現有資料剛好會
 觸發那條分支」，凡是真實資料觸發不到的（防禦性的 raise、零分母、剛好落在
-四捨五入半數上的值），改壞了它一樣通過。28 項變異全數被偵測到，
+四捨五入半數上的值），改壞了它一樣通過。61 項變異全數被偵測到，
 且變異測試**在 pytest 下執行**而非直接執行，因為這個專案正是在那個落差上
 出過事。其中一項含「@reports 是否承重」的驗證：同樣壞掉的程式，
 有 `@reports` 時 pytest 失敗、拿掉後 pytest 通過。
 
 兩支變異測試腳本**在版控內**，不是一次性的暫存工具：
 
-- `python scripts/mutate_build_site_data.py` —— 28 個變異（27 個 Python 端
-  ＋ 1 個前端 `index.html`），**全數被偵測到**
+- `python scripts/mutate_build_site_data.py` —— 61 個變異（52 個 Python 端
+  ＋ 9 個真檔／前端），**全數被偵測到**
 - `python scripts/mutate_build_local_election.py` —— 66 個變異，
   **全數被偵測到**（2026-08-22 實測，基準對照乾淨：未變異通過且無測試被跳過）
 
