@@ -813,6 +813,11 @@ def render_markdown() -> str:
         {"legislative_summary": "立委選舉概況 summary",
          "legislative_candidates": "立委候選人 candidates",
          "legislative_votes": "立委候選人得票 votes"})
+    out += _render_manifest_sections(
+        PARTY_LIST_MANIFEST,
+        {"party_list_summary": "政黨票選舉概況 summary",
+         "party_list_votes": "政黨票候選人得票 votes",
+         "party_list_seats": "政黨票席次 seats"})
     return "\n".join(out)
 
 

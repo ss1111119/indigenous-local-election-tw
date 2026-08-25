@@ -47,6 +47,7 @@ import build_legislative_election as LEG  # noqa: E402
 from oracles import (  # noqa: E402
     PARTY_LIST_MANIFEST,
     check_manifest_against,
+    write_oracle_document,
 )
 
 ZIP_PATH = ROOT / "data" / "raw" / "cec-votedata.zip"
@@ -1114,6 +1115,10 @@ def main() -> None:
     print(f"\n輸出 {len(summary):,} / {len(votes):,} / {len(seat_rows)} 列"
           f"（summary / votes / seats）"
           f"，界限表 {len(bounds)} 列")
+
+    # oracle 文件由 manifest 生成，手寫會脫節。原子寫入見 oracles.py。
+    write_oracle_document()
+
     print("讀檔、對帳、界限與輸出完成。")
 
 

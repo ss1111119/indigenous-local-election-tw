@@ -695,13 +695,36 @@ def test_existing_outputs_untouched() -> None:
           [n for n in existing if n.startswith("cec-party-list")], [])
 
 
+@reports
+def test_party_list_oracle_rendered_into_shared_document() -> None:
+    """政黨票的欄位 oracle 必須透過 render_markdown() 曝光，不是死碼。"""
+    print("\n[單元] 政黨票欄位 oracle 的算繪")
+    import oracles
+    md = oracles.render_markdown()
+    names = {"party_list_summary": "政黨票選舉概況 summary",
+             "party_list_votes": "政黨票候選人得票 votes",
+             "party_list_seats": "政黨票席次 seats"}
+    for table, heading in names.items():
+        check(f"文件含標題「## {heading}」", f"## {heading}" in md, True)
+        section = md.split(f"## {heading}")[1].split("## ")[0]
+        expected_cols = set(PARTY_LIST_MANIFEST[table])
+        found_cols = set(
+            line.split("|")[1].strip().strip("`")
+            for line in section.splitlines()
+            if line.startswith("| `")
+        )
+        check(f"{heading} 欄位集合與 PARTY_LIST_MANIFEST 完全相符",
+              found_cols, expected_cols)
+
+
 def main() -> int:
     for fn in (test_bounds_formula, test_bounds_guard, test_declarations,
                test_personal_data_excluded, test_manifest,
                test_source_guards, test_cross_file_guards,
                test_party_and_seats, test_shares_and_denominator,
                test_2020_special_stations, test_regression,
-               test_existing_outputs_untouched):
+               test_existing_outputs_untouched,
+               test_party_list_oracle_rendered_into_shared_document):
         try:
             fn()
         except AssertionError:
