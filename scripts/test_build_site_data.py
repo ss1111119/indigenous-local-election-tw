@@ -56,6 +56,7 @@ from build_site_data import (  # noqa: E402
     load_legislative_tables,
     load_long_tables,
     read_embedded_constant,
+    segment_headings,
     site_mark,
 )
 
@@ -1550,6 +1551,150 @@ def test_legislative_page_has_no_roster_navigation() -> None:
               "roster.html" not in script, True)
 
 
+# -------------------------------------------------- 標題語意斷詞（BudouX）
+
+HEADING_RE = re.compile(r"<(h[12])>(.*?)</\1>")
+
+
+@reports
+def test_heading_segmentation_preserves_visible_text() -> None:
+    """插入 <wbr> 不能改變、增減任何可見文字。"""
+    print("\n[真實] 標題斷詞不改變可見文字")
+    for name in ("docs/index.html", "docs/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_heading_segmentation_preserves_visible_text")
+            continue
+        html = page.read_text(encoding="utf-8")
+        headings = HEADING_RE.findall(html)
+        check(f"{name}: 至少有一個 h1/h2 標題可供測試", len(headings) > 0, True)
+        for tag, inner in headings:
+            original_text = inner.replace("<br>", "").replace("<wbr>", "")
+            full = f"<{tag}>{inner}</{tag}>"
+            segmented = segment_headings(full, name)
+            segmented_text = re.sub(r"</?(?:wbr|br|h[12])>", "", segmented)
+            check(f"{name}: <{tag}>{original_text}</{tag}> 純文字保留一致",
+                  segmented_text, original_text)
+
+
+@reports
+def test_heading_segmentation_single_chunk_has_no_wbr() -> None:
+    """BudouX 只判定出一段語意時，輸出不得含 <wbr>——這不是失敗，是正確行為。"""
+    print("\n[合成] 單一語意段的標題不含 <wbr>")
+    out = segment_headings("<h2>性別</h2>", "合成")
+    check("單段標題輸出不含 <wbr>", "<wbr>" in out, False)
+    check("單段標題可見文字不變", out, "<h2>性別</h2>")
+
+
+@reports
+def test_heading_segmentation_replaces_manual_br_with_wbr() -> None:
+    """index.html 現有 h1 手動寫死的 <br> 已由 BudouX 產生的 <wbr> 取代。"""
+    print("\n[真實] index.html 的 h1 手動 <br> 被 BudouX 斷詞取代")
+    page = ROOT / "docs" / "index.html"
+    if not page.exists():
+        print("  SKIP  找不到 docs/index.html")
+        skipped.append("test_heading_segmentation_replaces_manual_br_with_wbr")
+        return
+    html = page.read_text(encoding="utf-8")
+    m = re.search(r"<h1>.*?</h1>", html)
+    check("index.html 找得到 <h1>", m is not None, True)
+    if m is None:
+        return
+    current_h1 = m.group(0)
+    # 這是對「跑過 --write 之後的檔案現況」做的靜態斷言，不是重跑
+    # segment_headings 再驗證——現況已經沒有手動 <br> 可供重新取代，
+    # 直接重跑只會得到「本來就沒有」這種恆真的弱驗證。
+    check("目前檔案的 h1 不含手動 <br>", "<br>" in current_h1, False)
+    check("目前檔案的 h1 含至少一個 BudouX 產生的 <wbr>",
+          "<wbr>" in current_h1, True)
+
+
+@reports
+def test_heading_segmentation_rejects_unsupported_markup() -> None:
+    """標題內含 <br> 以外的子標籤必須中止，不可靜默略過或照原文字通過去。"""
+    print("\n[合成] 標題含不支援的子標籤時中止")
+    check_raises_msg(
+        "含 <span> 的標題會中止",
+        lambda: segment_headings("<h2>前<span>中</span>後</h2>", "合成頁面"),
+        "不支援的子標籤")
+
+
+@reports
+def test_heading_css_enforces_semantic_break_points() -> None:
+    """h1/h2 的 CSS 規則要有 word-break:keep-all 與 overflow-wrap:anywhere。
+
+    少了這兩個屬性，<wbr> 只是多一個斷行選項，瀏覽器對 CJK 文字預設的
+    逐字斷行規則照樣可能蓋過它，在窄螢幕把 BudouX 判定的同一語意片段
+    從中間切開。
+    """
+    print("\n[真實] 中文頁面的 h1/h2 CSS 含斷行控制屬性")
+    for name in ("docs/index.html", "docs/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_heading_css_enforces_semantic_break_points")
+            continue
+        html = page.read_text(encoding="utf-8")
+        style = html[html.index("<style>"):html.index("</style>")]
+        for tag in ("h1", "h2"):
+            m = re.search(rf"^{tag}\{{[^}}]*\}}", style, re.MULTILINE)
+            check(f"{name}: 找得到裸的 {tag}{{...}} 規則", m is not None, True)
+            if m is None:
+                continue
+            rule = m.group(0)
+            check(f"{name}: {tag}{{...}} 含 word-break:keep-all",
+                  "word-break:keep-all" in rule, True)
+            check(f"{name}: {tag}{{...}} 含 overflow-wrap:anywhere",
+                  "overflow-wrap:anywhere" in rule, True)
+
+
+@reports
+def test_heading_segmentation_scope_excludes_en_and_roster() -> None:
+    """只有 docs/index.html、docs/legislative.html 套用標題斷詞。"""
+    print("\n[真實] 標題斷詞的範圍不含英文頁與 roster.html")
+    zh_pages = {p.name for p in build_site_data.ZH_HEADING_PAGES}
+    check("ZH_HEADING_PAGES 只含 index.html 與 legislative.html",
+          zh_pages, {"index.html", "legislative.html"})
+    for name in ("docs/en/index.html", "docs/en/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_heading_segmentation_scope_excludes_en_and_roster")
+            continue
+        html = page.read_text(encoding="utf-8")
+        headings = HEADING_RE.findall(html)
+        check(f"{name}: 至少有一個 h1/h2 標題可供測試", len(headings) > 0, True)
+        check(f"{name}: 標題不含 <wbr>（英文頁不套用中文斷詞）",
+              "<wbr>" in html, False)
+    roster = ROOT / "docs" / "roster.html"
+    if roster.exists():
+        html = roster.read_text(encoding="utf-8")
+        check("roster.html 仍含 JS 動態產生縣市標題的樣板",
+              '<h2>${county}</h2>' in html, True)
+    else:
+        print("  SKIP  找不到 docs/roster.html")
+        skipped.append("test_heading_segmentation_scope_excludes_en_and_roster")
+
+
+@reports
+def test_heading_segmentation_is_idempotent() -> None:
+    """連續斷詞兩次，第二次相對第一次的輸出沒有任何差異。"""
+    print("\n[真實] 標題斷詞冪等")
+    for name in ("docs/index.html", "docs/legislative.html"):
+        page = ROOT / name
+        if not page.exists():
+            print(f"  SKIP  找不到 {name}")
+            skipped.append("test_heading_segmentation_is_idempotent")
+            continue
+        html = page.read_text(encoding="utf-8")
+        for tag, inner in HEADING_RE.findall(html):
+            full = f"<{tag}>{inner}</{tag}>"
+            once = segment_headings(full, name)
+            twice = segment_headings(once, name)
+            check(f"{name}: <{tag}> 重跑斷詞第二次與第一次相同", twice, once)
+
+
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_no_winners_does_not_divide_by_zero,
@@ -1586,7 +1731,14 @@ def main() -> int:
                test_static_qualifiers_match_strings,
                test_bind_listens_focus_and_blur,
                test_index_charts_link_every_main_term_and_type,
-               test_legislative_page_has_no_roster_navigation):
+               test_legislative_page_has_no_roster_navigation,
+               test_heading_segmentation_preserves_visible_text,
+               test_heading_segmentation_single_chunk_has_no_wbr,
+               test_heading_segmentation_replaces_manual_br_with_wbr,
+               test_heading_segmentation_rejects_unsupported_markup,
+               test_heading_css_enforces_semantic_break_points,
+               test_heading_segmentation_scope_excludes_en_and_roster,
+               test_heading_segmentation_is_idempotent):
         try:
             fn()
         except AssertionError:

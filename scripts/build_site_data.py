@@ -33,6 +33,8 @@ import re
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
+import budoux
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data" / "processed"
 
@@ -973,6 +975,46 @@ def check_frozen_indicator_shape(bounds: dict) -> None:
         )
 
 
+_ZH_HEADING_PARSER: budoux.Parser | None = None
+
+
+def _zh_heading_parser() -> budoux.Parser:
+    global _ZH_HEADING_PARSER
+    if _ZH_HEADING_PARSER is None:
+        _ZH_HEADING_PARSER = budoux.load_default_traditional_chinese_parser()
+    return _ZH_HEADING_PARSER
+
+
+_HEADING_RE = re.compile(r"<(h[12])>(.*?)</\1>")
+
+
+def segment_headings(html: str, label: str = "") -> str:
+    """替中文頁面 `<h1>`／`<h2>` 的純文字插入 BudouX 語意斷詞的 `<wbr>`。
+
+    ⚠️ 冪等：先剝除既有的 `<wbr>`（或舊式手動 `<br>`）還原純文字，
+       再重新斷詞組回——連續執行兩次輸出不變，而不是靠「看到 <wbr> 就跳過」
+       這種粗略判斷（那樣會漏掉新增的標題）。
+
+    只接受純文字或純文字加 `<br>` 這兩種既有樣式；標題內若含其他子標籤，
+    直接中止並在錯誤訊息帶上檔名與原始文字，不可靜默略過。
+    """
+    parser = _zh_heading_parser()
+
+    def replace(match: re.Match) -> str:
+        tag = match.group(1)
+        inner = match.group(2)
+        text = inner.replace("<wbr>", "").replace("<br>", "")
+        if "<" in text:
+            raise SiteDataError(
+                f"{label}：<{tag}> 內含不支援的子標籤，segment_headings 只接受"
+                f"純文字或既有 <br>，實際內容為 {inner!r}"
+            )
+        chunks = parser.parse(text)
+        return f"<{tag}>{'<wbr>'.join(chunks)}</{tag}>"
+
+    return _HEADING_RE.sub(replace, html)
+
+
 def build_strings(lang: str) -> dict:
     """該語言的限定語與圖表文案。
 
@@ -1256,6 +1298,10 @@ BOUNDS_MARKER = "const BOUNDS = "
 STRINGS_MARKER = "const T = "
 LABELS_MARKER = "const L = "
 
+# 只有這兩個中文頁面的靜態 <h1>/<h2> 套用 BudouX 斷詞。英文頁原生依空白斷行；
+# roster.html 的 <h2> 是 JS 在瀏覽器端用縣市名稱動態產生，不是建置期靜態文字。
+ZH_HEADING_PAGES = (ROOT / "docs" / "index.html", ROOT / "docs" / "legislative.html")
+
 
 def build_roster_main() -> dict[str, int]:
     """名錄頁的 `MAIN`：政黨名稱 → 色槽索引。由同一份對照表投影而來。
@@ -1526,6 +1572,8 @@ def main() -> None:
                             if args.only_existing_terms else None)
                     value = builder(summary, cands, only_terms=only)
                 data = replace_constant_bytes(data, marker, value, html.name)
+            if html in ZH_HEADING_PAGES:
+                data = segment_headings(data.decode("utf-8"), html.name).encode("utf-8")
             outputs.append((html, data))
         print()
         for html, data in outputs:
@@ -1602,6 +1650,22 @@ def main() -> None:
                       f"常數未跟著長表或 STRINGS 重建")
             else:
                 print(f"✓ {label} 的資料常數與文案與來源一致")
+
+        # 標題斷詞：只有 ZH_HEADING_PAGES 這兩個中文頁面的 <h1>/<h2> 套用
+        # BudouX。若現況跟重新斷詞的結果不同，代表標題被手動改過、
+        # 卻沒有重新跑 --write 讓斷詞點跟上。
+        for zh_html in ZH_HEADING_PAGES:
+            if not zh_html.exists():
+                continue
+            text = zh_html.read_text(encoding="utf-8")
+            rebuilt_text = segment_headings(text, zh_html.name)
+            print()
+            if rebuilt_text != text:
+                rc = 1
+                print(f"★ {zh_html.name} 的標題斷詞與現況不同——"
+                      f"跑 --write 讓 <h1>/<h2> 套用最新的 BudouX 斷詞")
+            else:
+                print(f"✓ {zh_html.name} 的標題斷詞與現況一致")
 
         if rc:
             raise SystemExit(rc)
