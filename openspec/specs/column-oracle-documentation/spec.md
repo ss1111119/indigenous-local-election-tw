@@ -34,85 +34,24 @@ to be implemented first.
 - **WHEN** a column is added to `LEGISLATIVE_MANIFEST`
 - **THEN** the next run of `scripts/build_legislative_election.py` produces a `docs/schema/oracles.md` whose legislative section includes the new column, without requiring any manual edit to the document
 
+#### Scenario: The party-list manifest gains a rendered section
+- **WHEN** `scripts/build_party_list_election.py` completes a run
+- **THEN** `docs/schema/oracles.md` contains sections covering all columns declared in `PARTY_LIST_MANIFEST`'s `party_list_summary`, `party_list_votes`, and `party_list_seats` entries
+
+#### Scenario: The legislative and local-election sections stay unaffected by the party-list addition
+- **WHEN** `scripts/build_party_list_election.py` completes a run after this change
+- **THEN** the local-election and legislative sections of `docs/schema/oracles.md` are byte-identical to what they were before this change, for the same input data
+
 
 <!-- @trace
-source: legislative-oracle-doc-and-population-check
+source: party-list-oracle-doc
 updated: 2026-08-25
 code:
-  - scratch/verify_crosswalk.py
-  - scratch/expected.txt
-  - scratch/build_1998_2002_crosswalk.py
   - docs/schema/oracles.md
-  - scratch/add_legacy_sources.py
-  - scratch/inventory_legacy.py
-  - scratch/verify_pop.py
-  - scratch/measure_2005d.py
-  - scratch/gen_expected.py
-  - scratch/gen_anomalies.py
-  - scratch/measure_2005.py
-  - scratch/measure_2005b.py
-  - CLAUDE.md
-  - GEMINI.md
-  - scratch/probe_legacy_build.py
-  - scratch/measure_town_codes.py
-  - scratch/verify_claims.py
-  - scratch/verify_21c.py
-  - scratch/verify_33.py
+  - scripts/build_party_list_election.py
   - scripts/oracles.py
-  - scratch/measure_2005e.py
-  - scratch/measure_2005f.py
-  - scratch/dryrun_manifest.py
-  - scratch/probe_districts.py
-  - scratch/probe4.py
-  - scratch/verify_strip.py
-  - scratch/review_q4.md
-  - scratch/probe5.py
-  - scratch/probe_1994.py
-  - scratch/verify_11.py
-  - scratch/verify_identity.py
-  - scratch/measure_auth_existing.py
-  - scratch/review_q3.md
-  - scratch/review_question.md
-  - scratch/measure_ws2.py
-  - scratch/baseline/candidates.csv
-  - scratch/review_q6.md
-  - scratch/probe2.py
-  - scratch/inventory_legacy.json
-  - scratch/verify_pop2.py
-  - scratch/measure_town_feasible.py
-  - scratch/baseline/summary.csv
-  - scratch/review_q2.md
-  - scratch/measure_2005c.py
-  - scratch/verify_21.py
-  - scratch/strip_experiment.py
-  - scratch/gen_town_anom.py
-  - .spectra.yaml
-  - scratch/chk1998t2.py
-  - scratch/probe6.py
-  - scratch/verify_auth.py
-  - scratch/measure_trunc.py
-  - AGENTS.md
-  - scratch/add_defect7.py
-  - scratch/measure_2005_towns.py
-  - scratch/measure_pop2.py
-  - scratch/probe7.py
-  - scratch/verify_review.py
-  - scratch/measure_2005g.py
-  - scratch/measure_whitespace.py
-  - scratch/baseline/votes.csv
-  - scripts/build_legislative_election.py
-  - scratch/verify_32.py
-  - scratch/review_q5.md
-  - scratch/list_zip.py
-  - scratch/review_q7.md
-  - scratch/chk_cw.py
-  - scratch/probe_anomalies.py
-  - scratch/zip_names.json
-  - scratch/measure_pop.py
-  - scratch/probe3.py
-  - scratch/probe_districts2.py
 tests:
-  - scripts/test_build_legislative_election.py
+  - scripts/test_build_party_list_election.py
 -->
 
 ---
