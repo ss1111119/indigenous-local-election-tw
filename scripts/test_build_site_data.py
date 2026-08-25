@@ -1106,6 +1106,37 @@ def test_existing_pages_still_reproduce() -> None:
 # --------------------------------------------- 選舉期間的發布規則（本變更新增）
 
 @reports
+@reports
+def test_no_external_resources() -> None:
+    """`docs/` 下的頁面不得含外部資源參照，SVG 命名空間 URI 除外。
+
+    ⚠️ 「看到 http 就一律中止」這種寬鬆版本會連 SVG 規格要求的
+       `http://www.w3.org/2000/svg` 命名空間 URI 都擋下來——那不是外部
+       資源，瀏覽器不會對它發出網路請求。這條測試同時證明兩種情境都對。
+    """
+    print("\n[合成] 外部資源檢查：真的外部參照 vs SVG 命名空間 URI")
+    tmp = Path(tempfile.mkdtemp())
+
+    (tmp / "bad.html").write_text(
+        '<script src="https://example.com/x.js"></script>', encoding="utf-8")
+    check_raises_msg(
+        "含真正外部參照的頁面會中止",
+        lambda: build_site_data.check_no_external_resources(tmp),
+        "example.com")
+
+    (tmp / "bad.html").unlink()
+    (tmp / "ok.html").write_text(
+        'document.createElementNS("http://www.w3.org/2000/svg", "svg")',
+        encoding="utf-8")
+    check("只含 SVG 命名空間 URI 的頁面不中止",
+          build_site_data.check_no_external_resources(tmp) is None, True)
+
+    print("\n[真實] docs/ 下現有頁面都通過外部資源檢查")
+    check("真實 docs/ 通過",
+          build_site_data.check_no_external_resources() is None, True)
+
+
+@reports
 def test_publication_record_covers_every_page() -> None:
     """發布判定紀錄必須涵蓋 docs/ 下每一個 HTML，兩個方向都驗。
 
@@ -1745,6 +1776,7 @@ def main() -> int:
                test_bounds_constant_matches_csv,
                test_bounds_section_states_coverage_first,
                test_existing_pages_still_reproduce,
+               test_no_external_resources,
                test_publication_record_covers_every_page,
                test_current_term_notice_is_present_and_named,
                test_frozen_indicator_shape_does_not_grow,

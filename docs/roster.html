@@ -9,9 +9,6 @@
 <meta property="og:title" content="原住民族地方選舉名錄">
 <meta property="og:description" content="1994–2022 九屆原住民族相關地方公職選舉逐選舉區的候選人與當選人名錄，資料來自中選會選舉資料庫。">
 <meta property="og:locale" content="zh_TW">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
 <style>
 :root{
   color-scheme:light;
@@ -42,16 +39,16 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
-  font-family:"Noto Sans TC",-apple-system,"Segoe UI",sans-serif;
+  font-family:-apple-system,"Segoe UI",sans-serif;
   font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px 80px}
-h1{font-family:"Noto Serif TC",serif;font-size:clamp(25px,3.6vw,34px);font-weight:700;
+h1{font-family:serif;font-size:clamp(25px,3.6vw,34px);font-weight:700;
   margin:0;line-height:1.3;text-wrap:balance}
 .eyebrow{font-size:11.5px;letter-spacing:.16em;color:var(--ink3);
-  font-family:"IBM Plex Mono",monospace;margin:0 0 12px}
+  font-family:monospace;margin:0 0 12px}
 header{padding:46px 0 22px}
 .lede{font-size:16px;color:var(--ink2);margin:14px 0 0;max-width:620px}
-code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em;
+code,.mono{font-family:ui-monospace,monospace;font-size:.92em;
   font-variant-numeric:tabular-nums}
 
 /* controls */
@@ -60,28 +57,28 @@ code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em;
 .row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
 .row+.row{margin-top:9px}
 .lab{font-size:11px;letter-spacing:.1em;color:var(--ink3);
-  font-family:"IBM Plex Mono",monospace;width:42px;flex:none}
+  font-family:monospace;width:42px;flex:none}
 button.seg{font:inherit;font-size:13.5px;padding:4px 12px;border-radius:999px;cursor:pointer;
   border:1px solid var(--rule);background:transparent;color:var(--ink2);
-  font-family:"Noto Sans TC",sans-serif}
+  font-family:sans-serif}
 button.seg:hover{border-color:var(--ink3)}
 button.seg[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 button.seg:disabled{opacity:.35;cursor:not-allowed;text-decoration:line-through}
 button.seg:disabled:hover{border-color:var(--rule)}
-button.seg .c{font-family:"IBM Plex Mono",monospace;font-size:11.5px;opacity:.65;margin-right:5px}
+button.seg .c{font-family:monospace;font-size:11.5px;opacity:.65;margin-right:5px}
 input[type=search]{font:inherit;font-size:14px;padding:5px 12px;border-radius:999px;
   border:1px solid var(--rule);background:var(--panel);color:var(--ink);min-width:200px;flex:1;max-width:320px}
 input[type=search]::placeholder{color:var(--ink3)}
 
-.sum{font-size:13px;color:var(--ink2);margin:16px 0 4px;font-family:"IBM Plex Mono",monospace}
+.sum{font-size:13px;color:var(--ink2);margin:16px 0 4px;font-family:monospace}
 .sum b{color:var(--ink);font-weight:500}
 
 /* results */
 .county{display:grid;grid-template-columns:132px 1fr;gap:18px;align-items:start;
   padding:16px 0;border-top:1px solid var(--rule2)}
 .ch{}
-.ch h2{font-family:"Noto Serif TC",serif;font-size:18px;font-weight:600;margin:0;line-height:1.35}
-.ch .cn{display:block;font-size:11.5px;color:var(--ink3);font-family:"IBM Plex Mono",monospace;margin-top:2px}
+.ch h2{font-family:serif;font-size:18px;font-weight:600;margin:0;line-height:1.35}
+.ch .cn{display:block;font-size:11.5px;color:var(--ink3);font-family:monospace;margin-top:2px}
 @media (max-width:640px){
   .county{grid-template-columns:1fr;gap:10px}
 }
@@ -90,14 +87,14 @@ input[type=search]::placeholder{color:var(--ink3)}
   flex:1 1 252px;min-width:252px;max-width:360px}
 .ah{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
 .ah .an{font-size:13.5px;font-weight:500}
-.ah .aw{font-size:11px;color:var(--ink3);font-family:"IBM Plex Mono",monospace;flex:none}
+.ah .aw{font-size:11px;color:var(--ink3);font-family:monospace;flex:none}
 ul{list-style:none;margin:0;padding:0}
 li{display:flex;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--rule2);
   font-size:14px}
 li:first-child{border-top:0}
 li.won{font-weight:500}
 li.lost{color:var(--ink3)}
-.no{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3);width:17px;flex:none;text-align:right}
+.no{font-family:monospace;font-size:11px;color:var(--ink3);width:17px;flex:none;text-align:right}
 .nm{flex:1;min-width:0;line-height:1.45}
 .pty{font-size:11px;padding:1px 7px;border-radius:999px;flex:none;white-space:nowrap;
   background:var(--chip);color:var(--ink2)}
@@ -111,13 +108,13 @@ li.won .pty[data-p="2"]{background:var(--s3)}
 li.won .pty[data-p="9"]{background:var(--s4)}
 .tags{display:flex;gap:4px;flex:none}
 .tag{font-size:10px;padding:0 5px;border-radius:3px;border:1px solid var(--rule);
-  color:var(--ink3);font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+  color:var(--ink3);font-family:monospace;white-space:nowrap}
 .tag.q{border-color:var(--limit);color:var(--limit)}
 .empty{color:var(--ink3);font-size:14px;padding:36px 0}
 .limit{border-left:3px solid var(--limit);background:var(--limitbg);
   padding:14px 18px;margin:26px 0 0;border-radius:0 4px 4px 0}
 .limit .lt{font-size:11.5px;letter-spacing:.13em;color:var(--limit);
-  font-family:"IBM Plex Mono",monospace;margin:0 0 8px;font-weight:500}
+  font-family:monospace;margin:0 0 8px;font-weight:500}
 .limit p{margin:0 0 9px;font-size:14.5px;color:var(--ink2);line-height:1.7}
 .limit p:last-child{margin:0}
 .limit strong{color:var(--ink)}

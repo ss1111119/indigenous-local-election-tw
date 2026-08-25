@@ -885,6 +885,35 @@ def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
             )
 
 
+# SVG 規格要求的固定命名空間 URI，`document.createElementNS()` 用它建立
+# SVG 元素——瀏覽器不會對這個字串發出任何網路請求，不算外部資源。
+SVG_NAMESPACE_URI = "http://www.w3.org/2000/svg"
+
+
+def check_no_external_resources(docs: Path | None = None) -> None:
+    """`docs/` 底下的頁面不得含任何外部資源參照。
+
+    ⚠️ 站台明訂「不連外部資源」（離線開啟、單檔分享、file:// 下不被 CORS
+       擋住）——曾經悄悄違反過這個承諾（Google Fonts 的 <link>），沒有
+       任何檢查會擋下，直到人工審查才發現。這條檢查把承諾變成會失敗的斷言。
+
+    `docs` 參數只供測試餵合成目錄用，正式流程一律用預設值（真正的 docs/）。
+    """
+    docs = docs or (ROOT / "docs")
+    pattern = re.compile(r'https?://[^\s"\'<>]+')
+    for path in sorted(docs.rglob("*.html")):
+        text = path.read_text(encoding="utf-8")
+        found = [m for m in pattern.findall(text) if m != SVG_NAMESPACE_URI]
+        if found:
+            try:
+                label = path.relative_to(ROOT).as_posix()
+            except ValueError:
+                label = str(path)
+            raise SiteDataError(
+                f"{label} 含外部資源參照："
+                f"{found}。站台明訂不連外部資源（離線開啟、單檔分享）。"
+            )
+
 
 # 頁面上以**靜態 HTML** 呈現的限定語：頁面 → (語言, 必須逐字出現的 key)。
 #
@@ -1677,6 +1706,8 @@ def main() -> None:
         print("✓ 靜態限定語與 STRINGS 逐字相同")
         check_current_term_notice()
         print("✓ 該標示本屆限定語的頁面都帶了對應語言的版本")
+        check_no_external_resources()
+        print("✓ docs/ 下的頁面都不含外部資源參照")
 
     if args.diff_roster:
         roster_html = ROOT / "docs" / "roster.html"

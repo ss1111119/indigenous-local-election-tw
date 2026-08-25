@@ -11,9 +11,6 @@
 <meta property="og:locale" content="zh_TW">
 <link rel="alternate" hreflang="zh-Hant" href="legislative.html">
 <link rel="alternate" hreflang="en" href="en/legislative.html">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
 <style>
 :root{
   color-scheme:light;
@@ -48,32 +45,32 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
-  font-family:"Noto Sans TC",-apple-system,"Segoe UI",sans-serif;
+  font-family:-apple-system,"Segoe UI",sans-serif;
   font-size:16px;line-height:1.75;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px 88px}
 .col{max-width:660px}
-h1,h2{font-family:"Noto Serif TC",serif;text-wrap:balance;line-height:1.32;margin:0}
+h1,h2{font-family:serif;text-wrap:balance;line-height:1.32;margin:0}
 h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
 h2{font-size:clamp(19px,2.4vw,25px);font-weight:600;word-break:keep-all;overflow-wrap:anywhere}
 h3{font-size:14px;margin:0 0 8px;font-weight:500}
 p{margin:0 0 16px}
-code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+code,.mono{font-family:ui-monospace,monospace;font-size:.92em}
 strong{font-weight:700}
 header{border-bottom:1px solid var(--rule);padding:52px 0 26px;margin-bottom:8px}
 .eyebrow{font-size:11.5px;letter-spacing:.16em;color:var(--ink3);
-  font-family:"IBM Plex Mono",monospace;margin:0 0 14px}
+  font-family:monospace;margin:0 0 14px}
 .lede{font-size:17.5px;color:var(--ink2);margin:18px 0 0;max-width:640px}
 .meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:22px;font-size:12px;color:var(--ink3);
-  font-family:"IBM Plex Mono",monospace}
+  font-family:monospace}
 section{padding:38px 0;border-bottom:1px solid var(--rule2)}
 section:last-of-type{border:0}
 .sh{display:flex;align-items:baseline;gap:13px;margin-bottom:18px}
-.sn{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink3);
+.sn{font-family:monospace;font-size:11.5px;color:var(--ink3);
   border:1px solid var(--rule);border-radius:3px;padding:2px 7px;flex:none}
 .limit{border-left:3px solid var(--limit);background:var(--limitbg);
   padding:15px 20px;margin:24px 0 0;border-radius:0 4px 4px 0}
 .limit .lt{font-size:11.5px;letter-spacing:.13em;color:var(--limit);
-  font-family:"IBM Plex Mono",monospace;margin:0 0 9px;font-weight:500}
+  font-family:monospace;margin:0 0 9px;font-weight:500}
 .limit p{margin:0 0 10px;font-size:15px;color:var(--ink2);line-height:1.7}
 .limit p:last-child{margin:0}
 .limit strong{color:var(--ink)}
@@ -82,7 +79,7 @@ figcaption{font-size:12.5px;color:var(--ink3);margin-top:14px;line-height:1.65;m
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px}
 .panel{background:var(--panel);border:1px solid var(--rule2);border-radius:5px;padding:12px 13px 9px}
 .pt{display:flex;align-items:baseline;gap:7px;margin-bottom:6px;flex-wrap:wrap}
-.pc{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3)}
+.pc{font-family:monospace;font-size:11px;color:var(--ink3)}
 .pn{font-size:12.5px;font-weight:500;line-height:1.35}
 .tw{overflow-x:auto;margin:20px 0 0}
 .dt{margin:14px 0 0}
@@ -92,9 +89,9 @@ table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 th,td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--rule2);white-space:nowrap}
 th:first-child,td:first-child{text-align:left;white-space:normal}
 thead th{font-size:11px;letter-spacing:.07em;color:var(--ink3);font-weight:500;
-  border-bottom:1px solid var(--rule);font-family:"IBM Plex Mono",monospace}
-tbody td{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
-tbody td:first-child{font-family:"Noto Sans TC",sans-serif}
+  border-bottom:1px solid var(--rule);font-family:monospace}
+tbody td{font-family:monospace;font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:sans-serif}
 tbody tr:hover{background:var(--rule2)}
 caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--ink3);padding:0 0 8px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 14px;font-size:13px;color:var(--ink2)}
@@ -102,7 +99,7 @@ caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--ink3);padd
 .sw{width:11px;height:11px;border-radius:2px;flex:none}
 #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .12s;
   background:var(--ink);color:var(--paper);padding:7px 10px;border-radius:4px;
-  font-size:12.5px;font-family:"IBM Plex Mono",monospace;z-index:9;line-height:1.55;white-space:pre}
+  font-size:12.5px;font-family:monospace;z-index:9;line-height:1.55;white-space:pre}
 svg{display:block;overflow:visible}
 .foot{font-size:12.5px;color:var(--ink3);margin-top:34px;line-height:1.75}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -116,8 +113,8 @@ svg{display:block;overflow:visible}
 .bnd table{min-width:0;font-size:13.5px}
 .bnd .qual{font-size:12.5px;color:var(--limit);margin:12px 0 0;line-height:1.6}
 .covbar{display:block;width:100%;height:22px;margin:2px 0 10px}
-.covnum{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:500;line-height:1.2}
-.covsub{font-size:12px;color:var(--ink3);font-family:"IBM Plex Mono",monospace}
+.covnum{font-family:monospace;font-size:26px;font-weight:500;line-height:1.2}
+.covsub{font-size:12px;color:var(--ink3);font-family:monospace}
 .sel{font-size:13.5px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;
   background:var(--panel);color:var(--ink);font-family:inherit}
 /* 列印：瀏覽器預設會剝掉背景色，暗色主題印出來會是白紙白字。一律改用淺色那組。 */
@@ -375,7 +372,7 @@ function tableFrom(el, head, rows){
     s.append(svgEl("line", { x1: P.l, x2: W - P.r, y1: y(g), y2: y(g),
       stroke: "var(--grid)", "stroke-width": 1 }));
     const lb = svgEl("text", { x: W - P.r + 6, y: y(g) + 4, fill: "var(--ink3)",
-      "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+      "font-size": 11, "font-family": "monospace" });
     lb.textContent = g + "%"; s.append(lb);
   });
   PARTIES.forEach(([key, cv]) => {
@@ -395,7 +392,7 @@ function tableFrom(el, head, rows){
   YS.forEach((v, i) => {
     const lb = svgEl("text", { x: x(i), y: H - 6, fill: "var(--ink3)", "font-size": 11,
       "text-anchor": i === 0 ? "start" : (i === YS.length - 1 ? "end" : "middle"),
-      "font-family": "IBM Plex Mono, monospace" });
+      "font-family": "monospace" });
     lb.textContent = v; s.append(lb);
   });
   document.getElementById("c-party").append(s);
@@ -418,7 +415,7 @@ function tableFrom(el, head, rows){
     const total = PARTIES.reduce((a, [k]) => a + seats[k], 0);
     const top = r * (BH + GAP);
     const yl = svgEl("text", { x: 0, y: top + BH / 2 + 4, fill: "var(--ink3)",
-      "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+      "font-size": 11, "font-family": "monospace" });
     yl.textContent = v; s.append(yl);
     let cx = LW;
     PARTIES.forEach(([key, cv, iv]) => {
@@ -430,7 +427,7 @@ function tableFrom(el, head, rows){
         rx: 2, fill: `var(${cv})` }));
       const lb = svgEl("text", { x: cx + (w - 2) / 2, y: top + BH / 2 + 4,
         "text-anchor": "middle", "font-size": 12, fill: `var(${iv})`,
-        "font-family": "IBM Plex Mono, monospace", "font-weight": 500 });
+        "font-family": "monospace", "font-weight": 500 });
       lb.textContent = n; g.append(lb);
       bind(g, fmt(T.tip_seat, { year: v, party: LB(key), n, total,
         share: LEG.parties[v][key].toFixed(2) }));
@@ -461,7 +458,7 @@ function tableFrom(el, head, rows){
       s.append(svgEl("line", { x1: P.l, x2: W - P.r, y1: y(g), y2: y(g),
         stroke: "var(--grid)", "stroke-width": 1 }));
       const lb = svgEl("text", { x: W - P.r + 5, y: y(g) + 3.5, fill: "var(--ink3)",
-        "font-size": 9, "font-family": "IBM Plex Mono, monospace" });
+        "font-size": 9, "font-family": "monospace" });
       lb.textContent = g; s.append(lb);
     });
     const pts = ys.map((v, i) => [x(YS.indexOf(v)), y(t.years[v].turnout)]);
@@ -479,13 +476,13 @@ function tableFrom(el, head, rows){
       if (i !== 0 && i !== pts.length - 1) return;
       const lb = svgEl("text", { x: p[0], y: p[1] - 9, fill: "var(--ink2)", "font-size": 10,
         "text-anchor": i === 0 ? "start" : "end",
-        "font-family": "IBM Plex Mono, monospace" });
+        "font-family": "monospace" });
       lb.textContent = d.turnout.toFixed(1); s.append(lb);
     });
     YS.forEach((v, i) => {
       const lb = svgEl("text", { x: x(i), y: H - 5, fill: "var(--ink3)", "font-size": 9,
         "text-anchor": i === 0 ? "start" : (i === YS.length - 1 ? "end" : "middle"),
-        "font-family": "IBM Plex Mono, monospace" });
+        "font-family": "monospace" });
       lb.textContent = YLAB(v); s.append(lb);
     });
     const d = document.createElement("div"); d.className = "panel";

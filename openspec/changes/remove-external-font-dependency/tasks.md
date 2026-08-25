@@ -1,0 +1,14 @@
+## 1. 拿掉 Google Fonts 連結與具名字型
+
+- [x] 1.1 移除五個頁面（`docs/index.html`、`docs/roster.html`、`docs/legislative.html`、`docs/en/index.html`、`docs/en/legislative.html`）`<head>` 裡的 `<link rel="preconnect" href="https://fonts.googleapis.com">`、`<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`、`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...">` 這三行，實作 Requirement「Published pages load no external network resources」的「The five published pages pass the check」情境。驗證：`grep -c "fonts.googleapis\|fonts.gstatic" docs/*.html docs/en/*.html` 每個檔案都回傳 0。
+- [x] 1.2 依循設計決定「CSS 的具名字型直接刪除該段落＋逗號，不改寫整條宣告」，把五個頁面 `<style>` 區塊裡所有 `font-family` 宣告中的 `"IBM Plex Mono"`、`"Noto Sans TC"`、`"Noto Serif TC"` 連同緊跟著的逗號一起刪除，保留其餘既有的通用／系統字型 fallback，實作 Requirement「Typography falls back to generic or system font keywords, never a named external typeface」的「A CSS font-family stack no longer names an external typeface」情境。驗證：`grep -c '"IBM Plex Mono"\|"Noto Sans TC"\|"Noto Serif TC"' docs/*.html docs/en/*.html` 每個檔案都回傳 0；人工檢閱每一條原本的 `font-family` 宣告，確認刪除具名字型後仍至少保留一個通用或系統字型關鍵字，沒有變成空堆疊。
+- [x] 1.3 依循設計決定「JS 內嵌的 SVG `font-family` 屬性字串內部也拿掉具名字型」，把 `docs/index.html`、`docs/en/index.html` 裡 `"font-family":"IBM Plex Mono, monospace"`（各 5 處，無空白）與 `docs/legislative.html`、`docs/en/legislative.html` 裡 `"font-family": "IBM Plex Mono, monospace"`（各 5 處，有空白）都改成對應的 `"font-family":"monospace"` 或 `"font-family": "monospace"`（保留各檔案原本冒號後有無空白的既有格式），實作「An inline SVG font-family attribute no longer names an external typeface」情境。驗證：`grep -c "IBM Plex Mono" docs/index.html docs/roster.html docs/legislative.html docs/en/index.html docs/en/legislative.html` 每個檔案都回傳 0。
+
+## 2. 新增外部資源檢查
+
+- [x] 2.1 在 `scripts/build_site_data.py` 新增 `check_no_external_resources()`，依循設計決定「新檢查函式直接讀取 `docs/` 底下每個 `.html` 檔案的完整內容找外部參照」，找出所有 `https?://[^\s"'<>]+` 形式的子字串、排除字串完全等於 `http://www.w3.org/2000/svg` 的項目，剩下任何一個就拋出 `SiteDataError`（訊息含檔名與該字串），實作 Requirement「Published pages load no external network resources」的「A page referencing Google Fonts fails the check」與「The SVG namespace URI does not trigger a false positive」兩個情境。驗證：新增合成測試，構造一個含 `<script src="https://example.com/x.js">` 的暫存 HTML 檔案，斷言 `check_no_external_resources()` 對它拋出 `SiteDataError` 且訊息含該網址；再構造一個只含 `document.createElementNS("http://www.w3.org/2000/svg", "svg")` 而沒有其他外部參照的暫存 HTML 檔案，斷言不拋例外。
+- [x] 2.2 依循設計決定「檢查放在 `main()` 既有的內容面檢查區塊，`--check` 與 `--write` 都跑」，把 `check_no_external_resources()` 加進 `main()` 裡 `if args.write or args.check:` 那個區塊，實作「The five published pages pass the check」情境。驗證：執行 `python scripts/build_site_data.py --check` 與 `--write`，新檢查皆通過、印出成功訊息，且既有的所有檢查（欄位重現、限定語、oracle 曝光等）都維持通過，沒有連帶失敗。
+
+## 3. 視覺驗證
+
+- [x] 3.1 用瀏覽器（headless Chrome 或既有的驗證方式）分別開啟五個頁面，檢查 Network 面板或等效的請求紀錄，確認沒有對 `fonts.googleapis.com`／`fonts.gstatic.com` 發出任何請求，且頁面版面沒有明顯跑版或文字重疊。驗證：截圖或條列每個頁面的請求清單，逐一確認清單裡不含這兩個網域；記錄目視結果（標題、內文、表格數字改用系統字型後是否可讀、對齊是否正常）。
