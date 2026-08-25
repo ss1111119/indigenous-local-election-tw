@@ -55,8 +55,9 @@
 `docs/index.html`、`docs/legislative.html` 的靜態中文標題插入語意斷詞點）、
 `legislative-oracle-doc-and-population-check`（6/6，新增
 `column-oracle-documentation` 能力：立委的欄位 oracle 對外曝光＋人口數
-驗證）與 `population-decimal-hardening-and-atomic-oracle-write`（5/5，
-強化人口數驗證邊界情況＋oracle 文件原子寫入）於 2026-08-25 歸檔。
+驗證）、`population-decimal-hardening-and-atomic-oracle-write`（5/5，
+強化人口數驗證邊界情況＋oracle 文件原子寫入）與 `party-list-oracle-doc`
+（2/2，補上政黨票長表同一類的 oracle 對外曝光缺口）於 2026-08-25 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
