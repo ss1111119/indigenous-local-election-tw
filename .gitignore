@@ -5,3 +5,8 @@ data/raw/**/*.csv
 # 組建產物與暫存
 __pycache__/
 *.pyc
+.spectra/
+openspec/.vector-search.db*
+
+# 探索性一次性腳本，不是給人看的產出
+scratch/
