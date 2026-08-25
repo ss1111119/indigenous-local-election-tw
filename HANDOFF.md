@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：12 個能力、**79 條 Requirement**
+### 主 specs：13 個能力、**81 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -45,6 +45,7 @@
 | `site-heading-segmentation` | 4 |
 | `column-oracle-documentation` | 5 |
 | `site-multi-dataset` | 3 |
+| `site-offline-resource-policy` | 2 |
 
 ### 已歸檔的 change（續）
 
@@ -61,7 +62,9 @@
 `oracles-shared-fn-mutation-coverage`（7/7，補齊
 check_population_column／write_oracle_document／
 _render_manifest_sections 的變異測試覆蓋，含修過期的 mutate SEL 篩選器）
-於 2026-08-25 歸檔。
+與 `remove-external-font-dependency`（6/6，拿掉五個頁面對 Google Fonts
+的外部連結、改用系統字型，新增 site-offline-resource-policy 能力驗證
+docs/ 下不含外部資源參照）於 2026-08-25 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
@@ -298,6 +301,26 @@ _render_manifest_sections 的變異測試覆蓋，含修過期的 mutate SEL 篩
 `main()` 現在跑之前會檢查這個真檔乾不乾淨、跑完不論成功失敗都會
 `git checkout` 復原一次——任何以後在這支腳本裡新增會呼叫
 `write_oracle_document()` 的測試路徑，都要意識到這個風險。
+
+### 1k. 站台頁面**曾經**連過 Google Fonts，跟「不連外部資源」的承諾矛盾——已修，但同類問題可能還有
+
+2026-08-25 由 Codex 做整體架構審查時人工讀出來的：五個頁面
+（`docs/index.html`、`docs/roster.html`、`docs/legislative.html` 及其
+英文版）的 `<head>` 都有連到 `fonts.googleapis.com`／`fonts.gstatic.com`
+的 `<link>`，跟 `README.md` 第 488 行「不連外部資源」的宣稱矛盾。**這件事
+沒有任何自動化檢查會擋下**，直到人工讀 HTML 原始碼才發現。
+
+**已處理**：拿掉 Google Fonts、改用系統字型，並新增
+`check_no_external_resources()`（見 `column-oracle-documentation` 附近的
+`site-offline-resource-policy` 能力），`--check`／`--write` 都會驗
+`docs/` 下沒有任何 `http(s)://` 外部參照（SVG 命名空間 URI
+`http://www.w3.org/2000/svg` 除外，那不是網路請求）。
+
+⚠️ **這條檢查只驗「有沒有外部資源參照」，不驗「文件宣稱的其他事情是否
+屬實」。** Codex 這次審查還提出了其他文件與實作可能對不上的地方（例如
+`sitemap.xml` 的 `lastmod` 落後實際更新日期），沒有一一查證，也沒有
+對應的自動化檢查——**這類矛盾的共同點是靠人工讀才會發現，值得之後
+再掃一次。**
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 
