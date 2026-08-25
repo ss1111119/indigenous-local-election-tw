@@ -393,6 +393,23 @@ LEG_STRAY_LINK_MUTATION = (
     '      stray.append(hit); s.append(stray); return;\n'
     '      s.append(hit);')
 
+# ── 標題語意斷詞的真檔變異（本變更新增）───────────────────────────
+#
+# 兩項都改真檔：<wbr> 與 CSS 的斷行控制屬性都活在 docs/index.html 裡，
+# 副本法測不到。
+
+INDEX_WBR_MUTATION = (
+    "index.html：h1 少插一個 <wbr>（純文字比對測不到，靠 wbr 計數測試）",
+    "<h1>原住民族<wbr>相關<wbr>地方<wbr>選舉<wbr>九<wbr>屆<wbr>概況</h1>",
+    "<h1>原住民族相關<wbr>地方<wbr>選舉<wbr>九<wbr>屆<wbr>概況</h1>")
+
+INDEX_KEEP_ALL_MUTATION = (
+    "index.html：h1 的 CSS 拿掉 word-break:keep-all（<wbr> 失去作用）",
+    "h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em;"
+    "word-break:keep-all;overflow-wrap:anywhere}",
+    "h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em;"
+    "overflow-wrap:anywhere}")
+
 # 只能改真檔的那一項。見模組 docstring。
 HTML_MUTATION = ("前端：MAIN 不再過濾（Python 端全綠、站台卻畫錯）",
                  'const MAIN = DATA.types.filter(t => t.mainSequence);',
@@ -603,7 +620,9 @@ def main() -> int:
                         mutate_real_html(EN_HTML, *EN_WEAKEN_MUTATION),
                         mutate_real_html(HTML, *INDEX_FOCUS_MUTATION),
                         mutate_real_html(HTML, *INDEX_NAV_MUTATION),
-                        mutate_real_html(LEG_HTML, *LEG_STRAY_LINK_MUTATION)):
+                        mutate_real_html(LEG_HTML, *LEG_STRAY_LINK_MUTATION),
+                        mutate_real_html(HTML, *INDEX_WBR_MUTATION),
+                        mutate_real_html(HTML, *INDEX_KEEP_ALL_MUTATION)):
         print(msg)
         if not caught:
             if msg.lstrip().startswith("★ 跳過"):

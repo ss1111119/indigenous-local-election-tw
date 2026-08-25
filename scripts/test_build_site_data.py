@@ -1621,6 +1621,32 @@ def test_heading_segmentation_rejects_unsupported_markup() -> None:
 
 
 @reports
+def test_index_h1_wbr_count_matches_budoux_segmentation() -> None:
+    """index.html 的 h1 含的 <wbr> 數量必須等於 BudouX 對其純文字重新算出的段界數。
+
+    純文字比對（test_heading_segmentation_preserves_visible_text）抓不到
+    「少插一個 <wbr>」這種變異——拿掉一個 <wbr> 不影響可見文字。這裡直接
+    比對數量，才有辨識力。
+    """
+    print("\n[真實] index.html 的 h1 含正確數量的 <wbr>")
+    page = ROOT / "docs" / "index.html"
+    if not page.exists():
+        print("  SKIP  找不到 docs/index.html")
+        skipped.append("test_index_h1_wbr_count_matches_budoux_segmentation")
+        return
+    html = page.read_text(encoding="utf-8")
+    m = re.search(r"<h1>(.*?)</h1>", html)
+    check("index.html 找得到 <h1>", m is not None, True)
+    if m is None:
+        return
+    inner = m.group(1)
+    plain_text_heading = f"<h1>{inner.replace('<wbr>', '')}</h1>"
+    expected = segment_headings(plain_text_heading, "docs/index.html")
+    check("h1 的 <wbr> 數量與重新斷詞的結果一致",
+          inner.count("<wbr>"), expected.count("<wbr>"))
+
+
+@reports
 def test_heading_css_enforces_semantic_break_points() -> None:
     """h1/h2 的 CSS 規則要有 word-break:keep-all 與 overflow-wrap:anywhere。
 
@@ -1736,6 +1762,7 @@ def main() -> int:
                test_heading_segmentation_single_chunk_has_no_wbr,
                test_heading_segmentation_replaces_manual_br_with_wbr,
                test_heading_segmentation_rejects_unsupported_markup,
+               test_index_h1_wbr_count_matches_budoux_segmentation,
                test_heading_css_enforces_semantic_break_points,
                test_heading_segmentation_scope_excludes_en_and_roster,
                test_heading_segmentation_is_idempotent):

@@ -17,5 +17,5 @@
 
 ## 4. 變異測試
 
-- [ ] 4.1 在 `scripts/mutate_build_site_data.py` 新增一項真檔變異：把 `docs/index.html` 或 `docs/legislative.html` 某個標題輸出中的一個 `<wbr>` 拿掉，證明任務 1.2／2.1 新增的純文字比對測試會抓到（純文字比對本身不會抓到，需搭配一個直接斷言「此標題含 N 個 `<wbr>`」的測試）。驗證：先新增一個斷言特定標題 `<wbr>` 數量的測試，用 `mutate_real_html()` 手動套用此變異、確認該測試由通過變成失敗，再撤銷變異、確認測試恢復通過。
-- [ ] 4.2 在 `scripts/mutate_build_site_data.py` 新增一項真檔變異：把 `docs/index.html` 的 `h1{...}` 規則中的 `word-break:keep-all` 拿掉，證明任務 3.1 新增的 CSS 測試會抓到。驗證：手動套用此變異、確認 CSS 測試由通過變成失敗，再撤銷變異、確認測試恢復通過；並將此變異併入 `mutate_build_site_data.py` 的真檔變異迴圈中，跑一次完整變異套件確認全數變異都被抓到。
+- [x] 4.1 在 `scripts/mutate_build_site_data.py` 新增一項真檔變異：把 `docs/index.html` 或 `docs/legislative.html` 某個標題輸出中的一個 `<wbr>` 拿掉，證明任務 1.2／2.1 新增的純文字比對測試會抓到（純文字比對本身不會抓到，需搭配一個直接斷言「此標題含 N 個 `<wbr>`」的測試）。驗證：先新增一個斷言特定標題 `<wbr>` 數量的測試，用 `mutate_real_html()` 手動套用此變異、確認該測試由通過變成失敗，再撤銷變異、確認測試恢復通過。
+- [x] 4.2 在 `scripts/mutate_build_site_data.py` 新增一項真檔變異：把 `docs/index.html` 的 `h1{...}` 規則中的 `word-break:keep-all` 拿掉，證明任務 3.1 新增的 CSS 測試會抓到。驗證：手動套用此變異、確認 CSS 測試由通過變成失敗，再撤銷變異、確認測試恢復通過；並將此變異併入 `mutate_build_site_data.py` 的真檔變異迴圈中，跑一次完整變異套件確認全數變異都被抓到。
