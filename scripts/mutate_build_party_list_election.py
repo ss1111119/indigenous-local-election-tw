@@ -28,7 +28,8 @@ SEL = ("test_bounds_formula or test_bounds_guard or test_declarations "
        "or test_source_guards or test_cross_file_guards "
        "or test_party_and_seats or test_shares_and_denominator "
        "or test_2020_special_stations or test_regression "
-       "or test_existing_outputs_untouched")
+       "or test_existing_outputs_untouched "
+       "or test_party_list_oracle_rendered_into_shared_document")
 
 COPIES = ("build_party_list_election.py", "test_build_party_list_election.py",
           "build_local_election.py", "build_legislative_election.py",
@@ -198,6 +199,14 @@ MUTATIONS: list[tuple[str, str, str, str]] = [
      "oracles.py",
      '        "q": dict(\n            provenance="project",',
      '        "_unused_q": dict(\n            provenance="project",'),
+    ("render_markdown 拿掉政黨票區塊的呼叫（PARTY_LIST_MANIFEST 曝光消失）",
+     "oracles.py",
+     '    out += _render_manifest_sections(\n'
+     '        PARTY_LIST_MANIFEST,\n'
+     '        {"party_list_summary": "政黨票選舉概況 summary",\n'
+     '         "party_list_votes": "政黨票候選人得票 votes",\n'
+     '         "party_list_seats": "政黨票席次 seats"})',
+     '    pass'),
 ]
 
 

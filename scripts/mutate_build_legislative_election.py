@@ -33,7 +33,11 @@ SEL = ("test_pipeline_end_to_end or test_synthetic_dirty_data "
        "or test_age_sentinel or test_elected_from_authoritative "
        "or test_published_levels or test_geo_normalisation "
        "or test_named_defects or test_existing_outputs_untouched "
-       "or test_reproducible or test_source_guards")
+       "or test_reproducible or test_source_guards "
+       "or test_legislative_oracle_rendered_into_shared_document "
+       "or test_manifest_rendering_reflects_new_columns "
+       "or test_population_is_valid_decimal "
+       "or test_oracle_document_written_atomically")
 
 # (說明, 檔名, 原字串, 替換字串)
 MUTATIONS = [
@@ -177,6 +181,16 @@ MUTATIONS = [
      "build_legislative_election.py",
      '        if c["當選註記"] in ELECTED_MARKS:      # 來源怎麼寫',
      '        if c["當選"] == "Y":                    # 來源怎麼寫'),
+
+    # ── oracles.py 的共用函式（本次變更新增）─────────────────────
+    ("check_population_column 拿掉 is_finite 檢查（Infinity/NaN 會靜默通過）",
+     "oracles.py",
+     "        if not pop.is_finite():",
+     "        if False:"),
+    ("write_oracle_document 寫入的內容被置換（原子寫入本身失去意義）",
+     "oracles.py",
+     '        with os.fdopen(fd, "w", encoding="utf-8") as f:\n            f.write(content)',
+     '        with os.fdopen(fd, "w", encoding="utf-8") as f:\n            f.write("MUTATED")'),
 ]
 
 
@@ -224,27 +238,54 @@ def baseline() -> int:
     return 0
 
 
+ORACLE_DOC = ROOT / "docs" / "schema" / "oracles.md"
+
+
+def _oracle_doc_is_clean() -> bool:
+    """`write_oracle_document()` 的 ROOT 算的是真正的專案根目錄，即使從
+    `_mut_leg/` 副本呼叫也一樣——所以任何一項變異只要跑到這個函式，
+    寫的是【真正的】`docs/schema/oracles.md`，不是副本裡的檔案。
+    跑之前該檔案必須乾淨，否則跑完用 `git checkout` 復原會連使用者
+    未提交的改動一起還原掉。
+    """
+    r = subprocess.run(["git", "diff", "--quiet", "--", str(ORACLE_DOC)],
+                       capture_output=True, cwd=ROOT)
+    return r.returncode == 0
+
+
 def main() -> int:
+    if not _oracle_doc_is_clean():
+        print(f"★ {ORACLE_DOC} 有未提交的改動：這個變異套件會呼叫"
+              f"write_oracle_document() 寫到這個真檔，跑完會用 git checkout"
+              f"復原，連你的改動一起還原掉。請先提交或暫存後再跑。")
+        return 1
     rc = baseline()
     if rc:
         shutil.rmtree(MUT, ignore_errors=True)
         return rc
-    for i, (desc, fname, old, new) in enumerate(MUTATIONS, 1):
-        prepare()
-        target = MUT / fname
-        src = target.read_text(encoding="utf-8")
-        if old not in src:
-            print(f"{i}. ★ 變異字串找不到，變異測試本身壞了：{desc}")
-            rc = 1
-            continue
-        target.write_text(src.replace(old, new, 1), encoding="utf-8")
-        p = run()
-        ok = p.returncode != 0 and "INTERNALERROR" not in (p.stdout + p.stderr)
-        print(f"{i}. {'偵測到 ✓' if ok else '★ 沒被偵測到（測試無效）'} — {desc}")
-        if not ok:
-            rc = 1
-    if MUT.exists():
-        shutil.rmtree(MUT)
+    try:
+        for i, (desc, fname, old, new) in enumerate(MUTATIONS, 1):
+            prepare()
+            target = MUT / fname
+            src = target.read_text(encoding="utf-8")
+            if old not in src:
+                print(f"{i}. ★ 變異字串找不到，變異測試本身壞了：{desc}")
+                rc = 1
+                continue
+            target.write_text(src.replace(old, new, 1), encoding="utf-8")
+            p = run()
+            ok = p.returncode != 0 and "INTERNALERROR" not in (p.stdout + p.stderr)
+            print(f"{i}. {'偵測到 ✓' if ok else '★ 沒被偵測到（測試無效）'} — {desc}")
+            if not ok:
+                rc = 1
+    finally:
+        # ⚠️ 不論成功或失敗都要復原：任何一項變異的測試執行過程都可能
+        #    把真正的 oracles.md 寫壞（見上面 _oracle_doc_is_clean 的說明），
+        #    不是只有針對 write_oracle_document 的那一項變異才有風險。
+        subprocess.run(["git", "checkout", "--", str(ORACLE_DOC)], cwd=ROOT,
+                       capture_output=True)
+        if MUT.exists():
+            shutil.rmtree(MUT)
     print("\n變異測試" + ("全部被偵測到" if rc == 0 else "有漏網"))
     return rc
 
