@@ -27,6 +27,7 @@ import build_legislative_election as B  # noqa: E402
 from build_local_election import (  # noqa: E402
     ELECTED_MARKS, ValidationError, zip_names,
 )
+import oracles  # noqa: E402
 
 OUT = ROOT / "data" / "processed"
 failures: list[str] = []
@@ -656,13 +657,82 @@ def test_synthetic_dirty_data() -> None:
           B.gzip_bytes(b"x")[4:8], b"\x00\x00\x00\x00")
 
 
+@reports
+def test_legislative_oracle_rendered_into_shared_document() -> None:
+    """立委的欄位 oracle 必須透過 render_markdown() 曝光，不是死碼。"""
+    print("\n[單元] 立委欄位 oracle 的算繪")
+    md = oracles.render_markdown()
+    names = {"legislative_summary": "立委選舉概況 summary",
+             "legislative_candidates": "立委候選人 candidates",
+             "legislative_votes": "立委候選人得票 votes"}
+    for table, heading in names.items():
+        check(f"文件含標題「## {heading}」", f"## {heading}" in md, True)
+        section = md.split(f"## {heading}")[1].split("## ")[0]
+        expected_cols = set(oracles.LEGISLATIVE_MANIFEST[table])
+        found_cols = set(
+            line.split("|")[1].strip().strip("`")
+            for line in section.splitlines()
+            if line.startswith("| `")
+        )
+        check(f"{heading} 欄位集合與 LEGISLATIVE_MANIFEST 完全相符",
+              found_cols, expected_cols)
+
+
+@reports
+def test_manifest_rendering_reflects_new_columns() -> None:
+    """manifest 多一個欄位，算繪結果就要跟著多出來——不是照抄一份快照。"""
+    print("\n[單元] 算繪結果會反映 manifest 的內容變動")
+    fake_manifest = {
+        "legislative_summary": dict(
+            oracles.LEGISLATIVE_MANIFEST["legislative_summary"],
+            假欄位=dict(provenance="project", structure="test",
+                     arithmetic=None, semantic="none", note=None),
+        )
+    }
+    out = oracles._render_manifest_sections(
+        fake_manifest, {"legislative_summary": "立委選舉概況 summary"})
+    md = "\n".join(out)
+    check("新增的假欄位出現在算繪結果裡", "`假欄位`" in md, True)
+
+
+@reports
+def test_population_is_valid_decimal() -> None:
+    """人口數原樣保留字串，但仍須是可解析、非負的十進位數。"""
+    print("\n[合成] 立委人口數的可解析性與非負值驗證")
+
+    def row(pop: str) -> dict:
+        return {"層級": "縣市", "省市": "10", "縣市": "001",
+                "鄉鎮市區": "000", "行政區名稱": "測試縣", "人口數": pop}
+
+    try:
+        B.check_population_is_valid_decimal([row("abc")], "測試")
+        check("非數字字串會中止", "沒有中止", "中止")
+    except ValidationError as e:
+        check("非數字字串的錯誤訊息含「不是十進位數」", "不是十進位數" in str(e), True)
+
+    try:
+        B.check_population_is_valid_decimal([row("-5")], "測試")
+        check("負值會中止", "沒有中止", "中止")
+    except ValidationError as e:
+        check("負值的錯誤訊息含「為負數」", "為負數" in str(e), True)
+
+    try:
+        B.check_population_is_valid_decimal([row("0"), row("1234.5")], "測試")
+        check("合法值（含 0 與小數）不中止", True, True)
+    except ValidationError as e:
+        check(f"合法值不應中止（卻拋出 {e}）", False, True)
+
+
 def main() -> int:
     for fn in (test_pipeline_end_to_end, test_synthetic_dirty_data,
                test_seat_sequence, test_anchor_2020, test_personal_data_absent,
                test_age_sentinel, test_elected_from_authoritative,
                test_published_levels, test_geo_normalisation,
                test_named_defects, test_existing_outputs_untouched,
-               test_reproducible, test_source_guards):
+               test_reproducible, test_source_guards,
+               test_legislative_oracle_rendered_into_shared_document,
+               test_manifest_rendering_reflects_new_columns,
+               test_population_is_valid_decimal):
         try:
             fn()
         except AssertionError:

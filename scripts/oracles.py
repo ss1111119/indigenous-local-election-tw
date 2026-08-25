@@ -733,9 +733,28 @@ def render_markdown() -> str:
         "把它們寫成 `official-doc` 才是。",
         "",
     ]
-    names = {"summary": "選舉概況 summary", "candidates": "候選人 candidates",
-             "votes": "候選人得票 votes"}
-    for table, fields in MANIFEST.items():
+    out += _render_manifest_sections(
+        MANIFEST,
+        {"summary": "選舉概況 summary", "candidates": "候選人 candidates",
+         "votes": "候選人得票 votes"})
+    out += _render_manifest_sections(
+        LEGISLATIVE_MANIFEST,
+        {"legislative_summary": "立委選舉概況 summary",
+         "legislative_candidates": "立委候選人 candidates",
+         "legislative_votes": "立委候選人得票 votes"})
+    return "\n".join(out)
+
+
+def _render_manifest_sections(manifest: dict, names: dict[str, str]
+                              ) -> list[str]:
+    """把一份 manifest 算繪成一串 Markdown 區塊（每張表一個 `##` 標題）。
+
+    抽成獨立函式是為了讓 `render_markdown()` 能對本地選舉的 `MANIFEST`
+    與立委的 `LEGISLATIVE_MANIFEST` 各呼叫一次，而不必各寫一份幾乎相同
+    的算繪邏輯——手寫兩份會讓其中一份漏改。
+    """
+    out: list[str] = []
+    for table, fields in manifest.items():
         n_arith = sum(1 for v in fields.values() if v["arithmetic"])
         out += [
             f"## {names[table]}",
@@ -755,7 +774,7 @@ def render_markdown() -> str:
                 f"| `{col}` | {prov} | `{d['semantic']}` | {arith} | {note} |"
             )
         out.append("")
-    return "\n".join(out)
+    return out
 
 
 # ══════════════════════════════════════════════════════════════════════
