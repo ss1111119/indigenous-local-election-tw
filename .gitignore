@@ -11,6 +11,12 @@ openspec/.vector-search.db*
 # 探索性一次性腳本，不是給人看的產出
 scratch/
 
+# 變異測試腳本在執行中建立的副本目錄（跑完會自行刪除，中斷時會殘留）。
+# 不排除的話，spectra task done 掃 git status 會把它記進 touched files，
+# 污染 archive 產生的 @trace——與 scratch/ 同一類問題，見 HANDOFF 地雷 1i。
+_mut/
+_mut_leg/
+
 # spectra 依 .spectra.yaml 的 tools 設定自動生成的跨工具 skill 鷹架，
 # 內容逐字相同（只有斜線指令語法照各工具慣例調整），换台機器重新生成即可，
 # 不是手工維護的內容。.claude/settings.json 留待另外決定，不在此列。
