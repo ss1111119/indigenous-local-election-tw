@@ -915,6 +915,44 @@ def check_no_external_resources(docs: Path | None = None) -> None:
             )
 
 
+# 導覽標籤與 <h1> 不得使用的說法——暗示比資料實際能撐起的解讀更強。
+# 內文限定語裡出現這些詞是合法的（用來劃清界線），這份清單只管
+# check_no_overclaiming_labels() 掃描的兩個區塊，不是整份檔案。
+OVERCLAIMING_TERMS = ("政黨傾向", "政黨版圖", "party leaning", "Party Politics")
+
+_NAV_RE = re.compile(r"<nav\b[^>]*>.*?</nav>", re.DOTALL)
+_H1_RE = re.compile(r"<h1\b[^>]*>.*?</h1>", re.DOTALL)
+
+
+def check_no_overclaiming_labels(docs: Path | None = None) -> None:
+    """導覽標籤與 <h1> 不得暗示比資料能撐起的更強的解讀。
+
+    ⚠️ 只掃描 <nav>／<h1> 這兩個區塊，不是整份檔案——「政黨傾向」在內文
+       限定語裡是合法用法（用來說「這才是政黨傾向、其他數字不是」），
+       整份檔案級的比對會把那種正確用法也擋下來。
+
+    `docs` 參數只供測試餵合成目錄用，正式流程一律用預設值（真正的 docs/）。
+    """
+    docs = docs or (ROOT / "docs")
+    for path in sorted(docs.rglob("*.html")):
+        text = path.read_text(encoding="utf-8")
+        try:
+            label = path.relative_to(ROOT).as_posix()
+        except ValueError:
+            label = str(path)
+        for block_name, block_re in (("nav", _NAV_RE), ("h1", _H1_RE)):
+            m = block_re.search(text)
+            if not m:
+                continue
+            block = m.group(0)
+            for term in OVERCLAIMING_TERMS:
+                if term in block:
+                    raise SiteDataError(
+                        f"{label} 的 <{block_name}> 含過強的說法「{term}」——"
+                        f"暗示比資料實際能撐起的解讀更強。"
+                    )
+
+
 # 頁面上以**靜態 HTML** 呈現的限定語：頁面 → (語言, 必須逐字出現的 key)。
 #
 # ⚠️ **為什麼不把這些也交給 JS 從 `T` 注入**：那會讓「沒有 JS 就沒有限定語」。
@@ -1708,6 +1746,8 @@ def main() -> None:
         print("✓ 該標示本屆限定語的頁面都帶了對應語言的版本")
         check_no_external_resources()
         print("✓ docs/ 下的頁面都不含外部資源參照")
+        check_no_overclaiming_labels()
+        print("✓ 導覽標籤與 h1 都沒有過強的說法")
 
     if args.diff_roster:
         roster_html = ROOT / "docs" / "roster.html"

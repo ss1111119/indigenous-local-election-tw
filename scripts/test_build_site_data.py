@@ -1106,7 +1106,6 @@ def test_existing_pages_still_reproduce() -> None:
 # --------------------------------------------- 選舉期間的發布規則（本變更新增）
 
 @reports
-@reports
 def test_no_external_resources() -> None:
     """`docs/` 下的頁面不得含外部資源參照，SVG 命名空間 URI 除外。
 
@@ -1134,6 +1133,30 @@ def test_no_external_resources() -> None:
     print("\n[真實] docs/ 下現有頁面都通過外部資源檢查")
     check("真實 docs/ 通過",
           build_site_data.check_no_external_resources() is None, True)
+
+
+@reports
+def test_no_overclaiming_labels() -> None:
+    """導覽標籤與 <h1> 不得暗示比資料能撐起的更強的解讀，內文合法用法不誤判。"""
+    print("\n[合成] 過強說法檢查：nav／h1 違規 vs 內文合法用法")
+    tmp = Path(tempfile.mkdtemp())
+
+    (tmp / "bad.html").write_text(
+        "<nav>立委與政黨傾向</nav>", encoding="utf-8")
+    check_raises_msg(
+        "nav 含過強說法會中止",
+        lambda: build_site_data.check_no_overclaiming_labels(tmp),
+        "政黨傾向")
+
+    (tmp / "bad.html").unlink()
+    (tmp / "ok.html").write_text(
+        "<nav>立委選舉</nav><p>真正的政黨傾向在別的地方</p>", encoding="utf-8")
+    check("內文合法用法不中止",
+          build_site_data.check_no_overclaiming_labels(tmp) is None, True)
+
+    print("\n[真實] docs/ 下現有頁面都通過過強說法檢查")
+    check("真實 docs/ 通過",
+          build_site_data.check_no_overclaiming_labels() is None, True)
 
 
 @reports
@@ -1777,6 +1800,7 @@ def main() -> int:
                test_bounds_section_states_coverage_first,
                test_existing_pages_still_reproduce,
                test_no_external_resources,
+               test_no_overclaiming_labels,
                test_publication_record_covers_every_page,
                test_current_term_notice_is_present_and_named,
                test_frozen_indicator_shape_does_not_grow,

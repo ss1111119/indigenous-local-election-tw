@@ -1,0 +1,9 @@
+## 1. 改導覽標籤與標題文案
+
+- [x] 1.1 把五個頁面（`docs/index.html`、`docs/roster.html`、`docs/legislative.html`、`docs/en/index.html`、`docs/en/legislative.html`）`<nav>` 裡的導覽標籤「立委與政黨傾向」改成「立委選舉」，英文對應「Legislators & party leaning」改成「Legislative elections」，實作 Requirement「Navigation labels and page headings do not overclaim beyond what the data supports」的「The five published pages pass the check」情境。驗證：`grep -c "立委與政黨傾向\|Legislators & party leaning" docs/*.html docs/en/*.html` 每個檔案都回傳 0；人工檢閱五個頁面的導覽列連結文字與連結目標（href）都沒有跟著文案異動而壞掉。
+- [x] 1.2 依循設計決定「中文標題文案：呼應頁面內第 01 節既有用詞，不是重新發明說法」，把 `docs/legislative.html` 的 `<h1>` 從「原住民立法委員九屆的政黨版圖」改成「原住民立法委員九屆的政黨得票率」（沿用既有的 BudouX 語意斷詞機制重新產生 `<wbr>`），`docs/en/legislative.html` 的 `<h1>` 從「Indigenous Legislators, Nine Terms of Party Politics」改成「Indigenous Legislators, Nine Terms of Party Vote Share」。驗證：執行 `python scripts/build_site_data.py --write` 讓 `segment_headings()` 重新算出這個新標題的 `<wbr>` 斷詞點；`grep -c "政黨版圖\|Party Politics" docs/legislative.html docs/en/legislative.html` 都回傳 0。
+
+## 2. 新增自動化檢查
+
+- [x] 2.1 在 `scripts/build_site_data.py` 新增 `check_no_overclaiming_labels()`，依循設計決定「檢查只掃描 `<nav ...>...</nav>` 與 `<h1>...</h1>` 這兩個區塊，不是整份檔案」與「禁用詞清單：中英各兩個，一次性宣告在檢查函式旁」，對 `docs/` 下五個目標頁面各自擷取 `<nav>` 與（若存在）`<h1>` 的內容，找到「政黨傾向」「政黨版圖」「party leaning」「Party Politics」任一詞就拋出 `SiteDataError`（訊息含檔名、區塊名稱、找到的詞），實作 Requirement「Navigation labels and page headings do not overclaim beyond what the data supports」的三個情境（nav 違規、h1 違規、內文合法用法不誤判）。驗證：新增合成測試，構造一段含 `<nav>立委與政黨傾向</nav>` 的暫存 HTML，斷言拋出例外且訊息含「政黨傾向」；再構造一段 `<nav>立委選舉</nav><p>真正的政黨傾向在別的地方</p>` 的暫存 HTML，斷言不拋例外。
+- [x] 2.2 依循設計決定「檢查放在 `main()` 既有的內容面檢查區塊」，把 `check_no_overclaiming_labels()` 加進 `main()` 裡 `if args.write or args.check:` 那個區塊，實作「The five published pages pass the check」情境。驗證：執行 `python scripts/build_site_data.py --check` 與 `--write`，新檢查皆通過、印出成功訊息，且既有的所有檢查（欄位重現、限定語、oracle 曝光、外部資源等）都維持通過，沒有連帶失敗。
