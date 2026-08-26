@@ -19,9 +19,12 @@ _mut_leg/
 
 # spectra 依 .spectra.yaml 的 tools 設定自動生成的跨工具 skill 鷹架，
 # 內容逐字相同（只有斜線指令語法照各工具慣例調整），换台機器重新生成即可，
-# 不是手工維護的內容。.claude/settings.json 留待另外決定，不在此列。
+# 不是手工維護的內容。
+#
+# 2026-08-26 決定：`.claude/` 整個目錄一律忽略，不再逐項列舉。原本保留
+# 「`.claude/settings.json` 留待另外決定」，該決定已做成——那是個人使用
+# 偏好（`includeGitInstructions`）而非專案層級的共用約定，不入庫。
+# 一律忽略也讓 Claude Code 日後新增的檔案不必再逐一補進本檔。
 .agent/
 .gemini/
-.claude/skills/
-.claude/scheduled_tasks.lock
-.claude/settings.local.json
+.claude/
