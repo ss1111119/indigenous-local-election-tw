@@ -7,7 +7,7 @@
 
 ## 一、現在停在哪裡
 
-**最後更新：2026-08-25。**
+**最後更新：2026-08-26。**
 
 ### 資料集
 
@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：13 個能力、**81 條 Requirement**
+### 主 specs：14 個能力、**82 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -46,6 +46,7 @@
 | `column-oracle-documentation` | 5 |
 | `site-multi-dataset` | 3 |
 | `site-offline-resource-policy` | 2 |
+| `site-editorial-neutrality` | 1 |
 
 ### 已歸檔的 change（續）
 
@@ -64,7 +65,11 @@ check_population_column／write_oracle_document／
 _render_manifest_sections 的變異測試覆蓋，含修過期的 mutate SEL 篩選器）
 與 `remove-external-font-dependency`（6/6，拿掉五個頁面對 Google Fonts
 的外部連結、改用系統字型，新增 site-offline-resource-policy 能力驗證
-docs/ 下不含外部資源參照）於 2026-08-25 歸檔。
+docs/ 下不含外部資源參照）於 2026-08-25 歸檔，`neutral-legislative-page-naming`
+（4/4，立委頁導覽標籤「立委與政黨傾向」與標題「···的政黨版圖」改為
+「立委選舉」「原住民立法委員九屆的政黨得票率」，新增
+site-editorial-neutrality 能力：`check_no_overclaiming_labels()` 驗
+nav／h1 不含過強字眼）於 2026-08-26 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
@@ -321,6 +326,25 @@ docs/ 下不含外部資源參照）於 2026-08-25 歸檔。
 `sitemap.xml` 的 `lastmod` 落後實際更新日期），沒有一一查證，也沒有
 對應的自動化檢查——**這類矛盾的共同點是靠人工讀才會發現，值得之後
 再掃一次。**
+
+### 1l. 「導覽標籤／標題不可過強宣稱」的檢查只鎖了四個具名字眼，不是通則性的語意檢查
+
+2026-08-26 由 Codex 架構審查發現：`docs/legislative.html` 的導覽標籤「立委與
+政黨傾向」、`<h1>`「···的政黨版圖」都暗示比資料實際能撐起的解讀更強——
+候選人得票率不是政黨認同、不分區政黨票只涵蓋 11.0% 的原住民選舉人。已改為
+「立委選舉」「原住民立法委員九屆的政黨得票率」，新增
+`check_no_overclaiming_labels()`（`site-editorial-neutrality` 能力）鎖定
+`<nav>`／`<h1>` 內是否含「政黨傾向」「政黨版圖」「party leaning」
+「Party Politics」這四個具名字眼，`--check`／`--write` 都會驗。
+
+⚠️ **這條檢查是字串比對，不是語意判斷。** 之後如果又寫出語意上同樣過強、
+但用詞不同的句子（例如「政黨光譜」「傾向分析」），這條檢查**不會**擋下來——
+跟 1k 的 Google Fonts 案例同類：靠人工讀 HTML 才會發現，值得每次做架構審查
+時重新掃一次，而不是以為加了這條檢查就一勞永逸。
+
+⚠️ **只鎖 `<nav>` 與 `<h1>`，內文允許同樣的字眼**（用來畫限定語邊界時，
+例如「候選人得票率不是政黨傾向」）——測試 `test_no_overclaiming_labels`
+的第三段合成案例專門驗證內文用法不誤判。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 
