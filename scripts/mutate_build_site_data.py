@@ -410,6 +410,23 @@ INDEX_KEEP_ALL_MUTATION = (
     "h1{font-size:clamp(28px,4.4vw,42px);font-weight:700;letter-spacing:-.01em;"
     "overflow-wrap:anywhere}")
 
+# ── 頁內目錄／資料集地圖的真檔變異（本變更新增）───────────────────
+#
+# 兩項都改真檔：段落文字與 <nav class="toc"> 都活在 docs/index.html 裡，
+# 副本法測不到——測試讀的是 ROOT/docs/ 底下的真檔。
+
+INDEX_DATASET_MAP_MUTATION = (
+    "index.html：資料集地圖說明整段被拿掉（讀者不知道還有哪些資料集）",
+    '  <p class="dataset-map">本站呈現三個資料集：地方公職（見「概況」與「名錄」）、'
+    '原住民立法委員（見「立委選舉」）、不分區政黨票的界限估計（見「立委選舉」頁第 04 節）'
+    '——三者選舉人範圍不同，數字不可互相比較，也不可相加。</p>\n',
+    '')
+
+INDEX_TOC_HREF_MUTATION = (
+    "index.html：頁內目錄的一個 href 被改成不存在的 id（目錄與 section 脫節）",
+    '<a href="#turnout">01 投票率</a>',
+    '<a href="#ghost">01 投票率</a>')
+
 # 只能改真檔的那一項。見模組 docstring。
 HTML_MUTATION = ("前端：MAIN 不再過濾（Python 端全綠、站台卻畫錯）",
                  'const MAIN = DATA.types.filter(t => t.mainSequence);',
@@ -622,7 +639,9 @@ def main() -> int:
                         mutate_real_html(HTML, *INDEX_NAV_MUTATION),
                         mutate_real_html(LEG_HTML, *LEG_STRAY_LINK_MUTATION),
                         mutate_real_html(HTML, *INDEX_WBR_MUTATION),
-                        mutate_real_html(HTML, *INDEX_KEEP_ALL_MUTATION)):
+                        mutate_real_html(HTML, *INDEX_KEEP_ALL_MUTATION),
+                        mutate_real_html(HTML, *INDEX_DATASET_MAP_MUTATION),
+                        mutate_real_html(HTML, *INDEX_TOC_HREF_MUTATION)):
         print(msg)
         if not caught:
             if msg.lstrip().startswith("★ 跳過"):

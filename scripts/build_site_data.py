@@ -608,6 +608,17 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": ("Figures on these pages cover different populations. They "
                "cannot be compared with each other, and they cannot be added."),
     },
+    "dataset_map": {
+        "zh": ("本站呈現三個資料集：地方公職（見「概況」與「名錄」）、原住民立法委員"
+               "（見「立委選舉」）、不分區政黨票的界限估計（見「立委選舉」頁第 04 節）——"
+               "三者選舉人範圍不同，數字不可互相比較，也不可相加。"),
+        "en": ("This site presents three datasets: local public offices (see "
+               "Overview and Roster), indigenous legislators (see Legislative "
+               "elections), and a bounded estimate of party-list preference "
+               "(within the Legislative elections page, section 04). Their "
+               "electorates differ; figures cannot be compared with each "
+               "other, and they cannot be added."),
+    },
     # ── 圖表與表格的 UI 文字 ─────────────────────────────────
     #
     # ⚠️ 這些收進來之後，**兩版頁面的 JS 完全相同、只有 T 與 L 不同**。
@@ -951,6 +962,96 @@ def check_no_overclaiming_labels(docs: Path | None = None) -> None:
                         f"{label} 的 <{block_name}> 含過強的說法「{term}」——"
                         f"暗示比資料實際能撐起的解讀更強。"
                     )
+
+
+# 資料集地圖必須出現的頁面 → 語言碼。五個已發布頁面全部列在這裡——
+# roster.html 沒有頁內目錄（見 check_section_ids_match_toc()），但仍要有
+# 資料集地圖，讓讀者不管從哪一頁進站都知道還有哪些資料集。
+DATASET_MAP_PAGES: dict[str, str] = {
+    "index.html": "zh",
+    "roster.html": "zh",
+    "legislative.html": "zh",
+    "en/index.html": "en",
+    "en/legislative.html": "en",
+}
+
+
+def check_dataset_map_present(docs: Path | None = None) -> None:
+    """`DATASET_MAP_PAGES` 列出的每個頁面都要含與 `STRINGS["dataset_map"]`
+    逐字相同的資料集地圖說明。
+
+    ⚠️ 比對邏輯與 `check_static_qualifiers()` 相同：排除 `<script>` 區塊，
+       量到的是讀者看得到的那份文字，不是頁面的 `T` 常數。
+
+    `docs` 參數只供測試餵合成目錄用，正式流程一律用預設值（真正的 docs/）。
+    """
+    check_strings_complete()
+    docs = docs or (ROOT / "docs")
+    for name, lang in DATASET_MAP_PAGES.items():
+        page = docs / name
+        if not page.exists():
+            continue
+        html = re.sub(r"<script>.*?</script>", "",
+                       page.read_text(encoding="utf-8"), flags=re.S)
+        want = STRINGS["dataset_map"][lang]
+        if want not in html:
+            raise SiteDataError(
+                f"{name} 缺少資料集地圖說明（{lang}）：{want!r}。"
+                f"每個已發布頁面都必須讓讀者知道還有哪些資料集、彼此不可比較。"
+            )
+
+
+# 多節頁面 → 該頁 <section id="..."> 的期望順序。roster.html 不在這裡：
+# 它是單頁名錄，沒有多個 <section>，不需要頁內目錄。
+TOC_PAGES: dict[str, tuple[str, ...]] = {
+    "index.html": ("scope", "turnout", "party", "gender", "scale",
+                    "perseat", "custom"),
+    "legislative.html": ("scope", "partyvote", "seats", "turnout", "bounds"),
+    "en/index.html": ("scope", "turnout", "party", "gender", "scale",
+                        "perseat", "custom"),
+    "en/legislative.html": ("scope", "partyvote", "seats", "turnout", "bounds"),
+}
+
+_SECTION_ID_RE = re.compile(r'<section\b[^>]*\bid="([^"]+)"')
+_TOC_RE = re.compile(r'<nav class="toc"[^>]*>(.*?)</nav>', re.DOTALL)
+_TOC_HREF_RE = re.compile(r'<a\s+href="#([^"]+)"')
+
+
+def check_section_ids_match_toc(docs: Path | None = None) -> None:
+    """`TOC_PAGES` 列出的每個頁面，其 `<section id>` 序列必須與
+    `<nav class="toc">` 內的 `href="#id"` 序列完全一致（相同集合、相同順序）。
+
+    ⚠️ 目錄是手寫的（見 design.md「頁內目錄是手寫的 `<nav class="toc">`，
+       用一致性檢查而非生成保證正確」），這條檢查擋的是目錄與實際 section
+       之間的脫節——新增／刪除／搬動一節卻忘了同步改目錄，兩邊都不會
+       各自報錯，只有比對過才看得出來。
+
+    `docs` 參數只供測試餵合成目錄用，正式流程一律用預設值（真正的 docs/）。
+    """
+    docs = docs or (ROOT / "docs")
+    for name, expected in TOC_PAGES.items():
+        page = docs / name
+        if not page.exists():
+            continue
+        html = page.read_text(encoding="utf-8")
+        section_ids = tuple(_SECTION_ID_RE.findall(html))
+        toc_match = _TOC_RE.search(html)
+        toc_ids = tuple(_TOC_HREF_RE.findall(toc_match.group(1))) if toc_match else ()
+
+        if not toc_match:
+            raise SiteDataError(f"{name} 沒有 <nav class=\"toc\">，但列在 TOC_PAGES 裡。")
+        if section_ids != expected:
+            raise SiteDataError(
+                f"{name} 的 <section id> 序列 {section_ids} 與期望的 {expected} 不同。"
+            )
+        if toc_ids != expected:
+            missing = set(expected) - set(toc_ids)
+            extra = set(toc_ids) - set(expected)
+            raise SiteDataError(
+                f"{name} 的頁內目錄與 section id 不一致："
+                f"目錄序列 {toc_ids}，期望 {expected}"
+                f"（目錄少列 {sorted(missing)}，目錄多連 {sorted(extra)}）。"
+            )
 
 
 # 頁面上以**靜態 HTML** 呈現的限定語：頁面 → (語言, 必須逐字出現的 key)。
@@ -1748,6 +1849,10 @@ def main() -> None:
         print("✓ docs/ 下的頁面都不含外部資源參照")
         check_no_overclaiming_labels()
         print("✓ 導覽標籤與 h1 都沒有過強的說法")
+        check_dataset_map_present()
+        print("✓ 已發布頁面都含資料集地圖說明")
+        check_section_ids_match_toc()
+        print("✓ 多節頁面的 section id 與頁內目錄一致")
 
     if args.diff_roster:
         roster_html = ROOT / "docs" / "roster.html"

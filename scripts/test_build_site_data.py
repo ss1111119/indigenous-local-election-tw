@@ -1160,6 +1160,69 @@ def test_no_overclaiming_labels() -> None:
 
 
 @reports
+def test_dataset_map_present() -> None:
+    """`DATASET_MAP_PAGES` 列出的每個頁面都要含逐字相同的資料集地圖說明。"""
+    print("\n[合成] 資料集地圖檢查：缺說明 vs 逐字相同")
+    tmp = Path(tempfile.mkdtemp())
+
+    (tmp / "index.html").write_text("<p>沒有資料集地圖</p>", encoding="utf-8")
+    check_raises_msg(
+        "缺資料集地圖說明的頁面會中止",
+        lambda: build_site_data.check_dataset_map_present(tmp),
+        "資料集地圖")
+
+    (tmp / "index.html").write_text(
+        "<p>" + build_site_data.STRINGS["dataset_map"]["zh"] + "</p>",
+        encoding="utf-8")
+    check("逐字相同不中止",
+          build_site_data.check_dataset_map_present(tmp) is None, True)
+
+    print("\n[真實] docs/ 下五個已發布頁面都通過資料集地圖檢查")
+    check("真實 docs/ 通過",
+          build_site_data.check_dataset_map_present() is None, True)
+
+
+@reports
+def test_section_ids_match_toc() -> None:
+    """多節頁面的 `<section id>` 序列必須與 `<nav class="toc">` 的
+    `href="#id"` 序列一致，目錄多連或少列都要中止。
+    """
+    print("\n[合成] 頁內目錄一致性檢查：目錄多連／少列 vs 一致")
+    tmp = Path(tempfile.mkdtemp())
+    expected = build_site_data.TOC_PAGES["index.html"]
+    sections = "".join(f'<section id="{i}"></section>' for i in expected)
+
+    toc_extra = ('<nav class="toc">'
+                 + "".join(f'<a href="#{i}">x</a>' for i in expected)
+                 + '<a href="#ghost">x</a></nav>')
+    (tmp / "index.html").write_text(toc_extra + sections, encoding="utf-8")
+    check_raises_msg(
+        "目錄多連不存在的 id 會中止",
+        lambda: build_site_data.check_section_ids_match_toc(tmp),
+        "不一致")
+
+    toc_missing = ('<nav class="toc">'
+                   + "".join(f'<a href="#{i}">x</a>' for i in expected[:-1])
+                   + '</nav>')
+    (tmp / "index.html").write_text(toc_missing + sections, encoding="utf-8")
+    check_raises_msg(
+        "目錄少列一個 section id 會中止",
+        lambda: build_site_data.check_section_ids_match_toc(tmp),
+        "不一致")
+
+    toc_ok = ('<nav class="toc">'
+              + "".join(f'<a href="#{i}">x</a>' for i in expected)
+              + '</nav>')
+    (tmp / "index.html").write_text(toc_ok + sections, encoding="utf-8")
+    check("目錄與 section id 一致不中止",
+          build_site_data.check_section_ids_match_toc(tmp) is None, True)
+
+    print("\n[真實] docs/ 下四個多節頁面都通過頁內目錄一致性檢查")
+    check("真實 docs/ 通過",
+          build_site_data.check_section_ids_match_toc() is None, True)
+
+
+@reports
 def test_publication_record_covers_every_page() -> None:
     """發布判定紀錄必須涵蓋 docs/ 下每一個 HTML，兩個方向都驗。
 
@@ -1801,6 +1864,8 @@ def main() -> int:
                test_existing_pages_still_reproduce,
                test_no_external_resources,
                test_no_overclaiming_labels,
+               test_dataset_map_present,
+               test_section_ids_match_toc,
                test_publication_record_covers_every_page,
                test_current_term_notice_is_present_and_named,
                test_frozen_indicator_shape_does_not_grow,
