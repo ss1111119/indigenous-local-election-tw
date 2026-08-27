@@ -4,7 +4,18 @@
 
 2026-08-26 完成的來源可用性清點（`docs/schema/山地鄉鄉長資料清點.md`）確認資料存在且可對應：1998／2002／2005 三屆 30 個山地鄉全數命中，2009 為 25 個（五鄉所屬縣正併入直轄市而未參選），2014／2018／2022 為 24 個（六鄉改制為直轄市原住民區、改列 D2）。
 
-⚠️ **本 change 有前置 change**：`census-elctks-elprof-township-chief`。2026-08-26 的清點只開過 `elbase` 與 `elcand`，證實「候選人與單位可對應」；席次、選舉人數、投票數所在的 `elctks` 與 `elprof` 七屆皆未檢查。那筆驗證債由前置 change 補完，本 change 的逐屆預期命中數與可納入屆別清單**以前置 change 的「可納入性結論」為準**，不得沿用本文其他段落引述的既有數字。
+✅ **前置 change `census-elctks-elprof-township-chief` 已於 2026-08-27 完成並歸檔。**
+七屆的 `elctks`／`elprof` 已逐屆清點，結論：**七屆全部結構上可納入**，逐屆預期命中數
+（30／30／30／25／24／24／24）重新實測後與既有記載一致。
+
+該清點改變了本 change 的範圍，新增三項原本沒有的要求：
+
+1. **只納入鄉鎮市區及以上層級**——清點找到三個缺陷全部只存在於村里／投開票所層級，
+   其中「2002／2005 的 `elctks` 當選註記 100% 帶星號」**不會報錯**，只會把落選人算成當選。
+2. **五屆需正規化選舉區欄**（1998／2002／2005／2009-2010／2014）——四個來源檔各寫各的，
+   `elprof` 甚至在同檔內依層級混用 `00` 與 `01`；忽略該欄後七屆孤兒為 0。
+3. **1998／2002 需補 D1 的鄉鎮市區代碼對照列**——既有對照表 1,290 列只涵蓋 T2／T3。
+   ⚠️ 2005 的 D1 實測乾淨，但同屆 T2／T3 需要對照，兩者不可互相推論。
 
 依 `election-period-publication` 的兩段式測試，本 change 產出的數字（席次、候選人數、選舉人數、投票數、投票率）全部屬 **frozen historical data** 而非 interpretive indicator——它們可由官方計數加總取得、且不帶方向。惟本 change **完全不修改 `docs/`**，因此該能力所管的「published page」一條都不觸及。
 
@@ -15,6 +26,9 @@
 - 將 1998／2002／2005／2009-2010／2014／2018／2022 七屆的 `D1-MT` 納入三份地方公職長表（summary／votes／candidates）
 - 在建置期處理清點已具名的四個陷阱：欄位值前綴撇號（依 `legacy-source-quirks` 既有規範處置）、台↔臺異體字、三民鄉即那瑪夏、省市／縣市代碼跨屆重編
 - 新增自動化檢查，阻止 `D1-MT` 與 `D2` 被接成同一條序列
+- 新增自動化檢查，把 `D1-MT` 的納入層級限制在鄉鎮市區及以上
+- 為五屆在 `DISTRICT_COLUMN_INCONSISTENT` 補上 `D1-MT` 的選舉區欄登記，逐檔釘死允許值
+- 為 1998／2002 兩屆在 `cec-town-code-crosswalk-1998-2005.csv` 補上 `D1-MT` 的鄉鎮市區代碼對照列
 - 補上對應的測試與變異測試
 
 ## Non-Goals
@@ -25,6 +39,7 @@
 - **不納入平地原住民鄉的鄉長**：平地鄉鄉長無同等法定身分限制
 - **不納入補選資料夾**：十個鄉鎮市層級補選中只有蘭嶼鄉屬山地鄉，且補選的屆別語意與正規選舉不同
 - **不把 `D1-MT` 與 `D2` 合併為單一序列**：2014 年的改制會製造假跳點，與 README 已記錄的 R2 情況同類
+- **不納入村里與投開票所層級**：三個只存在於該層級的來源缺陷不在本 change 修復範圍；缺陷 3 需要獨立的當選人權威來源才能修，屬另一件事
 - **不算任何比值或代表性指標**：不計算跨母體相除的數字
 - **不下「站台是否呈現」的結論**：那涉及 `election-period-publication` 的擴張判定，另案
 
@@ -45,6 +60,6 @@
 - Affected specs: `mountain-township-chief-elections`（新）
 - Affected code:
   - New: `data/reference/mountain-township-codes.csv`
-  - Modified: `scripts/build_local_election.py`, `scripts/oracles.py`, `scripts/test_build_local_election.py`, `scripts/mutate_build_local_election.py`, `data/sources.json`, `docs/schema/cec-local-election.md`, `docs/schema/山地鄉鄉長資料清點.md`, `README.md`
+  - Modified: `scripts/build_local_election.py`, `scripts/oracles.py`, `scripts/test_build_local_election.py`, `scripts/mutate_build_local_election.py`, `data/sources.json`, `data/reference/cec-town-code-crosswalk-1998-2005.csv`, `docs/schema/cec-local-election.md`, `docs/schema/山地鄉鄉長資料清點.md`, `README.md`
   - Removed: (none)
 - Affected data: `data/processed/cec-local-election-summary-long.csv.gz`, `data/processed/cec-local-election-votes-long.csv.gz`, `data/processed/cec-local-election-candidates-long.csv` 三份長表將新增 `D1-MT` 的列；既有六種選舉種類的列不得改變

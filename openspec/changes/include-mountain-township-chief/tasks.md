@@ -2,7 +2,9 @@
 
 - [ ] 2.1 （實作 spec requirement「A mountain indigenous township is identified by administrative code, never by name」；design 決策 2：以代碼對照表識別山地鄉，名稱只用於建表時的人工核對）撰寫核對腳本，對七屆各自的 `elbase` 逐一確認 30 個山地鄉（2009 為 25、2014 起為 24）的（省市, 縣市, 鄉鎮市區）代碼三元組，並輸出該屆該代碼在來源中的實際名稱。腳本須處理前綴撇號，且不得以名稱比對決定命中——名稱僅作為人工核對的佐證輸出。
 - [ ] 2.2 （實作 spec requirement「The code mapping is recorded per term, not as a single snapshot」；design 決策 3：對照表逐屆記錄，不用單一快照）依 2.1 的輸出建立 `data/reference/mountain-township-codes.csv`，欄位為 `屆別, 省市, 縣市, 鄉鎮市區, 山地鄉名, 來源屆名稱, 備註`，共 187 列（30／30／30／25／24／24／24）。`屆別` 使用長表既有字串（`2009-2010` 而非 `2009`）。六個名稱變體（霧台／霧臺、烏來、和平、桃源、茂林、三民即那瑪夏）於 `備註` 欄具名。
-- [ ] 2.3 在 `data/sources.json` 為 `mountain-township-codes.csv` 補上來源登記，說明其為本專案由 `cip-indigenous-areas` 名單與 `cec-votedata` 交叉核對而得的衍生對照表，並記錄「91 年公告後是否有修正未查證」這項限制。
+- [ ] 2.3 （實作 spec requirement「A district column that disagrees across source files is normalised, not trusted and not ignored」；design 決策 7：選舉區欄比照既有登記表正規化，不自行放寬）在 `scripts/build_local_election.py` 的 `DISTRICT_COLUMN_INCONSISTENT` 為 `D1-MT` 補上五筆登記（1998／2002／2005／2009-2010／2014），逐檔釘死允許值：`elbase` 皆為 `00`；`elcand` 1998 為 `00`、其餘四屆為 `01`；`elprof` 五屆皆為 `00` 與 `01` 兩種；`elctks` 1998／2002 為 `00`、2005／2009-2010／2014 為 `01`。**不為 2018／2022 登記**——四檔一致，多餘的條目會讓日後真的出現分歧時被靜默吸收。
+- [ ] 2.4 在 `data/reference/cec-town-code-crosswalk-1998-2005.csv` 補上 1998 與 2002 兩屆 `D1-MT` 的鄉鎮市區代碼對照列（本地代碼→同屆區域檔代碼）。⚠️ **2005 的 D1 實測不需要對照**（319 個共同代碼逐一相符），不可因同屆 T2／T3 需要就一併補。完成判準：補列後，1998／2002 的 D1 鄉鎮市區代碼經對照表換算後，與同屆區域檔的代碼→名稱對應完全一致。
+- [ ] 2.5 在 `data/sources.json` 為 `mountain-township-codes.csv` 補上來源登記，說明其為本專案由 `cip-indigenous-areas` 名單與 `cec-votedata` 交叉核對而得的衍生對照表，並記錄「91 年公告後是否有修正未查證」這項限制。
 
 ## 三、建置腳本與 oracle
 
@@ -12,12 +14,14 @@
 - [ ] 3.4 在 `process_one()` 的路徑上加入山地鄉篩選：`D1-MT` 讀取該屆 D1 來源後，只保留代碼三元組落在對照表內的單位。篩選須在行政層級判定之後、跨檔比對之前。
 - [ ] 3.5 （實作 spec requirement「Selection is verified by a per-term count that fails when selection silently returns nothing」；design 決策 4：撇號剝除在讀取層，且必須可被驗證）新增 `check_mountain_township_hit_count()`，斷言每屆選中的山地鄉單位數等於前置 change census-elctks-elprof-township-chief 的「可納入性結論」一節所定的逐屆預期值，不符時中止並同時具名屆別、預期值與實際值。
 - [ ] 3.6 （實作 spec requirement「The mountain township chief series is not joined to the indigenous district chief series」；design 決策 5：`D1-MT` 與 `D2` 的不可接續由檢查強制，不靠文件）新增 `check_no_d1mt_d2_merge()`，斷言 `D1-MT` 與 `D2` 不會落入同一條主序列（`is_main_sequence`），違反時中止並具名兩個代碼。
-- [ ] 3.7 執行 `python scripts/build_local_election.py` 重新產生三份長表，確認 exit code 為 0（不得以管線接 `tail` 等指令，否則回報的是最後一個指令的 rc）。
+- [ ] 3.7 （實作 spec requirement「Ingestion stops at the level the figures are sound at」；design 決策 6：層級限制在建置強制，只納入鄉鎮市區及以上）新增 `check_mountain_township_level()`，斷言 `D1-MT` 進入長表的每一列其行政層級皆為鄉鎮市區或以上，出現村里／投開票所層級時中止並具名層級與屆別。⚠️ 這個檢查存在的理由是 2002／2005 的 `elctks` 當選註記在明細層級 100% 帶星號——那個缺陷**不會報錯**，只靠其他檢查攔不住。
+- [ ] 3.8 執行 `python scripts/build_local_election.py` 重新產生三份長表，確認 exit code 為 0（不得以管線接 `tail` 等指令，否則回報的是最後一個指令的 rc）。
 
 ## 四、驗證
 
 - [ ] 4.1 驗證既有六種官方代碼與三種自訂代碼的列未被本 change 改動：從新舊三份長表各自篩掉 `D1-MT` 的列後計算 SHA-256，比對兩者相同。不相同時具名差異的選舉種類與屆別。
-- [ ] 4.2 在 `scripts/test_build_local_election.py` 新增測試，涵蓋：對照表缺屆、某屆命中數少一個、`D1-MT` 與 `D2` 被接為同一序列、前綴撇號未剝除導致零命中。每項須為合成髒資料輸入，且須在該項防護被移除時失敗。
+- [ ] 4.1b 斷言三份長表中 `D1-MT` 的列其行政層級皆為鄉鎮市區或以上——直接讀長表的層級欄，不依賴建置期的檢查是否執行過。
+- [ ] 4.2 在 `scripts/test_build_local_election.py` 新增測試，涵蓋：對照表缺屆、某屆命中數少一個、`D1-MT` 與 `D2` 被接為同一序列、前綴撇號未剝除導致零命中、`D1-MT` 出現村里層級的列、來源檔選舉區欄出現登記表未列的第三種值。每項須為合成髒資料輸入，且須在該項防護被移除時失敗。
 - [ ] 4.3 在 `scripts/mutate_build_local_election.py` 為 4.2 的每項檢查新增對應變異，並確認新測試已加入該腳本的 `SEL` 篩選器（HANDOFF 地雷 1j：未加入的測試變異測試看不到）。
 - [ ] 4.4 執行 `python scripts/mutate_build_local_election.py`，確認全部變異被偵測、基準對照通過、無測試被跳過。任一變異未被偵測時，補測試而非調降判準。
 
