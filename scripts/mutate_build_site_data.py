@@ -301,6 +301,18 @@ MUTATIONS = [
     ("多語：本屆限定語只驗 T 有、不驗 JS 用到（讀者看不到的限定語等於沒有）",
      '        if "T.current_term_notice" not in html:',
      '        if False:'),
+
+    # ---- 資料層有、站台不呈現的選舉種類 ----
+    ("index：未登記且缺檔別合計改成靜默略過（種類會從站台安靜消失）",
+     '        if missing_totals:',
+     '        if False:'),
+    ("index：排除登記被清空（不該呈現的種類會流上站台或直接崩潰）",
+     'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "D1-MT": (',
+     'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "_UNUSED": (' ),
+    ("roster：排除只在輸出時略過，沒有先濾掉候選人（政黨索引會整批重排）",
+     '    kept = [c for c in cands\n'
+     '            if c["年度"] in keep and c["選舉種類"] not in SITE_EXCLUDED_TYPES]',
+     '    kept = [c for c in cands if c["年度"] in keep]'),
 ]
 
 # 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。

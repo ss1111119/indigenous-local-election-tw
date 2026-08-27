@@ -276,6 +276,26 @@ def _round_half_up(value: Decimal, places: str) -> Decimal:
     return value.quantize(Decimal(places), rounding=ROUND_HALF_UP)
 
 
+# 在資料層但【刻意不在站台呈現】的選舉種類，鍵為代碼、值為理由。
+#
+# ⚠️ 站台的種類清單是由長表【推導】的（見 election_types()），所以資料層新增
+#    一種選舉，它預設就會上站台。對於「已納入資料層但還沒決定要不要呈現」的
+#    種類，那個預設是錯的；而讓它靜默消失也是錯的。
+#
+# ⚠️ 未登記【且】缺檔別合計列的種類一律【中止】，不靜默跳過。靜默跳過的話，
+#    日後任何種類因為別的原因掉了彙總列，會從站台安靜消失且沒有錯誤訊息。
+#    本專案已為同類問題付過代價——1994-2005 的無黨籍席次被算成「其他」，
+#    在站台上活了一整天，而規則早就抓得到，缺的是執行點。
+SITE_EXCLUDED_TYPES: dict[str, str] = {
+    "D1-MT": (
+        "山地鄉鄉長：資料層已納入（7 屆 187 個單位），站台呈現待 2026-12-04 "
+        "公告當選人名單後決定。依 include-mountain-township-chief 的 design "
+        "決策 8，該種類刻意不產生檔別合計列——D1 的檔別合計涵蓋全部 319 個 "
+        "鄉鎮市，縣市層級更是混合母體（同時含山地鄉、平地原住民鄉、一般鄉鎮市）。"
+    ),
+}
+
+
 def build_index_data(summary: list[dict], cands: list[dict],
                      only_terms: list[str] | None = None) -> dict:
     """算出 `docs/index.html` 的 `DATA` 常數。
@@ -306,6 +326,22 @@ def build_index_data(summary: list[dict], cands: list[dict],
 
     out_types = []
     for code, meta in types_meta.items():
+        # 刻意不呈現的種類：整個略過，不列入輸出。理由記在常數裡。
+        if code in SITE_EXCLUDED_TYPES:
+            continue
+        # 未登記卻缺檔別合計列 → 中止。這裡【不可】改成 totals.get(k) 略過：
+        # 那會讓任何種類因為別的原因掉了彙總列時，從站台安靜消失。
+        # ⚠️ 變數名刻意不叫 `missing`：本檔另有一處缺欄檢查也用該名稱，
+        #    撞名會讓變異測試的比對字串同時命中兩處而被判為「字串壞掉」。
+        missing_totals = [y for y in years
+                          if by_key.get((code, y)) and (code, y) not in totals]
+        if missing_totals:
+            raise SiteDataError(
+                f"選舉種類 {code} 在 {missing_totals} 有候選人卻沒有檔別合計列，"
+                f"且不在 SITE_EXCLUDED_TYPES 內。"
+                f"要呈現它就得有該列；不呈現就得具名登記於 SITE_EXCLUDED_TYPES "
+                f"並寫下理由——不可靜默略過。"
+            )
         per_year: dict[str, dict | None] = {}
         for year in years:
             k = (code, year)
@@ -1283,7 +1319,12 @@ def build_roster_data(summary: list[dict], cands: list[dict],
     all_terms = terms(summary)
     keep = set(only_terms) if only_terms else set(all_terms)
     years = [y for y in all_terms if y in keep]
-    kept = [c for c in cands if c["年度"] in keep]
+    # ⚠️ 排除的種類必須在這裡就濾掉，不能只在輸出時略過：下面的政黨清單順序
+    #    是「在長表中首次出現的順序」，被排除種類的候選人若留在 kept 裡，
+    #    可能讓某個政黨提前首次出現而使所有政黨索引重新分配——名錄裡索引
+    #    出現數千次，那會讓檔案長度改變、真正的差異被埋在長度變化裡。
+    kept = [c for c in cands
+            if c["年度"] in keep and c["選舉種類"] not in SITE_EXCLUDED_TYPES]
 
     # 政黨清單的順序＝在長表中**首次出現**的順序。
     #

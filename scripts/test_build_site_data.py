@@ -46,6 +46,7 @@ from build_site_data import (  # noqa: E402
     LEG_MARKER,
     LEG_SUMMARY_FILE,
     REQUIRED_COLUMNS,
+    SITE_EXCLUDED_TYPES,
     SUMMARY_FILE,
     SiteDataError,
     build_bounds_data,
@@ -227,6 +228,75 @@ def test_zero_electors_turnout_is_none() -> None:
                         is_main_sequence="true", admin_code_system="test")]
     y = build_index_data(summ, _mixed_cands())["types"][0]["years"][_TERM]
     check("turnout 為 None", y["turnout"], None)
+
+
+@reports
+def test_excluded_types_are_named_not_skipped() -> None:
+    """在資料層但不呈現的選舉種類，必須具名登記；未登記則中止。
+
+    ⚠️ 這一組必須用合成資料。真實資料裡 `D1-MT` 已經登記，所以中止那條
+    **永遠不會觸發**——把它改成 `totals.get(k)` 靜默略過，真實資料上完全
+    看不出差別，站台只是少一種選舉。
+
+    ⚠️ 站台的種類清單是由長表【推導】的，所以資料層新增一種選舉，它預設
+    就會上站台。這一組守的是那個預設在「還沒決定要不要呈現」時是錯的。
+    """
+    print("\n[合成] 排除的選舉種類：具名登記，未登記則中止")
+
+    def rows(code: str, with_total: bool):
+        # ⚠️ 缺檔別合計【不等於】完全沒有 summary 列。真實的 D1-MT 有 187 列
+        #    鄉鎮市區層級，只是沒有檔別合計列——若這裡不給任何 summary 列，
+        #    election_types() 根本不認識該種類，迴圈碰不到它，中止那條就
+        #    測不到（本測試第一版正是這樣，通過與失敗都是為了錯的理由）。
+        summ = [summary_row(
+            年度=_TERM, 選舉種類=code, 選舉種類名稱="測試選舉",
+            層級="鄉鎮市區", 檔別="city", 縣市="001", 鄉鎮市區="001",
+            選舉人數="100", 投票數="60",
+            is_main_sequence="true", admin_code_system="test")]
+        if with_total:
+            summ.append(summary_row(
+                年度=_TERM, 選舉種類=code, 選舉種類名稱="測試選舉",
+                層級="檔別合計", 檔別="city", 選舉人數="100", 投票數="60",
+                is_main_sequence="true", admin_code_system="test"))
+        cands = [cand_row(年度=_TERM, 選舉種類=code, 選舉種類名稱="測試選舉",
+                          姓名="甲", 政黨名稱="無", 當選="Y", 當選註記="*",
+                          號次="1", 縣市="001", 鄉鎮市區="001")]
+        return summ, cands
+
+    saved = dict(SITE_EXCLUDED_TYPES)
+    try:
+        # 已登記且缺檔別合計 → 不中止，且【不出現在輸出】
+        SITE_EXCLUDED_TYPES.clear()
+        SITE_EXCLUDED_TYPES["ZZ"] = "測試用：資料層有、站台不呈現"
+        summ, cands = rows("ZZ", with_total=False)
+        # 另加一個正常種類，避免「輸出為空」與「排除成功」無法分辨
+        s2, c2 = rows(_TYPE, with_total=True)
+        out = build_index_data(summ + s2, cands + c2)
+        codes = [t["code"] for t in out["types"]]
+        check("已登記的種類不出現在輸出", "ZZ" in codes, False)
+        check("同批的正常種類仍出現", _TYPE in codes, True)
+
+        # ⚠️ 未登記且缺檔別合計 → 中止。不可靜默略過。
+        SITE_EXCLUDED_TYPES.clear()
+        check_raises(
+            "未登記且缺檔別合計 → 中止",
+            lambda: build_index_data(summ + s2, cands + c2))
+        try:
+            build_index_data(summ + s2, cands + c2)
+        except SiteDataError as exc:
+            check("中止訊息具名該種類", "ZZ" in str(exc), True)
+
+        # 未登記但【有】檔別合計 → 正常呈現，不受這條影響
+        summ3, cands3 = rows("ZZ", with_total=True)
+        out3 = build_index_data(summ3, cands3)
+        check("未登記但有檔別合計 → 正常呈現",
+              [t["code"] for t in out3["types"]], ["ZZ"])
+    finally:
+        SITE_EXCLUDED_TYPES.clear()
+        SITE_EXCLUDED_TYPES.update(saved)
+
+    check("登記的每一筆都有非空的理由",
+          [c for c, why in SITE_EXCLUDED_TYPES.items() if not why.strip()], [])
 
 
 # ---------------------------------------------------- 二、當選標記的六個分支
@@ -1840,6 +1910,7 @@ def test_heading_segmentation_is_idempotent() -> None:
 
 def main() -> int:
     for fn in (test_seats_from_authoritative,
+               test_excluded_types_are_named_not_skipped,
                test_no_winners_does_not_divide_by_zero,
                test_zero_electors_turnout_is_none,
                test_site_mark_branches,
