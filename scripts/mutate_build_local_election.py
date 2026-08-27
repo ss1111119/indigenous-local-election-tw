@@ -30,7 +30,15 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_custom_type_terms or test_regression or test_valid_age "
        "or test_age_valid_column_in_output "
        "or test_town_crosswalk "
-       "or test_unguarded_source_checks")
+       "or test_unguarded_source_checks "
+       # ⚠️ 新增測試必須加進這裡，否則變異測試看不到它（HANDOFF 地雷 1j）。
+       "or test_mountain_township_selection "
+       "or test_mountain_township_projection "
+       "or test_mountain_age_sentinel_scope "
+       "or test_mountain_not_in_main_sequence "
+       "or test_mountain_codes_table "
+       "or test_mountain_township_level_postcondition "
+       "or test_mountain_codes_generator_guards")
 
 MUTATIONS = [
     # ⚠️ 字串必須唯一。`"T-COMBO": "直轄市議員` 在 oracles.py 出現兩次
@@ -159,8 +167,8 @@ MUTATIONS = [
      '    key = (year, etype, code) if False else (year, "T2", code)'),
     ("TOWN_CODES_FILE_LOCAL 漏掉 2005（2005 縣市碼全域但鄉鎮市區碼仍重編）",
      "build_local_election.py",
-     '    ("2005", "T2"), ("2005", "T3"),\n}',
-     '}'),
+     '    ("2005", "T2"), ("2005", "T3"),\n',
+     ''),
     ("2005 的具名當選註記異常清單少一筆（記錄過期）",
      "build_local_election.py",
      '        ("01", "015", "10", "000", "0000", "2"),   # 呂必賢 漏標',
@@ -254,8 +262,8 @@ MUTATIONS = [
      "            if False:"),
     ("crosswalk 誤套用到直轄市檔（拿縣市議員區域檔查直轄市代碼）",
      "build_local_election.py",
-     'COUNTY_CROSSWALK_TYPES = {"T2", "T3"}',
-     'COUNTY_CROSSWALK_TYPES = {"T2", "T3", "T-COMBO"}'),
+     'COUNTY_CROSSWALK_TYPES = {"T2", "T3", "D1-MT"}',
+     'COUNTY_CROSSWALK_TYPES = {"T2", "T3", "D1-MT", "T-COMBO"}'),
     ("1994 高雄市的當選註記異常不具名",
      "build_local_election.py",
      '        ("02", "000", "00", "000", "0000", "1"),   # 高玉生 481票 漏標',
@@ -319,12 +327,83 @@ MUTATIONS = [
      '            "年齡": r[10],'),
     ("拿掉「列入的屆別必須整批是無資料值」那條斷言",
      "build_local_election.py",
-     '            extra = ages - AGE_NO_DATA_VALUES\n            if extra:',
-     '            extra = ages - AGE_NO_DATA_VALUES\n            if False:'),
+     '            unexpected = ages - allowed\n            if unexpected:',
+     '            unexpected = ages - allowed\n            if False:'),
     ("拿掉「清單外不得出現哨兵值」那條斷言",
      "build_local_election.py",
      '        elif AGE_UNRECORDED_VALUE in ages:',
      '        elif False:'),
+
+    # ---- 山地鄉鄉長（D1-MT）----
+    ("山地鄉篩選改成只比數量（少選 A 鄉、誤選 B 鄉會靜默通過）",
+     "build_local_election.py",
+     '    if selected != want:',
+     '    if len(selected) != len(want):'),
+    ("對照表列到但來源沒有的檢查空轉（過期的對照表不再被偵測）",
+     "build_local_election.py",
+     '    ghost = sorted(want - in_source)',
+     '    ghost = []'),
+    ("對照表缺屆的檢查空轉（缺屆會被當成「該屆沒有山地鄉」）",
+     "build_local_election.py",
+     '    if not want:',
+     '    if False:'),
+    ("投影層不做層級過濾（村里與投開票所層級會流進長表）",
+     "build_local_election.py",
+     '        return admin_level(r) == "鄉鎮市區" and (r[0], r[1], r[3]) in keys',
+     '        return (r[0], r[1], r[3]) in keys'),
+    ("elcand 改用 6 欄判層級（號次被當成投開票所代碼，鄉鎮市區列全被剔除）",
+     "build_local_election.py",
+     '        return (admin_level(list(r[:5]) + [""]) == "鄉鎮市區"',
+     '        return (admin_level(r) == "鄉鎮市區"'),
+    ("valid_age 不看窄化哨兵（1998 鄉鎮市長的 100 會變成「100 歲」）",
+     "build_local_election.py",
+     '    if raw in AGE_UNRECORDED_EXTRA.get((year, etype), frozenset()):',
+     '    if False:'),
+    ("窄化哨兵的擴散檢查空轉（哨兵約定擴散到別的檔時不再中止）",
+     "build_local_election.py",
+     '            spread = ages & values',
+     '            spread = set()'),
+    ("窄化登記「從未被用到」的檢查失效（過期宣告會放寬可接受的值域）",
+     "build_local_election.py",
+     '        seen = by_scope.get((term, etype))',
+     '        seen = set(values)'),
+    ("D1-MT 改列為官方代碼（is_main_sequence 翻真，可與 D2 接成同一序列）",
+     "oracles.py",
+     '    "D1-MT": "山地鄉鄉長選舉",\n}',
+     '}'),
+    ("TOWN_CODES_FILE_LOCAL 漏掉 D1-MT（1998／2002 的鄉鎮市區碼不再換算）",
+     "build_local_election.py",
+     '    ("1998", "D1-MT"), ("2002", "D1-MT"),\n}',
+     '}'),
+    ("層級後置斷言放行明細層級（別的路徑把村里列加進長表時不再中止）",
+     "build_local_election.py",
+     '    allowed = {"檔別合計", "直轄市縣市", "選舉區", "鄉鎮市區"}',
+     '    allowed = {"檔別合計", "直轄市縣市", "選舉區", "鄉鎮市區", "村里", "投開票所"}'),
+    ("層級後置斷言不驗 candidates（村里層級的候選人列會流進長表）",
+     "build_local_election.py",
+     '    bad_c = [c for c in cands\n             if c["選舉種類"] == "D1-MT" and not is_blank(c["村里"])]',
+     '    bad_c = []'),
+
+    # ---- 對照表產生器的四個守衛 ----
+    # ⚠️ 2026-08-27 實測：其中三個在真實資料上拿掉也不會失敗（條件從未成立）。
+    #    依 HANDOFF 第六節一項都不刪，改以合成髒資料測試涵蓋——這四個變異
+    #    就是在驗那些測試真的咬得到。
+    ("產生器：同名歧義檢查空轉（三民鄉會誤配到別的行政區）",
+     "build_mountain_township_codes.py",
+     '    if len(cands) > 1:',
+     '    if False:'),
+    ("產生器：逐屆命中數檢查空轉（整屆漏撈也不再中止）",
+     "build_mountain_township_codes.py",
+     '    if len(hits) != expected:',
+     '    if False:'),
+    ("產生器：未命中集合改成只比數量（少了 A 鄉多缺 B 鄉會靜默通過）",
+     "build_mountain_township_codes.py",
+     '    if set(misses) != set(expected):',
+     '    if len(misses) != len(expected):'),
+    ("產生器：總列數檢查空轉",
+     "build_mountain_township_codes.py",
+     '    if len(rows) != expected:',
+     '    if False:'),
 ]
 
 def prepare() -> None:
@@ -332,7 +411,11 @@ def prepare() -> None:
     if MUT.exists():
         shutil.rmtree(MUT)
     MUT.mkdir(parents=True)
+    # ⚠️ 被變異的檔案【與】測試會 import 的檔案都必須複製。漏掉任何一個，
+    #    測試會在 import 階段就 ERROR——那會讓【每一個】變異都報成「偵測到」，
+    #    是一次全面的假通過。基準對照是唯一擋得住它的那道關。
     for f in ("oracles.py", "build_local_election.py",
+              "build_mountain_township_codes.py",
               "test_build_local_election.py"):
         shutil.copy(ROOT / "scripts" / f, MUT / f)
 

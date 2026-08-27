@@ -1448,6 +1448,41 @@ def check_mountain_township_selection(
         )
 
 
+def check_mountain_township_level(
+    summary: list[dict], cands: list[dict], votes: list[dict],
+) -> None:
+    """後置斷言：進入長表的每一列 D1-MT 都不得低於鄉鎮市區層級。
+
+    ⚠️ 這是對【組裝完成的三份長表】做的檢查，不是緊接在篩選後面重述篩選規則。
+    差別在於它擋得住「日後有別的路徑把列加進來」——例如新增一個補選來源、
+    或某個合併步驟把明細列帶了回來。緊貼篩選的斷言只驗得到篩選函式自己。
+
+    ⚠️ 為什麼一定要有這一條：村里／投開票所層級的三個來源缺陷中，
+    「2002／2005 的 elctks 當選註記 100% 帶星號」**不會報錯**——它會讓每一位
+    落選人都被算成當選，而建置順利跑完。前兩個缺陷會中止建置，它不會。
+    """
+    allowed = {"檔別合計", "直轄市縣市", "選舉區", "鄉鎮市區"}
+    for name, rows in (("summary", summary), ("votes", votes)):
+        bad = [r for r in rows
+               if r["選舉種類"] == "D1-MT" and r["層級"] not in allowed]
+        if bad:
+            lv = sorted({r["層級"] for r in bad})
+            yr = sorted({r["年度"] for r in bad})
+            raise ValidationError(
+                f"D1-MT 在 {name} 出現低於鄉鎮市區的列：層級 {lv}、屆別 {yr}"
+                f"（{len(bad)} 列）。該層級的來源缺陷中有一項不會報錯"
+                f"（2002／2005 的當選註記全帶星號），不可放行。"
+            )
+    # candidates 沒有 層級 欄，改驗村里欄必須是彙總碼
+    bad_c = [c for c in cands
+             if c["選舉種類"] == "D1-MT" and not is_blank(c["村里"])]
+    if bad_c:
+        raise ValidationError(
+            f"D1-MT 在 candidates 出現村里層級的列（{len(bad_c)} 列），"
+            f"屆別 {sorted({c['年度'] for c in bad_c})}"
+        )
+
+
 def project_mountain_townships(
     year: str, label: str, prof: list, cand: list, ctks: list, keys: set,
 ) -> tuple[list, list, list]:
@@ -2452,6 +2487,7 @@ def main() -> None:
     cross_validate(parts, report, anomalies, turnout_anomalies,
                    elected_mark_anomalies, elector_anomalies)
     check_age_sentinel(all_cand)
+    check_mountain_township_level(all_summary, all_cand, all_votes)
 
     # 全國數字必須**按選舉種類**加總。跨種類相加沒有意義：
     # 同一個人可能同時是 D2 與 R3 的選舉人（已實測兩者是同一批選民），
@@ -2476,6 +2512,16 @@ def main() -> None:
                 "當選人數_權威值": sum(r["當選人數_權威值"] for r in rows),
                 "婦女保障當選人數": sum(r["婦女保障當選人數"] for r in rows),
             }
+            # ---- 彙總血緣（只有投影型選舉種類需要）----
+            # D1-MT 是官方 D1 的山地鄉子集，其上層合計【不是】來源的檔別合計，
+            # 而是由篩選後的鄉鎮市區列重算的。長表刻意不寫入那些衍生列
+            # （design 決策 8），所以血緣只能記在這裡——沒有這幾個欄位，
+            # 機器使用者會把它拿去和中選會完整 D1 的縣市數字比較而誤判資料錯誤。
+            if etype == "D1-MT":
+                n["彙總口徑"] = "山地鄉代碼篩選後由鄉鎮市區列重算"
+                n["來源完整類型"] = "D1"
+                n["來源原始彙總是否寫入長表"] = False
+                n["長表最細層級"] = "鄉鎮市區"
             # 與逐列驗證用同一套捨入規則（中選會是四捨五入，不是銀行家捨入）。
             # 兩處用不同規則，目前巧合相同，但換屆別就不保證。
             n["投票率_本專案計算"] = float(

@@ -114,6 +114,46 @@ for _t in ("2014", "2018", "2022"):
 EXPECTED_TOTAL = sum(EXPECTED_HITS.values())  # 187
 
 
+def check_unique_name(term: str, lookup: str, cands: list) -> None:
+    """同一名稱不得對到多個鄉鎮市區代碼。
+
+    ⚠️ 「恰好一個候選」不可以是靠運氣得到的。全國有十餘個三民里／村，
+    那瑪夏 2008 年前又叫三民鄉——這一條就是為那個誤配存在的。
+    """
+    if len(cands) > 1:
+        raise SystemExit(
+            f"{term} 的 {lookup} 在 elbase 對到 {len(cands)} 個"
+            f"鄉鎮市區代碼：{cands}。名稱不足以識別，須改以具名代碼指定。")
+
+
+def check_hit_count(term: str, hits: list, misses: list, expected: int) -> None:
+    """逐屆命中數必須等於宣告值。"""
+    if len(hits) != expected:
+        raise SystemExit(
+            f"{term} 命中 {len(hits)} 個山地鄉，宣告值為 {expected}。"
+            f"未命中：{misses}。來源或名單可能換版——"
+            f"請重新清點後更新 EXPECTED_HITS，不可調降判準。")
+
+
+def check_miss_set(term: str, misses: list, expected: dict) -> None:
+    """未命中的【集合】必須與宣告相符，不只是數量。
+
+    ⚠️ 只對數量的話，「這一屆少了 A 鄉、卻多缺了 B 鄉」會靜默通過，
+    而兩者的成因（改制未參選 vs 改列 D2）完全不同。
+    """
+    if set(misses) != set(expected):
+        raise SystemExit(
+            f"{term} 的未命中集合為 {sorted(misses)}，"
+            f"宣告值為 {sorted(expected)}。"
+            f"缺額成因必須逐項具名，不可只對數量。")
+
+
+def check_total(rows: list, expected: int) -> None:
+    """輸出總列數必須等於各屆宣告值之和。"""
+    if len(rows) != expected:
+        raise SystemExit(f"總列數為 {len(rows)}，宣告值為 {expected}")
+
+
 def load_mountain_list() -> list[str]:
     """讀山地鄉名單，回傳 30 個公告原文名。"""
     names = []
@@ -180,11 +220,7 @@ def main() -> None:
                 alias = NAME_ALIASES.get((term, listed_name))
                 lookup = alias if alias else listed_name
                 cands = by_name.get(lookup, [])
-                if len(cands) > 1:
-                    raise SystemExit(
-                        f"{term} 的 {lookup} 在 elbase 對到 {len(cands)} 個"
-                        f"鄉鎮市區代碼：{cands}。名稱不足以識別，"
-                        f"須改以具名代碼指定。")
+                check_unique_name(term, lookup, cands)
                 if not cands:
                     misses.append(listed_name)
                     continue
@@ -196,19 +232,8 @@ def main() -> None:
                 hits.append([term, key[0], key[1], key[2],
                              listed_name, lookup, note])
 
-            expected = EXPECTED_HITS[term]
-            if len(hits) != expected:
-                raise SystemExit(
-                    f"{term} 命中 {len(hits)} 個山地鄉，宣告值為 {expected}。"
-                    f"未命中：{misses}。來源或名單可能換版——"
-                    f"請重新清點後更新 EXPECTED_HITS，不可調降判準。")
-
-            exp_miss = EXPECTED_MISSES[term]
-            if set(misses) != set(exp_miss):
-                raise SystemExit(
-                    f"{term} 的未命中集合為 {sorted(misses)}，"
-                    f"宣告值為 {sorted(exp_miss)}。"
-                    f"缺額成因必須逐項具名，不可只對數量。")
+            check_hit_count(term, hits, misses, EXPECTED_HITS[term])
+            check_miss_set(term, misses, EXPECTED_MISSES[term])
             # ⚠️ 未參選者【不】寫進對照表。這張表是建置期的代碼查詢輸入，
             #    代碼欄為空的列不是查詢對象，混進去只會讓空字串變成看似合法的鍵。
             #    缺額的成因由上面的 EXPECTED_MISSES 強制，並記於
@@ -224,9 +249,7 @@ def main() -> None:
                 f"名稱變體 {key} 的使用次數為 {alias_used.get(key, 0)}，預期 1。"
                 f"宣告可能過期或誤套。")
 
-    if len(out_rows) != EXPECTED_TOTAL:
-        raise SystemExit(
-            f"總列數為 {len(out_rows)}，宣告值為 {EXPECTED_TOTAL}")
+    check_total(out_rows, EXPECTED_TOTAL)
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with OUT_PATH.open("w", encoding="utf-8", newline="") as fh:

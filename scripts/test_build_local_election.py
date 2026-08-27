@@ -67,6 +67,13 @@ from build_local_election import (  # noqa: E402
     TOWN_CROSSWALK_TARGETS,
     TOWN_NAME_ALIASES,
     EXPECTED_TOWN_COUNTS,
+    AGE_UNRECORDED_EXTRA,
+    MOUNTAIN_CODES_PATH,
+    check_age_sentinel as _check_age_sentinel_imported,
+    check_mountain_township_level,
+    check_mountain_township_selection,
+    load_mountain_township_codes,
+    project_mountain_townships,
     ValidationError,
     load_town_crosswalk,
     regional_town_names,
@@ -101,10 +108,18 @@ OUT = ROOT / "data" / "processed"
 #    `k.rsplit("-", 1)` 會切成 ("1994-T", "COMBO")。
 # ⚠️ 這份數字由 scratch/gen_expected.py 從實際輸出產生，不手抄。
 EXPECTED = {
-    "rows": {"summary": 267876, "candidates": 7818, "votes": 1751190},
-    "levels_summary": {'檔別合計': 46, '直轄市縣市': 318, '選舉區': 997, '鄉鎮市區': 5429, '投開票所': 176811, '村里': 84275},
-    "levels_votes": {'選舉區': 7081, '鄉鎮市區': 26591, '投開票所': 1183724, '村里': 533784, '檔別合計': 10},
-    "candidates_by_year_type": {'2022|T2': 73, '2022|T3': 80, '2022|D2': 20, '2022|R3': 92, '2022|R2': 134, '2022|T1': 1524, '2018|T2': 84, '2018|T3': 98, '2018|D2': 19, '2018|R3': 98, '2018|R2': 131, '2018|T1': 1569, '2014|T2': 77, '2014|T3': 79, '2014|D2': 20, '2014|R3': 94, '2014|R2': 118, '2014|T1': 1444, '2009-2010|T2': 69, '2009-2010|T3': 79, '2009-2010|T1': 1433, '2006|T-COMBO': 6, '2005|T2': 65, '2005|T3': 66, '2002|T2': 67, '2002|T3': 85, '2002|T-COMBO': 12, '1998|T2': 69, '1998|T3': 80, '1998|T-COMBO': 10, '1994|T-PRV3': 5, '1994|T-PRV2': 5, '1994|T-COMBO': 13},
+    # 2026-08-27 D1-MT 納入後的增量：summary +187、candidates +476、votes +476。
+    # 既有九種選舉種類的列經 SHA-256 驗證逐位元組未變，故差值必然恰為新增列數。
+    "rows": {"summary": 268063, "candidates": 8294, "votes": 1751666},
+    # ⚠️ 只有『鄉鎮市區』一項變動（5429→5616）。D1-MT 不產生任何彙總列，
+    #    也不納入村里／投開票所層級——其餘五個層級一列都不該變。
+    "levels_summary": {'檔別合計': 46, '直轄市縣市': 318, '選舉區': 997, '鄉鎮市區': 5616, '投開票所': 176811, '村里': 84275},
+    "levels_votes": {'選舉區': 7081, '鄉鎮市區': 27067, '投開票所': 1183724, '村里': 533784, '檔別合計': 10},
+    "candidates_by_year_type": {'2022|T2': 73, '2022|T3': 80, '2022|D2': 20, '2022|R3': 92, '2022|R2': 134, '2022|T1': 1524, '2018|T2': 84, '2018|T3': 98, '2018|D2': 19, '2018|R3': 98, '2018|R2': 131, '2018|T1': 1569, '2014|T2': 77, '2014|T3': 79, '2014|D2': 20, '2014|R3': 94, '2014|R2': 118, '2014|T1': 1444, '2009-2010|T2': 69, '2009-2010|T3': 79, '2009-2010|T1': 1433, '2006|T-COMBO': 6, '2005|T2': 65, '2005|T3': 66, '2002|T2': 67, '2002|T3': 85, '2002|T-COMBO': 12, '1998|T2': 69, '1998|T3': 80, '1998|T-COMBO': 10, '1994|T-PRV3': 5, '1994|T-PRV2': 5, '1994|T-COMBO': 13, '2022|D1-MT': 61, '2018|D1-MT': 71, '2014|D1-MT': 59, '2009-2010|D1-MT': 48, '2005|D1-MT': 80, '2002|D1-MT': 72, '1998|D1-MT': 85},
+    # ⚠️ D1-MT 【沒有】檔別合計列（design 決策 8：衍生彙總只作驗證用的內部值，
+    #    不寫進長表），故不可放進 "national"——那一段是加總「檔別合計」列的，
+    #    對 D1-MT 會得到 0 並在算投票率時除以零。改由下面 MOUNTAIN_NATIONAL
+    #    以鄉鎮市區列加總，數字仍然被釘死。
     "national": {
         "1994|T-COMBO": {"選舉人數": 5965, "投票數": 4115, "候選人數": 13, "當選人數": 2, "當選人數_權威值": 2, "婦女保障當選人數": 0, "投票率": 68.99},
         "1994|T-PRV2": {"選舉人數": 102156, "投票數": 54616, "候選人數": 5, "當選人數": 2, "當選人數_權威值": 2, "婦女保障當選人數": 0, "投票率": 53.46},
@@ -140,8 +155,8 @@ EXPECTED = {
         "2022|T2": {"選舉人數": 202477, "投票數": 106573, "候選人數": 73, "當選人數": 34, "當選人數_權威值": 34, "婦女保障當選人數": 0, "投票率": 52.63},
         "2022|T3": {"選舉人數": 216262, "投票數": 144164, "候選人數": 80, "當選人數": 35, "當選人數_權威值": 35, "婦女保障當選人數": 0, "投票率": 66.66},
     },
-    "layout_by_year": {'2022|男女合計': 71734, '2018|合計在前': 66743, '2014|合計在前': 66140, '2009-2010|合計在前': 61719, '2006|合計在前': 26, '2005|合計在前': 523, '2002|合計在前': 511, '1998|合計在前': 473, '1994|合計在前': 7},
-    "marks": {'*': 4131, ' ': 3609, '!': 42, '-': 36},
+    "layout_by_year": {'2022|男女合計': 71758, '2018|合計在前': 66767, '2014|合計在前': 66164, '2009-2010|合計在前': 61744, '2006|合計在前': 26, '2005|合計在前': 553, '2002|合計在前': 541, '1998|合計在前': 503, '1994|合計在前': 7},
+    "marks": {'*': 4318, ' ': 3898, '!': 42, '-': 36},
     "women_quota": {'2022|R2': 2, '2022|T1': 4, '2018|R3': 1, '2018|R2': 3, '2018|T1': 4, '2014|R2': 3, '2014|T1': 9, '2009-2010|T2': 1, '2009-2010|T1': 15},
     "displaced": {'2018|R3': 1, '2018|R2': 3, '2018|T1': 4, '2014|R2': 3, '2014|T1': 9, '2009-2010|T2': 1, '2009-2010|T1': 15},
     "zero_rows": {"total": 60914, **{'2022|T2': 8932, '2022|T3': 8199, '2018|T2': 7848, '2018|T3': 7045, '2018|R2': 1, '2014|T2': 8140, '2014|T3': 7370, '2014|R2': 1, '2009-2010|T2': 6646, '2009-2010|T3': 6731, '2009-2010|T1': 1}},
@@ -150,7 +165,7 @@ EXPECTED = {
                                "得票加總錯置": 2, "鄉鎮市區配錯選舉區": 3},
     "known_elected_mark_anomalies": 63,
     "known_elector_anomalies": 1,
-    "turnout_rows_checked": 206959,
+    "turnout_rows_checked": 207146,
     "main_sequence": {'true': 267837, 'false': 39},
     "admin_code_systems": {'2014+': 204617, '2009': 61719, '2005+': 549, '2002': 511, '1998': 473, '1994': 7},
     "auth_basis": {'elctks_選舉區': 7081, 'elctks_鄉鎮市區': 727, 'elctks_檔別合計': 10},
@@ -408,8 +423,8 @@ def test_custom_election_types() -> None:
     整組刪掉，建置與所有迴歸測試都會照樣通過——沒有任何真實資料會踩到它。
     """
     print("\n[單元] 自訂選舉種類代碼——舊屆未進建置範圍，只能靠單元測試守住")
-    check("三個自訂代碼都在", set(CUSTOM_ELECTION_TYPES),
-          {"T-PRV2", "T-PRV3", "T-COMBO"})
+    check("四個自訂代碼都在", set(CUSTOM_ELECTION_TYPES),
+          {"T-PRV2", "T-PRV3", "T-COMBO", "D1-MT"})
     # 連字號是「非官方代碼」的辨識標記。官方代碼一律兩字元英數，
     # 若哪天有人把自訂代碼改成兩字元，就會與官方代碼混淆且無法分辨。
     check("自訂代碼皆含連字號（官方代碼一律無）",
@@ -906,20 +921,33 @@ def test_county_crosswalk() -> None:
 
     # 實際的對照表：只收代碼不同者，且鍵不重複
     real = load_county_crosswalk()
-    check("對照表 31 列", len(real), 31)
+    # 2026-08-27 加入 D1-MT 後由 31 列增為 67：1998／2002 的鄉鎮市長檔省市碼
+    # 為 03、同屆區域檔為 01，18 個縣市的 identity 一個都對不上，故各補 18 列。
+    check("對照表 67 列", len(real), 67)
     check("涵蓋的屆別與選舉種類",
           sorted({(k[0], k[1]) for k in real}),
-          [("1998", "T2"), ("1998", "T3"), ("2002", "T2"), ("2002", "T3")])
+          [("1998", "D1-MT"), ("1998", "T2"), ("1998", "T3"),
+           ("2002", "D1-MT"), ("2002", "T2"), ("2002", "T3")])
+    check("D1-MT 各屆 18 個縣市",
+          sorted(collections.Counter(
+              k[0] for k in real if k[1] == "D1-MT").items()),
+          [("1998", 18), ("2002", 18)])
     check("每一列的本地代碼與區域碼確實不同（identity 列不入表）",
           [k for k, (_, rc) in real.items() if k[2] == rc], [])
     check("2005 不在對照表內（該屆縣市碼已是全域碼）",
           [k for k in real if k[0] == "2005"], [])
 
     # 鄉鎮市區代碼：宣告為檔內重編者必須留空
+    # ⚠️ D1-MT 只有 1998／2002 需要換算。2005 的 D1 實測與同屆區域檔 319 個
+    #    代碼逐一相符，而同屆的 T2／T3 卻需要——同屆不同選舉種類的重編情形
+    #    不同，不可互相推論。這一項守住那個區別。
     check("宣告為檔內重編的（屆別, 選舉種類）",
           sorted(TOWN_CODES_FILE_LOCAL),
-          [("1998", "T2"), ("1998", "T3"), ("2002", "T2"), ("2002", "T3"),
+          [("1998", "D1-MT"), ("1998", "T2"), ("1998", "T3"),
+           ("2002", "D1-MT"), ("2002", "T2"), ("2002", "T3"),
            ("2005", "T2"), ("2005", "T3")])
+    check("2005 的 D1-MT 不需要鄉鎮市區換算",
+          ("2005", "D1-MT") in TOWN_CODES_FILE_LOCAL, False)
     # ⚠️ 2005 的縣市碼已是全域碼但鄉鎮市區碼【仍是檔內重編】——
     #    「2005 起才是全域代碼」只在縣市層級成立。這一項守住這個區別。
     check("2005 需要留空鄉鎮市區碼，但不需要縣市換算",
@@ -1095,17 +1123,21 @@ def test_custom_type_terms() -> None:
                 for label, sub in mapping.items():
                     parts.append(process_one(zf, names, year, etype, label, sub))
 
-    check("七個自訂代碼的檔都解析出來", len(parts), 7)
+    # 2026-08-27 D1-MT 加入後由 7 增為 9（1998／2002 各一個檔）。
+    # 選法刻意維持「這幾屆的【全部】自訂代碼」，不逐一列名——
+    # 列名的話，日後新增自訂代碼會靜默不被這一組涵蓋。
+    check("九個自訂代碼的檔都解析出來", len(parts), 9)
     check("涵蓋的（屆別, 選舉種類, 檔別）",
           sorted((p["year"], p["etype"], p["label"]) for p in parts),
           [("1994", "T-COMBO", "直轄市"), ("1994", "T-PRV2", "平原"),
            ("1994", "T-PRV2", "平原2"), ("1994", "T-PRV3", "山原"),
-           ("1998", "T-COMBO", "直轄市"), ("2002", "T-COMBO", "直轄市"),
+           ("1998", "D1-MT", "單一"), ("1998", "T-COMBO", "直轄市"),
+           ("2002", "D1-MT", "單一"), ("2002", "T-COMBO", "直轄市"),
            ("2006", "T-COMBO", "直轄市")])
 
     rep, an, ta, ema, ela = [], [], [], [], []
     cross_validate(parts, rep, an, ta, ema, ela)
-    check("七個檔的交叉驗證通過", True, True)
+    check("九個檔的交叉驗證通過", True, True)
     # 具名異常：1994 兩檔＋2006 一列的彙總層級投票率、1994 直轄市的當選註記 2 筆、
     # 1998／2002 的「elctks 比 elprof 細」2 筆
     check("彙總層級投票率異常筆數", len(ta), 3)
@@ -1117,7 +1149,7 @@ def test_custom_type_terms() -> None:
     check("自訂代碼的 is_main_sequence 全為 false", ms, {"false"})
     check("職位類型",
           sorted({s["office_type"] for p in parts for s in p["summary"]}),
-          ["直轄市議員", "臺灣省議員"])
+          ["山地鄉鄉長", "直轄市議員", "臺灣省議員"])
     check("合併類別的粒度標為合併",
           sorted({s["category_granularity"] for p in parts
                   for s in p["summary"] if p["etype"] == "T-COMBO"}),
@@ -1136,7 +1168,9 @@ def test_custom_type_terms() -> None:
     check("各（屆別, 選舉種類）的權威值席次", seats,
           {("1994", "T-PRV3"): 2, ("1994", "T-PRV2"): 2,
            ("1994", "T-COMBO"): 2, ("1998", "T-COMBO"): 2,
-           ("2002", "T-COMBO"): 2, ("2006", "T-COMBO"): 2})
+           ("2002", "T-COMBO"): 2, ("2006", "T-COMBO"): 2,
+           # 山地鄉鄉長每鄉 1 席，1998／2002 皆為 30 個山地鄉
+           ("1998", "D1-MT"): 30, ("2002", "D1-MT"): 30})
     check("1994 共 6 席",
           sum(v for (y, _), v in seats.items() if y == "1994"), 6)
 
@@ -1153,10 +1187,19 @@ def test_custom_type_terms() -> None:
     check("選舉區欄不一致的宣告",
           sorted(DISTRICT_COLUMN_INCONSISTENT),
           [("1994", "T-COMBO", "直轄市"), ("1994", "T-PRV2", "平原2"),
-           ("1998", "T-COMBO", "直轄市"), ("2002", "T-COMBO", "直轄市"),
-           ("2006", "T-COMBO", "直轄市")])
+           ("1998", "D1-MT", "單一"), ("1998", "T-COMBO", "直轄市"),
+           ("2002", "D1-MT", "單一"), ("2002", "T-COMBO", "直轄市"),
+           ("2005", "D1-MT", "單一"), ("2006", "T-COMBO", "直轄市"),
+           ("2009-2010", "D1-MT", "單一"), ("2014", "D1-MT", "單一")])
     check("1994 平原（不是平原2）不在該宣告內",
           ("1994", "T-PRV2", "平原") in DISTRICT_COLUMN_INCONSISTENT, False)
+    # ⚠️ 2018／2022 的 D1-MT【不】登記——四個來源檔的選舉區欄一致。
+    #    多餘的條目等於預先赦免日後真的出現的分歧：它會被靜默正規化掉
+    #    而不是中止。這一項守住「只為實測不一致者登記」。
+    check("2018／2022 的 D1-MT 不在該宣告內",
+          [("2018", "D1-MT", "單一") in DISTRICT_COLUMN_INCONSISTENT,
+           ("2022", "D1-MT", "單一") in DISTRICT_COLUMN_INCONSISTENT],
+          [False, False])
 
 
 @reports
@@ -1193,7 +1236,11 @@ def test_valid_age() -> None:
     check("2022 的 45", valid_age("2022", "T2", "45"), "45")
 
     print("\n       兩條前提斷言：不成立即中止")
+    # ⚠️ 必須含 1998 D1-MT 的 100：check_age_sentinel 會在
+    #    AGE_UNRECORDED_EXTRA 的登記從未被用到時中止，合成資料缺了
+    #    那個範圍就會誤中止（而那正是該檢查存在的理由）。
     base = [{"年度": "1998", "選舉種類": "T2", "年齡_原始": "99"},
+            {"年度": "1998", "選舉種類": "D1-MT", "年齡_原始": "100"},
             {"年度": "2022", "選舉種類": "T2", "年齡_原始": "45"}]
     check_age_sentinel(base)
     check("前提成立時不中止", True, True)
@@ -1293,6 +1340,27 @@ def test_oracles() -> None:
 
 
 # ---------------------------------------------------------------- 迴歸測試
+
+# D1-MT 的全國數字。它沒有檔別合計列，故由 187 個鄉鎮市區列加總後釘死。
+# 當選人數等於各屆山地鄉數（每鄉選 1 位鄉長）；候選人數與 2026-08-26 清點
+# 逐屆記錄的山地鄉候選人列數相同。
+MOUNTAIN_NATIONAL = {
+    "1998": {"選舉人數": 134728, "投票數": 98611, "投票率": 73.19,
+             "候選人數": 85, "當選人數": 30},
+    "2002": {"選舉人數": 139445, "投票數": 98142, "投票率": 70.38,
+             "候選人數": 72, "當選人數": 30},
+    "2005": {"選舉人數": 143597, "投票數": 103588, "投票率": 72.14,
+             "候選人數": 80, "當選人數": 30},
+    "2009-2010": {"選舉人數": 127275, "投票數": 89681, "投票率": 70.46,
+                  "候選人數": 48, "當選人數": 25},
+    "2014": {"選舉人數": 125940, "投票數": 101766, "投票率": 80.81,
+             "候選人數": 59, "當選人數": 24},
+    "2018": {"選舉人數": 128950, "投票數": 103780, "投票率": 80.48,
+             "候選人數": 71, "當選人數": 24},
+    "2022": {"選舉人數": 130142, "投票數": 100611, "投票率": 77.31,
+             "候選人數": 61, "當選人數": 24},
+}
+
 
 def load(name: str) -> list[dict]:
     path = OUT / name
@@ -1466,7 +1534,39 @@ def test_regression() -> None:
           EXPECTED["known_elector_anomalies"])
     check("報告來源 sha256", report["來源檔sha256"], EXPECTED["sha256"])
     check("報告涵蓋屆別選舉種類",
-          set(report["各屆別選舉種類全國合計"]), set(EXPECTED["national"]))
+          set(report["各屆別選舉種類全國合計"]),
+          set(EXPECTED["national"])
+          | {f"{t}|D1-MT" for t in MOUNTAIN_NATIONAL})
+
+    # ---- D1-MT：沒有檔別合計列，數字由鄉鎮市區列加總後釘死 ----
+    # ⚠️ 兩邊都要驗：長表加總（實際發布的資料）與報告的衍生彙總
+    #    （驗證用的內部值）。只驗一邊的話，兩者脫節時不會有人發現。
+    for term, want in sorted(MOUNTAIN_NATIONAL.items()):
+        rows = [r for r in S if r["選舉種類"] == "D1-MT" and r["年度"] == term]
+        check(f"{term} D1-MT 長表只有鄉鎮市區層級",
+              {r["層級"] for r in rows}, {"鄉鎮市區"})
+        e = sum(int(r["選舉人數"]) for r in rows)
+        v = sum(int(r["投票數"]) for r in rows)
+        check(f"{term} D1-MT 選舉人數", e, want["選舉人數"])
+        check(f"{term} D1-MT 投票數", v, want["投票數"])
+        check(f"{term} D1-MT 投票率", round(100.0 * v / e, 2), want["投票率"])
+        cands = [c for c in C
+                 if c["選舉種類"] == "D1-MT" and c["年度"] == term]
+        check(f"{term} D1-MT 候選人數", len(cands), want["候選人數"])
+        check(f"{term} D1-MT 當選人數（每鄉 1 席）",
+              sum(1 for c in cands if c["當選"] == "Y"), want["當選人數"])
+        check(f"{term} D1-MT 當選人數等於山地鄉數",
+              len(rows), want["當選人數"])
+        nat = report["各屆別選舉種類全國合計"][f"{term}|D1-MT"]
+        check(f"{term} D1-MT 報告與長表加總一致",
+              [nat["選舉人數"], nat["投票數"], nat["候選人數"]],
+              [e, v, want["候選人數"]])
+        check(f"{term} D1-MT 報告記錄了彙總血緣",
+              [nat.get("彙總口徑") is not None,
+               nat.get("來源完整類型"),
+               nat.get("來源原始彙總是否寫入長表"),
+               nat.get("長表最細層級")],
+              [True, "D1", False, "鄉鎮市區"])
 
 
 
@@ -1603,15 +1703,18 @@ def test_town_crosswalk() -> None:
 
     # ---- 對照表本身 ----
     real = load_town_crosswalk()
-    check("對照表 1,290 列", len(real), 1290)
-    check("代碼與本地不同者 829 列",
-          sum(1 for k, v in real.items() if k[3] != v), 829)
+    # 2026-08-27 加入 1998／2002 的 D1-MT（各 319 列）後由 1,290 增為 1,928；
+    # 代碼不同者由 829 增為 1,182（增量 1998 為 230、2002 為 123）。
+    check("對照表 1,928 列", len(real), 1928)
+    check("代碼與本地不同者 1,182 列",
+          sum(1 for k, v in real.items() if k[3] != v), 1182)
     by_file = collections.Counter((k[0], k[1]) for k in real)
     check("逐檔的鄉鎮市區數",
           dict(sorted(by_file.items())),
           {("1998", "T2"): 177, ("1998", "T3"): 226,
            ("2002", "T2"): 211, ("2002", "T3"): 226,
-           ("2005", "T2"): 224, ("2005", "T3"): 226})
+           ("2005", "T2"): 224, ("2005", "T3"): 226,
+           ("1998", "D1-MT"): 319, ("2002", "D1-MT"): 319})
     check("宣告值與對照表一致",
           dict(sorted(EXPECTED_TOWN_COUNTS.items())), dict(sorted(by_file.items())))
     check("對照表放在 data/reference/",
@@ -2107,7 +2210,14 @@ def main() -> int:
                test_custom_type_terms,
                test_valid_age, test_age_valid_column_in_output,
                test_oracles, test_regression,
-               test_unguarded_source_checks):
+               test_unguarded_source_checks,
+               test_mountain_township_selection,
+               test_mountain_township_projection,
+               test_mountain_age_sentinel_scope,
+               test_mountain_not_in_main_sequence,
+               test_mountain_codes_table,
+               test_mountain_township_level_postcondition,
+               test_mountain_codes_generator_guards):
         try:
             fn()
         except AssertionError:
@@ -2124,6 +2234,265 @@ def main() -> int:
         msg += f"（跳過 {len(skipped)} 組迴歸測試）"
     print(msg)
     return 0
+
+
+# ⚠️ 進入點在檔案【最末】。新增測試函式時一律加在它【之前】——
+#    加在後面的話，pytest 照樣通過（它獨立收集模組層級函式），但直接執行
+#    會在 main() 參照到尚未定義的名稱時 NameError。兩種執行方式都必須有效。
+
+
+@reports
+def test_mountain_township_selection() -> None:
+    """山地鄉篩選的守衛：比對【集合】而不只是數量。
+
+    ⚠️ 這一組必須用合成資料。真實資料正好滿足前提（七屆逐屆吻合），
+    所以每一條中止在真實建置上**永遠不會觸發**——那正是它們最容易被
+    無聲拿掉的原因。
+
+    ⚠️ 只比對數量會讓三種失效靜默通過，這裡逐一餵一份會觸發的輸入。
+    """
+    print("\n[單元] 山地鄉篩選——集合相等，不只是數量")
+    want = {("09", "007", "010"): "甲鄉",
+            ("09", "007", "011"): "乙鄉",
+            ("09", "007", "012"): "丙鄉"}
+    src = [["09", "007", "00", t, "0000", "0"] + ["0"] * 14
+           for t in ("010", "011", "012", "013")]
+
+    check_mountain_township_selection("2022", "L", set(want), want, src)
+    check("集合相同 → 不中止", True, True)
+
+    check_raises(
+        "少選一個 → 中止",
+        lambda: check_mountain_township_selection(
+            "2022", "L", {("09", "007", "010"), ("09", "007", "011")},
+            want, src))
+
+    # 【數量相同】但成員不同——len() 比對會完全看不到這一種
+    swapped = {("09", "007", "010"), ("09", "007", "011"), ("09", "007", "013")}
+    check_raises(
+        "少選 A 鄉、誤選 B 鄉（數量不變）→ 中止",
+        lambda: check_mountain_township_selection("2022", "L", swapped, want, src))
+    try:
+        check_mountain_township_selection("2022", "L", swapped, want, src)
+    except ValidationError as exc:
+        check("訊息同時具名多選與少選",
+              "013" in str(exc) and "012" in str(exc), True)
+
+    check_raises(
+        "對照表缺該屆 → 中止",
+        lambda: check_mountain_township_selection("1994", "L", set(), {}, src))
+
+    # 對照表列到、但該屆來源沒有那一列（對照表過期）
+    ghost_want = dict(want)
+    ghost_want[("09", "007", "099")] = "幽靈鄉"
+    check_raises(
+        "對照表列到但來源沒有 → 中止",
+        lambda: check_mountain_township_selection(
+            "2022", "L", set(ghost_want), ghost_want, src))
+
+
+@reports
+def test_mountain_township_projection() -> None:
+    """投影層只保留鄉鎮市區層級，且 elcand 的欄數與 elprof/elctks 不同。
+
+    ⚠️ 層級限制不是效能考量。2002／2005 的 elctks 當選註記在村里／投開票所
+    層級 100% 帶星號——落選人會被算成當選，而且**不會報錯**。
+    """
+    print("\n[單元] 山地鄉投影——層級限制與欄數差異")
+    keys = {("09", "007", "010")}
+
+    def prof_row(town, vil, sta):
+        return ["09", "007", "00", town, vil, sta] + ["0"] * 14
+
+    prof = [prof_row("010", "0000", "0"),      # 鄉鎮市區 → 保留
+            prof_row("010", "0001", "0"),      # 村里     → 剔除
+            prof_row("010", "0001", "0001"),   # 投開票所 → 剔除
+            prof_row("011", "0000", "0")]      # 非山地鄉 → 剔除
+    ctks = [r[:6] + ["1", "100", "50.00", "*"] for r in prof]
+    # elcand 只有 5 個代碼欄，第 6 欄是【號次】不是投開票所
+    cand = [["09", "007", "00", "010", "0000"] + ["1"] + ["x"] * 10,
+            ["09", "007", "00", "010", "0001"] + ["2"] + ["x"] * 10,
+            ["09", "007", "00", "011", "0000"] + ["3"] + ["x"] * 10]
+
+    np_, nc, nk = project_mountain_townships("2022", "L", prof, cand, ctks, keys)
+    check("elprof 只留鄉鎮市區層級的山地鄉", len(np_), 1)
+    check("elctks 只留鄉鎮市區層級的山地鄉", len(nk), 1)
+    check("elcand 只留鄉鎮市區層級的山地鄉", len(nc), 1)
+    check("保留的是正確的鄉", np_[0][3], "010")
+
+    # ⚠️ elcand 用 6 欄判層級會把號次當成投開票所代碼，鄉鎮市區列會被誤剔除。
+    #    這一條釘住「兩種欄數分開處理」這件事。
+    check("elcand 的號次沒有被當成投開票所代碼", nc[0][5], "1")
+
+
+@reports
+def test_mountain_age_sentinel_scope() -> None:
+    """年齡哨兵的具名粒度是（屆別, 選舉種類），不是屆別。
+
+    實測依據：1998 鄉鎮市長檔 827 位候選人中 751 位為 100、76 位為 99
+    （整檔無真實年齡）；同屆其他五個檔 100% 用 99。
+    """
+    print("\n[單元] 年齡哨兵——具名到（屆別, 選舉種類）")
+    check("1998 D1-MT 的 100 判為未記載",
+          build_local_election.valid_age("1998", "D1-MT", "100"), "")
+    check("1998 D1-MT 的 99 仍判為未記載",
+          build_local_election.valid_age("1998", "D1-MT", "99"), "")
+    # 同屆其他選舉種類不受影響——否則真實的 100 歲會被靜默吃掉
+    check("1998 T2 的 100 原樣保留",
+          build_local_election.valid_age("1998", "T2", "100"), "100")
+    check("2022 D1-MT 的 100 原樣保留",
+          build_local_election.valid_age("2022", "D1-MT", "100"), "100")
+
+    ok = [{"年度": "1998", "選舉種類": "D1-MT", "年齡_原始": "100"},
+          {"年度": "1998", "選舉種類": "T2", "年齡_原始": "99"}]
+    build_local_election.check_age_sentinel(ok)
+    check("基準：登記範圍內只有無資料值 → 不中止", True, True)
+
+    check_raises(
+        "已登記範圍出現宣告外的值 → 中止",
+        lambda: build_local_election.check_age_sentinel(
+            ok + [{"年度": "1998", "選舉種類": "D1-MT", "年齡_原始": "52"}]))
+
+    check_raises(
+        "登記從未被用到 → 中止",
+        lambda: build_local_election.check_age_sentinel(
+            [{"年度": "1998", "選舉種類": "T2", "年齡_原始": "99"}]))
+
+    # ⚠️ 「哨兵擴散」那一項以目前的登記會被上面第一項先攔下（1998 在
+    #    AGE_UNRECORDED_TERMS 內）。要驗到它自己，必須把登記改到一個
+    #    【不屬於】AGE_UNRECORDED_TERMS 的屆別。
+    saved = dict(AGE_UNRECORDED_EXTRA)
+    try:
+        AGE_UNRECORDED_EXTRA.clear()
+        AGE_UNRECORDED_EXTRA[("2022", "D1-MT")] = frozenset({"100"})
+        base = [{"年度": "2022", "選舉種類": "D1-MT", "年齡_原始": "100"}]
+        build_local_election.check_age_sentinel(base)
+        check("基準：窄化登記在未列屆別 → 不中止", True, True)
+        check_raises(
+            "窄化哨兵擴散到同屆其他選舉種類 → 中止",
+            lambda: build_local_election.check_age_sentinel(
+                base + [{"年度": "2022", "選舉種類": "T2", "年齡_原始": "100"}]))
+    finally:
+        AGE_UNRECORDED_EXTRA.clear()
+        AGE_UNRECORDED_EXTRA.update(saved)
+
+
+@reports
+def test_mountain_not_in_main_sequence() -> None:
+    """D1-MT 與 D2 不得接為同一序列，且該保護要【能失敗】。
+
+    ⚠️ 原設計要新增一個「斷言兩者不同序列」的執行期檢查。實際上
+    is_main_sequence() 是 `etype not in CUSTOM_ELECTION_TYPES`，
+    D1-MT 登記為自訂代碼後那種檢查恆為真、永遠不會失敗。
+    這裡改為斷言分類本身——有人把 D1-MT 改列官方代碼時會當場失敗。
+    """
+    print("\n[單元] D1-MT 不進主序列")
+    check("D1-MT 不進主序列", is_main_sequence("D1-MT"), False)
+    check("D2 進主序列", is_main_sequence("D2"), True)
+    check("D1-MT 登記為自訂代碼", "D1-MT" in CUSTOM_ELECTION_TYPES, True)
+    check("D1-MT 不在官方代碼表", "D1-MT" in ELECTION_TYPES, False)
+    check("D1-MT 的職位", office_type("D1-MT", "單一"), "山地鄉鄉長")
+
+
+@reports
+def test_mountain_codes_table() -> None:
+    """山地鄉代碼對照表的形狀：逐屆列數與鍵唯一。"""
+    print("\n[單元] 山地鄉代碼對照表")
+    if not MOUNTAIN_CODES_PATH.exists():
+        print("  SKIP  找不到對照表")
+        skipped.append("mountain_codes_table")
+        return
+    codes = load_mountain_township_codes()
+    expect = {"1998": 30, "2002": 30, "2005": 30,
+              "2009-2010": 25, "2014": 24, "2018": 24, "2022": 24}
+    check("屆別集合", sorted(codes), sorted(expect))
+    for term, n in sorted(expect.items()):
+        check(f"{term} 的山地鄉數", len(codes[term]), n)
+    check("總列數", sum(len(v) for v in codes.values()), 187)
+
+
+@reports
+def test_mountain_township_level_postcondition() -> None:
+    """後置斷言：進入長表的 D1-MT 不得低於鄉鎮市區層級。
+
+    ⚠️ 這一組必須用合成資料。真實輸出全在鄉鎮市區層級，所以中止
+    **永遠不會觸發**——那正是它最容易被無聲拿掉的原因。
+
+    ⚠️ 它擋的不是篩選函式（那由 test_mountain_township_projection 驗），
+    是「日後有別的路徑把明細列加進長表」。
+    """
+    print("\n[單元] D1-MT 的層級後置斷言")
+    ok_s = [{"選舉種類": "D1-MT", "層級": "鄉鎮市區", "年度": "2022"}]
+    ok_c = [{"選舉種類": "D1-MT", "村里": "0000", "年度": "2022"}]
+    ok_v = [{"選舉種類": "D1-MT", "層級": "鄉鎮市區", "年度": "2022"}]
+    check_mountain_township_level(ok_s, ok_c, ok_v)
+    check("基準：全在鄉鎮市區層級 → 不中止", True, True)
+
+    check_raises(
+        "summary 出現村里層級 → 中止",
+        lambda: check_mountain_township_level(
+            ok_s + [{"選舉種類": "D1-MT", "層級": "村里", "年度": "2005"}],
+            ok_c, ok_v))
+    check_raises(
+        "votes 出現投開票所層級 → 中止",
+        lambda: check_mountain_township_level(
+            ok_s, ok_c,
+            ok_v + [{"選舉種類": "D1-MT", "層級": "投開票所", "年度": "2002"}]))
+    check_raises(
+        "candidates 的村里欄非彙總碼 → 中止",
+        lambda: check_mountain_township_level(
+            ok_s,
+            ok_c + [{"選舉種類": "D1-MT", "村里": "0001", "年度": "2002"}],
+            ok_v))
+
+    # ⚠️ 其餘九種選舉種類本來就有村里／投開票所層級，不可被這條誤擋
+    check_mountain_township_level(
+        ok_s + [{"選舉種類": "T2", "層級": "村里", "年度": "2022"}], ok_c, ok_v)
+    check("其他選舉種類的村里列不受影響", True, True)
+
+
+@reports
+def test_mountain_codes_generator_guards() -> None:
+    """對照表產生器的四個守衛，各餵一份會觸發它的合成輸入。
+
+    ⚠️ 2026-08-27 實測：其中三個（未命中集合、同名歧義、總列數）在目前的
+    真實資料上**拿掉也不會失敗**——條件從未成立。依 HANDOFF 第六節的處置，
+    一項都不刪，逐項補合成髒資料。
+
+    ⚠️ 產生器本身不在建置流程內（對照表是建置的輸入），所以它的守衛
+    只有這一組測試會咬到。
+    """
+    import build_mountain_township_codes as G
+
+    print("\n[單元] 山地鄉代碼產生器的守衛")
+    G.check_unique_name("2022", "甲鄉", [("09", "007", "010")])
+    G.check_hit_count("2022", [1] * 24, [], 24)
+    G.check_miss_set("2022", ["烏來區"], {"烏來區": "理由"})
+    G.check_total([1] * 187, 187)
+    check("基準：四個守衛都不誤中止", True, True)
+
+    def raises_exit(name, fn):
+        try:
+            fn()
+        except SystemExit:
+            print(f"  PASS  {name}")
+            return
+        print(f"  FAIL  {name}（沒有中止）")
+        failures.append(name)
+
+    # 全國有十餘個三民里／村，那瑪夏 2008 年前又叫三民鄉——這一條為誤配而存在
+    raises_exit("同一名稱對到多個鄉鎮市區代碼 → 中止",
+                lambda: G.check_unique_name(
+                    "2022", "三民鄉",
+                    [("09", "007", "010"), ("10", "003", "022")]))
+    raises_exit("逐屆命中數不符 → 中止",
+                lambda: G.check_hit_count("2022", [1] * 23, ["x"], 24))
+    # ⚠️ 【數量相同】但成員不同——只對數量會完全看不到
+    raises_exit("未命中集合不同但數量相同 → 中止",
+                lambda: G.check_miss_set(
+                    "2022", ["復興鄉"], {"烏來區": "理由"}))
+    raises_exit("輸出總列數不符 → 中止",
+                lambda: G.check_total([1] * 186, 187))
 
 
 if __name__ == "__main__":
