@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：17 個能力、**96 條 Requirement**
+### 主 specs：18 個能力、**101 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -44,9 +44,10 @@
 | `site-translation` | 4 |
 | `site-heading-segmentation` | 4 |
 | `column-oracle-documentation` | 5 |
-| `site-multi-dataset` | 3 |
+| `site-multi-dataset` | 5 |
 | `mountain-township-chief-census` | 5 |
 | `mountain-township-chief-elections` | 7 |
+| `spec-trace-integrity` | 3 |
 | `site-navigation` | 2 |
 | `site-offline-resource-policy` | 2 |
 | `site-editorial-neutrality` | 1 |
@@ -83,6 +84,12 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 `include-mountain-township-chief`（24/24，山地鄉鄉長納入資料層，選舉種類代碼
 `D1-MT`，七屆共 187 個單位；新增 `mountain-township-chief-elections` 7 條、
 修改 `legacy-source-quirks` 的哨兵具名粒度 1 條）於 2026-08-27 歸檔。
+`site-builder-excluded-types`（13/13，修好 build_site_data.py——D1-MT 沒有
+檔別合計列導致建置器完全無法執行；新增具名排除登記，未登記且缺彙總列即中止；
+`site-multi-dataset` 由 3 條增為 5 條）與 `trace-dead-link-cleanup`（12/12，
+剝除 4,723 條指向 scratch/ 的 @trace 死鏈、修正 13 條過期路徑、新增
+`scripts/check_spec_traces.py` 與執行點；新增 `spec-trace-integrity` 3 條）
+亦於 2026-08-27 歸檔。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
