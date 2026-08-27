@@ -413,8 +413,29 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 ⚠️ 同類：**新增的測試函式必須加在 `if __name__ == "__main__"` 進入點【之前】。**
 加在後面的話，pytest 照樣通過（它獨立收集模組層級函式），但直接執行
 `python scripts/test_build_local_election.py` 會在 `main()` 參照到尚未定義的
-名稱時 `NameError`。這與地雷 1j（新測試要加進 `SEL`）是同一家族——
-**三種「測試存在但沒有生效」的方式，三種都不會報錯。**
+名稱時 `NameError`。這與地雷 1j（新測試要加進 `SEL`）是同一家族。
+
+⚠️ **第四種，也是最隱蔽的：`sys.path` 污染。**
+`build_mountain_township_codes.py` 在 import 時執行
+`sys.path.insert(0, ROOT / "scripts")`。在變異副本 `_mut/` 裡，
+`ROOT = __file__.parent.parent` 解析成 **repo 根目錄**，於是它把
+**真正的 `scripts/`** 插到 `sys.path[0]`。
+
+任何在那之後才做的 import——例如測試函式【內部】的
+`import check_spec_traces`——都會載到**未變異的原始模組**。症狀是
+**單獨跑那個測試會失敗，跟其他測試一起跑就通過**，而變異測試報「偵測不到」。
+
+處置：會被變異的模組一律在測試檔的**模組層級** import，在污染發生前就綁定。
+2026-08-27 實測，三個 `@trace` 變異全部因此逃掉。
+
+**四種「測試存在但沒有生效」的方式，四種都不會報錯：**
+
+| # | 形態 | 症狀 |
+| ---: | --- | --- |
+| 1 | 變異器的 `prepare()` 漏複製檔案 | 測試 import 階段 ERROR → **每個變異都報偵測到** |
+| 2 | 新測試沒加進 `SEL`（地雷 1j） | 變異測試看不到它 |
+| 3 | 新測試加在 `if __name__` 進入點之後 | pytest 過、直接執行 `NameError` |
+| 4 | `sys.path` 被別的測試污染 | 載到未變異模組；單獨跑失敗、一起跑通過 |
 
 ### 1o. 同一屆的不同檔可能用**不同的年齡哨兵值**
 
@@ -464,6 +485,54 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 ⚠️ 因為那是推導值，**任何「斷言兩者不落在同一序列」的執行期檢查都恆為真、
 永遠不會失敗**。真正能失敗的斷言是「`is_main_sequence("D1-MT")` 為偽」——
 有人把它改列為官方代碼時會當場失敗。原設計要寫前者，實作時改成後者。
+
+### 1q. `@trace` 清理過了，但**剩下的仍然不是可靠的實作定位**
+
+2026-08-27 剝除了 4,723 條指向 `scratch/` 的死鏈、修正 13 條過期路徑
+（`data/processed/` → `data/reference/`），並加上 `scripts/check_spec_traces.py`
+與執行點（`scripts/test_site_invariants.py`）。清理後 1,140 條、零死鏈。
+
+⚠️ **清理只驗「路徑指得到」，不驗「溯源正確」。** 清理完之後 `@trace` 會
+**看起來**比清理前可信——路徑都指得到了。那正是它最危險的時候。
+
+剩下 1,140 條裡，六個檔案各出現在超過半數的區塊（共 83 個）：
+
+| 檔案 | 出現 |
+| --- | ---: |
+| `CLAUDE.md`／`AGENTS.md`／`GEMINI.md`／`.spectra.yaml` | 各 73/83 |
+| `README.md` | 63/83 |
+| `HANDOFF.md` | 53/83 |
+
+**出現在 88% 的 Requirement 上的檔案，沒有指出任何東西。**
+不要把某條 Requirement 的 `@trace` 裡有 `CLAUDE.md` 讀成「這條與 CLAUDE.md 有關」。
+
+⚠️ **13 條 Requirement 完全沒有 `@trace`**（`legacy-source-quirks` 4 條、
+`mountain-township-chief-census` 2 條、`mountain-township-chief-elections` 7 條）。
+那是「未建立溯源」的標記，**刻意不補**——補上去只會讓它看起來已完成。
+
+**沒有逐 Requirement 重建**：83 個區塊各需讀該 change 的完整 diff 再判斷
+「哪個檔實作了這條 Requirement」。那個判斷是主觀的且**沒有 oracle 可以驗證
+對錯**，而 `@trace` 在本 repo 目前沒有任何消費者。拿不可驗證的判斷覆蓋現有
+資料，等於把「已知不可靠」換成「看起來可靠但仍不可靠」。
+
+### 1r. `@trace` 的污染根因**沒有修掉**，只是 `scratch/` 那一種停了
+
+根因是地雷 1i：`spectra task done` 記的 touched files 是掃當下整個 git status。
+`scratch/` 於 2026-08-25 進 `.gitignore`（commit `eee5ac0`）後，該類污染在
+**結構上**停止——gitignore 的檔案不會出現在 git status。實測 `@trace` 依
+`updated` 日期：
+
+| 日期 | 區塊 | 平均條目/區塊 | 含 `scratch/` | 樣板檔條目 |
+| --- | ---: | ---: | ---: | ---: |
+| 08-20 ~ 08-24 | 66 | 約 80 | **66/66** | 312 |
+| 08-25 | 11 | 49.2 | 7 | 30 |
+| **08-26** | 6 | **7.3** | **0** | 6 |
+
+⚠️ **但樣板檔那一類沒有結構性保證。** 08-26 掉到每區塊約 1 條，那只有一天、
+六個區塊、一個 change 的資料——**一個乾淨的日子不是證明**。
+`spectra task done` 仍是掃整個 git status，只是 `scratch/` 不再出現在其中。
+
+`.spectra.yaml` 目前沒有任何 trace 過濾或 touched-file 政策可以防止復發。
 
 ### 2. 鄉鎮市區代碼在 1998／2002／2005 是**檔內重編**，已於 2026-08-22 正規化
 

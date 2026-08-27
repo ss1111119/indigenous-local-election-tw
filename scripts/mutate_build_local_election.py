@@ -38,7 +38,8 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_mountain_not_in_main_sequence "
        "or test_mountain_codes_table "
        "or test_mountain_township_level_postcondition "
-       "or test_mountain_codes_generator_guards")
+       "or test_mountain_codes_generator_guards "
+       "or test_spec_trace_integrity_guards")
 
 MUTATIONS = [
     # ⚠️ 字串必須唯一。`"T-COMBO": "直轄市議員` 在 oracles.py 出現兩次
@@ -404,6 +405,25 @@ MUTATIONS = [
      "build_mountain_township_codes.py",
      '    if len(rows) != expected:',
      '    if False:'),
+
+    # ---- @trace 完整性檢查 ----
+    # ⚠️ 清理後真實資料零死鏈，所以「有死鏈就失敗」那條永遠不會觸發。
+    #    這三個變異驗的是合成髒資料測試真的咬得到。
+    ("trace：判準由「是否入庫」改成「檔案是否存在」（scratch/ 會全部通過）",
+     "check_spec_traces.py",
+     '    return [e for e in entries if e[2] not in tracked]',
+     '    return [e for e in entries if not (ROOT / e[2]).exists()]'),
+    ("trace：取不到版控清單時回退而不中止（沒有 git 的環境等於檢查失效）",
+     "check_spec_traces.py",
+     '        raise TraceCheckError(\n'
+     '            f"取不到版控檔案清單（{type(exc).__name__}: {exc}）。"',
+     '        return set()\n'
+     '        raise TraceCheckError(\n'
+     '            f"取不到版控檔案清單（{type(exc).__name__}: {exc}）。"'),
+    ("trace：零輸入不再中止（零違規來自零輸入，與全部通過無法分辨）",
+     "check_spec_traces.py",
+     '    if not spec_files:',
+     '    if False:'),
 ]
 
 def prepare() -> None:
@@ -416,6 +436,7 @@ def prepare() -> None:
     #    是一次全面的假通過。基準對照是唯一擋得住它的那道關。
     for f in ("oracles.py", "build_local_election.py",
               "build_mountain_township_codes.py",
+              "check_spec_traces.py",
               "test_build_local_election.py"):
         shutil.copy(ROOT / "scripts" / f, MUT / f)
 

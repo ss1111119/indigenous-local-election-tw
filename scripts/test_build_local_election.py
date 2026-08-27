@@ -24,7 +24,9 @@ import csv
 import gzip
 import io
 import json
+import pathlib
 import sys
+import tempfile
 import tempfile
 import zipfile
 from decimal import Decimal, ROUND_HALF_UP
@@ -50,6 +52,13 @@ from oracles import (  # noqa: E402
     population_applicability,
 )
 import build_local_election  # noqa: E402
+# ⚠️ 這一行必須在【模組層級】，不可放進測試函式內。
+#    `build_mountain_township_codes` 在 import 時會執行
+#    `sys.path.insert(0, ROOT / "scripts")`，而在變異副本裡 ROOT 解析成 repo
+#    根目錄——它把【真正的】scripts/ 插到 sys.path[0]。任何在那之後才做的
+#    import 都會載到未變異的原始模組：變異測試報「偵測不到」，
+#    而單獨跑同一個測試卻會失敗。2026-08-27 實測踩到三次。
+import check_spec_traces  # noqa: E402
 from build_local_election import (  # noqa: E402
     COLS,
     COUNTY_CROSSWALK_YEARS,
@@ -2217,7 +2226,8 @@ def main() -> int:
                test_mountain_not_in_main_sequence,
                test_mountain_codes_table,
                test_mountain_township_level_postcondition,
-               test_mountain_codes_generator_guards):
+               test_mountain_codes_generator_guards,
+               test_spec_trace_integrity_guards):
         try:
             fn()
         except AssertionError:
@@ -2493,6 +2503,86 @@ def test_mountain_codes_generator_guards() -> None:
                     "2022", ["復興鄉"], {"烏來區": "理由"}))
     raises_exit("輸出總列數不符 → 中止",
                 lambda: G.check_total([1] * 186, 187))
+
+
+@reports
+def test_spec_trace_integrity_guards() -> None:
+    """`@trace` 完整性檢查的四個守衛，各餵一份會觸發它的合成輸入。
+
+    ⚠️ 這一組必須用合成資料。清理後真實資料零死鏈，所以「有死鏈就失敗」
+    那條**永遠不會觸發**——把判準從「是否在版控內」改成「檔案是否存在」，
+    真實資料上完全看不出差別，而 `scratch/` 下的路徑會全部靜默通過。
+
+    ⚠️ 這支檢查驗的是【路徑指得到】，不是【溯源正確】。剝除死鏈後仍有
+    六個檔案各出現在 53–73 個區塊（共 83 個）——見 HANDOFF 地雷。
+    """
+    C = check_spec_traces
+
+    print("\n[單元] @trace 完整性檢查的守衛")
+    entries = [("capA", "Req 1", "scripts/oracles.py"),
+               ("capB", "Req 2", "scratch/x.py")]
+    tracked = {"scripts/oracles.py"}
+    check("只回報未入庫的那一條",
+          C.check_traces(entries, tracked),
+          [("capB", "Req 2", "scratch/x.py")])
+    check("全部入庫時回報空清單",
+          C.check_traces(entries[:1], tracked), [])
+
+    # ⚠️ 上面兩條【分辨不出】判準是「是否入庫」還是「檔案是否存在」——
+    #    `scratch/x.py` 在磁碟上也不存在，兩種判準給同一個答案。
+    #    要分辨，必須用一個【存在但未入庫】的檔案，那正是 scratch/ 的本質。
+    probe = C.ROOT / "_trace_probe_tmp.txt"
+    try:
+        probe.write_text("x", encoding="utf-8")
+        rel = probe.name
+        check("存在但未入庫 → 仍算違規（判準是版控，不是磁碟）",
+              C.check_traces([("capC", "Req 3", rel)], tracked),
+              [("capC", "Req 3", rel)])
+    finally:
+        probe.unlink(missing_ok=True)
+
+    def raises_check(name, fn):
+        try:
+            fn()
+        except C.TraceCheckError:
+            print(f"  PASS  {name}")
+            return
+        print(f"  FAIL  {name}（沒有中止）")
+        failures.append(name)
+
+    with tempfile.TemporaryDirectory() as d:
+        empty = pathlib.Path(d)
+        # ⚠️ 零違規若來自零輸入，與「全部通過」無法分辨——故兩者都要中止。
+        #    ⚠️ 而且必須驗【是哪一個守衛】中止的：兩個守衛都丟同一個例外，
+        #    只驗「有沒有中止」的話，拿掉前一個守衛時後一個會接住，
+        #    測試照樣通過（2026-08-27 變異測試實測到這個漏網）。
+        raises_check("找不到任何 spec 檔 → 中止",
+                     lambda: C.collect_trace_entries(empty))
+        try:
+            C.collect_trace_entries(empty)
+        except C.TraceCheckError as exc:
+            check("中止訊息來自『找不到 spec 檔』那一條",
+                  "找不到任何 spec 檔" in str(exc), True)
+
+        spec = empty / "cap" / "spec.md"
+        spec.parent.mkdir()
+        spec.write_text("# x\n\n### Requirement: A\n內容\n", encoding="utf-8")
+        raises_check("有 spec 但無 @trace 區塊 → 中止",
+                     lambda: C.collect_trace_entries(empty))
+        try:
+            C.collect_trace_entries(empty)
+        except C.TraceCheckError as exc:
+            check("中止訊息來自『找不到 @trace 條目』那一條",
+                  "找不到 @trace 條目" in str(exc), True)
+
+    # ⚠️ 取不到版控清單時必須中止，【不可】回退成「檔案是否存在」——
+    #    那會讓未入庫的路徑在沒有 git 的環境下靜默通過。
+    saved_root = C.ROOT
+    try:
+        C.ROOT = pathlib.Path("/nonexistent-dir-for-trace-check-test")
+        raises_check("取不到版控清單 → 中止", C.tracked_files)
+    finally:
+        C.ROOT = saved_root
 
 
 if __name__ == "__main__":

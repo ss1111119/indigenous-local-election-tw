@@ -12,12 +12,12 @@
 
 ## 三、執行點與測試
 
-- [ ] 3.1 （實作 spec requirement「The check has an execution point, and what it does not verify is written down」；design 決策 3：檢查必須有執行點，且放在既有的執行點檔案）在 `scripts/test_site_invariants.py` 新增一項呼叫 `check_spec_traces` 的檢查。完成判準：執行 `python scripts/test_site_invariants.py` 時輸出中可見該項，且在 spec 內插入一條 `scratch/x.py` 後該腳本會失敗。
-- [ ] 3.2 為 `check_spec_traces.py` 補合成髒資料測試，涵蓋四種情形：指向未入庫路徑、取不到已入庫清單、找不到任何 spec 檔、找不到任何 `@trace` 區塊。每項須以合成輸入呼叫 `check_traces()` 或 `collect_trace_entries()`，且在該項防護被移除時失敗。
-- [ ] 3.3 實測驗證檢查**能失敗**：暫時在任一 spec 的 `@trace` 內插入 `- scratch/x.py`，執行檢查確認 exit 1 且訊息含該路徑、所屬能力與 Requirement 名稱，然後還原。⚠️ 還原必須用 `try/finally` 或先備份，本 session 已有一次「變異腳本在還原前中止、把變異留在檔案裡」的紀錄。
+- [x] 3.1 （實作 spec requirement「The check has an execution point, and what it does not verify is written down」；design 決策 3：檢查必須有執行點，且放在既有的執行點檔案）在 `scripts/test_site_invariants.py` 新增一項呼叫 `check_spec_traces` 的檢查。完成判準：執行 `python scripts/test_site_invariants.py` 時輸出中可見該項，且在 spec 內插入一條 `scratch/x.py` 後該腳本會失敗。
+- [x] 3.2 為 `check_spec_traces.py` 補合成髒資料測試，涵蓋四種情形：指向未入庫路徑、取不到已入庫清單、找不到任何 spec 檔、找不到任何 `@trace` 區塊。每項須以合成輸入呼叫 `check_traces()` 或 `collect_trace_entries()`，且在該項防護被移除時失敗。
+- [x] 3.3 實測驗證檢查**能失敗**：暫時在任一 spec 的 `@trace` 內插入 `- scratch/x.py`，執行檢查確認 exit 1 且訊息含該路徑、所屬能力與 Requirement 名稱，然後還原。⚠️ 還原必須用 `try/finally` 或先備份，本 session 已有一次「變異腳本在還原前中止、把變異留在檔案裡」的紀錄。
 
 ## 四、記錄已知限制
 
-- [ ] 4.1 （實作 spec requirement 的 Scenario「The cleanup makes the metadata look more reliable than it is」；design 決策 4：剩餘的不可靠性**寫下來**，不靜默留著）在 `HANDOFF.md` 新增一條地雷，記載三件事：(1) 清理只驗「路徑指得到」，**不驗溯源正確**；(2) 剩餘 1,127 條中，`CLAUDE.md`／`AGENTS.md`／`GEMINI.md`／`.spectra.yaml` 各出現在 73/83 個區塊、`README.md` 63、`HANDOFF.md` 53——出現在 88% 的 Requirement 上的檔案沒有指出任何東西；(3) 13 條 Requirement 完全沒有 `@trace`（`legacy-source-quirks` 4 條、`mountain-township-chief-census` 2 條、`mountain-township-chief-elections` 7 條），那是「未建立溯源」的標記，不補。
-- [ ] 4.2 在 `HANDOFF.md` 同一條記下根因未解：`spectra task done` 仍是掃當下整個 git status（地雷 1i）。`scratch/` 於 2026-08-25 進 `.gitignore` 後該類污染在結構上停止（實測 `@trace` 依 `updated` 日期：08-20 至 08-24 共 66 個區塊 100% 含 `scratch/`，08-26 為 0/6），但**樣板檔那一類沒有結構性保證**——08-26 每區塊平均 7.3 條只是一天、六個區塊的資料。
-- [ ] 4.3 執行 `git status` 確認 `data/processed/` 與 `docs/` 下 HTML 皆未修改，且變動範圍限於 12 個 spec 檔、兩支 `scripts/` 檔與 `HANDOFF.md`。
+- [x] 4.1 （實作 spec requirement 的 Scenario「The cleanup makes the metadata look more reliable than it is」；design 決策 4：剩餘的不可靠性**寫下來**，不靜默留著）在 `HANDOFF.md` 新增一條地雷，記載三件事：(1) 清理只驗「路徑指得到」，**不驗溯源正確**；(2) 剩餘 1,127 條中，`CLAUDE.md`／`AGENTS.md`／`GEMINI.md`／`.spectra.yaml` 各出現在 73/83 個區塊、`README.md` 63、`HANDOFF.md` 53——出現在 88% 的 Requirement 上的檔案沒有指出任何東西；(3) 13 條 Requirement 完全沒有 `@trace`（`legacy-source-quirks` 4 條、`mountain-township-chief-census` 2 條、`mountain-township-chief-elections` 7 條），那是「未建立溯源」的標記，不補。
+- [x] 4.2 在 `HANDOFF.md` 同一條記下根因未解：`spectra task done` 仍是掃當下整個 git status（地雷 1i）。`scratch/` 於 2026-08-25 進 `.gitignore` 後該類污染在結構上停止（實測 `@trace` 依 `updated` 日期：08-20 至 08-24 共 66 個區塊 100% 含 `scratch/`，08-26 為 0/6），但**樣板檔那一類沒有結構性保證**——08-26 每區塊平均 7.3 條只是一天、六個區塊的資料。
+- [x] 4.3 執行 `git status` 確認 `data/processed/` 與 `docs/` 下 HTML 皆未修改，且變動範圍限於 12 個 spec 檔、兩支 `scripts/` 檔與 `HANDOFF.md`。
