@@ -199,10 +199,31 @@ def test_pages_declare_encoding_language_and_viewport() -> None:
     assert not failures, "頁面文件層宣告不完整：\n  " + "\n  ".join(failures)
 
 
+def test_spec_traces_point_to_tracked_files() -> None:
+    """spec 的 `@trace` 條目必須指向版控內的檔案。
+
+    ⚠️ 這一項放在這個檔案，是因為這個檔案存在的理由就是「缺的不是規則，
+    是執行點」。`check_spec_traces.py` 若只是一支獨立腳本、沒有任何流程會
+    跑它，就跟本檔開頭記載的 `build_site_data.py --check` 是同一個坑。
+
+    ⚠️ 它驗的是【路徑指得到】，不是【溯源正確】。通過不代表 `@trace` 列的
+    檔案真的是該條 Requirement 的實作位置——見 HANDOFF 地雷。
+    """
+    import check_spec_traces as C
+
+    entries = C.collect_trace_entries()
+    bad = C.check_traces(entries, C.tracked_files())
+    assert not bad, (
+        f"{len(bad)} 條 @trace 指向版控外的路徑，前三條：\n  "
+        + "\n  ".join(f"{c} / {r} → {p}" for c, r, p in bad[:3])
+    )
+
+
 if __name__ == "__main__":
     for fn in (test_embedded_constants_match_long_tables,
                test_in_mark_label_contrast,
                test_series_palette_separation,
-               test_pages_declare_encoding_language_and_viewport):
+               test_pages_declare_encoding_language_and_viewport,
+               test_spec_traces_point_to_tracked_files):
         fn()
         print(f"  PASS  {fn.__name__}")
