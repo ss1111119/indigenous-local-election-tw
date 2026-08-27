@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：16 個能力、**87 條 Requirement**
+### 主 specs：17 個能力、**96 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -45,7 +45,8 @@
 | `site-heading-segmentation` | 4 |
 | `column-oracle-documentation` | 5 |
 | `site-multi-dataset` | 3 |
-| `mountain-township-chief-census` | 3 |
+| `mountain-township-chief-census` | 5 |
+| `mountain-township-chief-elections` | 7 |
 | `site-navigation` | 2 |
 | `site-offline-resource-policy` | 2 |
 | `site-editorial-neutrality` | 1 |
@@ -77,14 +78,12 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 `census-mountain-township-chief`（11/11，山地鄉鄉長來源資料的可用性清點，
 新增 `mountain-township-chief-census` 能力：名單的權威出處與屆別適用範圍、
 逐屆清點紀錄、清點不下納入結論的界線）於 2026-08-26 歸檔。
-⚠️ **有一個進行中的 change：`include-mountain-township-chief`（24/24 任務完成，
-尚未提交、尚未歸檔）。** 山地鄉鄉長已納入資料層，選舉種類代碼 `D1-MT`，七屆共
-187 個單位（1998／2002／2005 各 30、2009-2010 為 25、2014／2018／2022 各 24）。
-前置 change `census-elctks-elprof-township-chief`（7/7）已於 2026-08-27 歸檔。
-
-該 change 待辦：確認變異測試（82 個）跑完 → 提交 → `/spectra-archive`。
-歸檔會套用兩個 delta spec：新增 `mountain-township-chief-elections`（7 條
-Requirement）、修改 `legacy-source-quirks`（1 條，哨兵具名粒度）。
+`census-elctks-elprof-township-chief`（7/7，補 elctks／elprof 七屆結構清點，
+`mountain-township-chief-census` 由 3 條增為 5 條）與
+`include-mountain-township-chief`（24/24，山地鄉鄉長納入資料層，選舉種類代碼
+`D1-MT`，七屆共 187 個單位；新增 `mountain-township-chief-elections` 7 條、
+修改 `legacy-source-quirks` 的哨兵具名粒度 1 條）於 2026-08-27 歸檔。
+**目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
 
@@ -106,12 +105,10 @@ Requirement）、修改 `legacy-source-quirks`（1 條，哨兵具名粒度）�
 
 ## 二、下一步（依優先序）
 
-**目前的待辦是把 `include-mountain-township-chief` 收尾**（24/24 已完成，
-待確認變異測試 → 提交 → 歸檔）。
+**沒有待辦的工程項目。** 山地鄉鄉長的兩個 change 皆已於 2026-08-27 歸檔。
 
 `census-mountain-township-chief`（2026-08-26 歸檔）留下的三件事，
-**第 1 與第 2 件已於 2026-08-27 處理**，清點報告在
-`docs/schema/山地鄉鄉長資料清點.md`：
+**第 1 與第 2 件已處理**，清點報告在 `docs/schema/山地鄉鄉長資料清點.md`：
 
 1. ~~山地鄉鄉長要不要納入長表~~ **已納入資料層（2026-08-27）**。
    依 `election-period-publication` 的兩段式測試，席次／候選人數／選舉人數／

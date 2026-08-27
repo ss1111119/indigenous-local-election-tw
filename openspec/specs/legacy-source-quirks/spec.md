@@ -1005,13 +1005,22 @@ code:
 
 ---
 ### Requirement: Sentinel Recognition Is Named Per Term, Not Global
-The set of terms in which a value is treated as a sentinel SHALL be an explicit named list. A value
+The scope in which a value is treated as a sentinel SHALL be an explicit named list. A value
 SHALL NOT be treated as a sentinel merely because it once served that purpose, because the same
-number can be a genuine measurement in another term.
+number can be a genuine measurement elsewhere.
 
-Two checks SHALL bound the list, and both SHALL abort the build rather than adjust behaviour silently:
-the listed terms SHALL contain no value other than the sentinel, and the unlisted terms SHALL contain
-no occurrence of the sentinel.
+The named scope SHALL be a term where every file of that term shares one convention, and SHALL be
+narrowed to a term and election type where they do not. Files issued for the same term have been
+found to use different sentinel values from one another, so a term-wide list cannot express which
+value applies without either discarding real measurements in the files that disagree or admitting
+a sentinel as a measurement in the files that agree.
+
+Two checks SHALL bound the list, and both SHALL abort the build rather than adjust behaviour
+silently: a listed scope SHALL contain no value other than the sentinels named for it, and a scope
+not listed for a given sentinel SHALL contain no occurrence of that sentinel.
+
+A named narrowing that is never exercised SHALL abort the build, because a declaration that no
+longer matches any file is indistinguishable from one that was never correct.
 
 #### Scenario: A listed term turns out to hold a real value
 - **WHEN** a term on the list carries any age other than the sentinel
@@ -1023,81 +1032,21 @@ no occurrence of the sentinel.
 - **THEN** the build SHALL abort naming that term, because either the sentinel convention has spread
   to a new term or a genuine value coincides with it, and the two cannot be told apart automatically
 
+#### Scenario: One file of a term uses a different sentinel from the rest
+- **WHEN** the files of a single term do not share one sentinel convention
+- **THEN** the narrower value SHALL be named against that term and election type rather than against
+  the term as a whole, so that the files which do not use it keep the value as a measurement
 
-<!-- @trace
-source: age-99-is-unrecorded
-updated: 2026-08-21
-code:
-  - scratch/inventory_legacy.py
-  - scratch/build_1998_2002_crosswalk.py
-  - scratch/measure_2005_towns.py
-  - scratch/verify_21c.py
-  - scratch/probe3.py
-  - scratch/verify_33.py
-  - scratch/probe7.py
-  - scratch/measure_auth_existing.py
-  - scratch/measure_town_feasible.py
-  - CLAUDE.md
-  - scratch/baseline/summary.csv
-  - scratch/strip_experiment.py
-  - scratch/gen_anomalies.py
-  - scratch/verify_strip.py
-  - scratch/probe2.py
-  - scratch/review_q2.md
-  - scratch/measure_ws2.py
-  - scratch/probe_districts2.py
-  - scratch/zip_names.json
-  - scratch/probe5.py
-  - scratch/measure_whitespace.py
-  - scratch/baseline/candidates.csv
-  - scratch/dryrun_manifest.py
-  - scratch/review_q7.md
-  - scratch/review_question.md
-  - scratch/inventory_legacy.json
-  - scratch/chk1998t2.py
-  - scratch/measure_trunc.py
-  - scratch/verify_pop2.py
-  - scratch/probe_1994.py
-  - scratch/probe6.py
-  - scratch/add_legacy_sources.py
-  - scratch/baseline/votes.csv
-  - scratch/verify_review.py
-  - scratch/measure_2005g.py
-  - scratch/review_q4.md
-  - scratch/verify_identity.py
-  - scratch/chk_cw.py
-  - scratch/measure_2005f.py
-  - scratch/verify_32.py
-  - scratch/measure_pop.py
-  - scratch/expected.txt
-  - scratch/review_q3.md
-  - scratch/verify_crosswalk.py
-  - scratch/measure_2005.py
-  - scratch/verify_21.py
-  - AGENTS.md
-  - scratch/probe_districts.py
-  - scratch/measure_town_codes.py
-  - scratch/measure_2005c.py
-  - scratch/probe_legacy_build.py
-  - .spectra.yaml
-  - scratch/review_q6.md
-  - scratch/verify_pop.py
-  - scratch/verify_claims.py
-  - scratch/measure_2005d.py
-  - scratch/probe4.py
-  - scratch/probe_anomalies.py
-  - scratch/gen_town_anom.py
-  - scratch/list_zip.py
-  - scratch/verify_11.py
-  - scratch/review_q5.md
-  - scratch/measure_2005e.py
-  - scratch/measure_2005b.py
-  - scratch/add_defect7.py
-  - GEMINI.md
-  - scratch/gen_expected.py
-  - scratch/verify_auth.py
-  - scratch/measure_pop2.py
--->
+#### Scenario: A narrowed declaration stops matching any file
+- **WHEN** a sentinel named for a term and election type no longer occurs in that scope
+- **THEN** the build SHALL abort naming the declaration, because an unexercised narrowing silently
+  widens what the remaining checks accept
+
+#### Scenario: A narrowed sentinel appears outside its declared scope
+- **WHEN** a value named as a sentinel for one election type occurs in another election type of the
+  same term
+- **THEN** the build SHALL abort, because it is either a spreading convention or a genuine
+  measurement, and treating it as a measurement by default would publish a wrong figure
 
 ---
 ### Requirement: Column Semantics Are Taken From The Source Format Document First
@@ -2003,6 +1952,7 @@ tests:
   - scripts/test_build_local_election.py
 -->
 
+---
 ### Requirement: Town Codes Re-Numbered Per File Are Resolved Through The Same-Term Regional File
 The 1998, 2002, and 2005 plain-indigenous (T2) and mountain-indigenous (T3) county councilor files number their town codes internally, so the same township carries a different code than it does in the same-term regional file. The system SHALL resolve every town in those six files to the same-term regional file's town code and record it in the normalized town column. Resolution SHALL key on the pair (county name, town name), because the county codes in those terms are themselves re-numbered per file and cannot serve as a join key.
 
@@ -2040,6 +1990,7 @@ differs from the one they carry locally and 4 resolve through a named alias.
 - **WHEN** two towns in the same source file resolve to the same (province, county, town) triple in the regional file
 - **THEN** the build SHALL abort, because merging two townships keeps every total balanced and leaves no other trace
 
+---
 ### Requirement: Truncated Town Names Are Named, Never Pattern-Matched
 Four town names in these files are missing their leading character: 里山鄉, 地門鄉, and 麻里鄉 in the 2002 mountain-indigenous file, and 麻里鄉 in the 2005 mountain-indigenous file. The system SHALL resolve these through an explicit alias list keyed on (term, election type, county name, source name) and SHALL NOT use any string rule such as dropping a leading character, matching on a suffix, or edit distance.
 
@@ -2065,6 +2016,7 @@ The causes are not uniform: in the 2002 mountain-indigenous file no town name ex
 - **WHEN** a source file is revised and introduces a truncated name not covered by the alias list
 - **THEN** the build SHALL abort rather than resolve it by inference
 
+---
 ### Requirement: An Unresolved Town Is An Abort, Not An Empty Cell
 An empty normalized town column previously meant one thing only: that the project performed no town-level normalization for that file. Once resolution is attempted, an empty cell would acquire a second meaning — that a particular row could not be resolved — and the two are indistinguishable downstream. They SHALL NOT share a representation. The system SHALL either write a resolved code or abort the build; it SHALL NOT write an empty value to represent a failed lookup.
 
