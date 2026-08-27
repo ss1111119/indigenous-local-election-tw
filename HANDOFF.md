@@ -29,7 +29,7 @@
 
 全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
 
-### 主 specs：18 個能力、**101 條 Requirement**
+### 主 specs：18 個能力、**104 條 Requirement**
 
 | 能力 | 條數 |
 | --- | ---: |
@@ -39,7 +39,7 @@
 | `indigenous-legislative-elections` | 7 |
 | `party-list-votes` | 5 |
 | `bounded-estimates` | 4 |
-| `election-period-publication` | 4 |
+| `election-period-publication` | 7 |
 | `historical-terms-1994-2006` | 4 |
 | `site-translation` | 4 |
 | `site-heading-segmentation` | 4 |
@@ -90,6 +90,12 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 剝除 4,723 條指向 scratch/ 的 @trace 死鏈、修正 13 條過期路徑、新增
 `scripts/check_spec_traces.py` 與執行點；新增 `spec-trace-integrity` 3 條）
 亦於 2026-08-27 歸檔。
+`publication-record-consistency`（16/16）於 2026-08-28 歸檔：修正
+`index.html` 的判定理由與頁面內容矛盾（理由誤寫「無方向性的量」，該頁實含
+「+3.08 個百分點」等；結論不變、依據改為「無推估」）、把 `README.md` 納入
+發布判定紀錄的涵蓋範圍（它含跨屆變化欄且是公開的）、補上「兩個各自在單一
+計數母體內取得的比率相減仍屬凍結歷史數據」這條判例。
+`election-period-publication` 由 4 條增為 7 條。
 **目前沒有進行中的 change。**
 
 議員席次序列（權威值）：
