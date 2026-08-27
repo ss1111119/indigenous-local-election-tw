@@ -890,8 +890,115 @@ PAGES_REQUIRING_NOTICE = {
 FROZEN_BOUNDS_SHAPE = {"terms": 5, "thresholds": 3}
 
 
+# 判定理由裡「聲稱某頁不含方向性的量」的措辭，與頁面上方向性字樣的樣式。
+#
+# ⚠️ 這一組只認得【機械可判定】的矛盾：理由聲稱「無方向性」而頁面有方向性
+#    字樣。它**不驗理由本身是否正確**——那需要人看，任何檢查都settle 不了。
+NO_DIRECTION_CLAIMS = ("無方向性的量", "無方向性")
+DIRECTIONAL_MARKERS = ("個百分點", "上升", "下降", "落差", "差距")
+
+
+def check_record_reason_consistency(
+    record: Path = PUBLICATION_RECORD, docs_dir: Path | None = None,
+) -> None:
+    """判定理由不得與頁面內容矛盾。
+
+    ⚠️ **這條只驗機械可判定的矛盾**：理由聲稱「無方向性的量」而該頁含有
+    方向性字樣。**它不驗理由是否正確**——「這個數字需不需要推估」需要人看，
+    沒有任何檢查能替代。不寫明這一點的話，下一個人會把「檢查通過」讀成
+    「判定正確」。
+
+    ⚠️ 為什麼值得擋：理由是下一個人判斷同類案例時拿來對照的東西。
+    與頁面矛盾的理由**比沒有理由更糟，因為它會被重複使用**。
+    2026-08-27 實測：`index.html` 的理由寫「無方向性的量」，
+    而該頁含「+3.08／+1.00 個百分點」「下降 5.83 個百分點」。
+
+    ⚠️ **它分不出「主張」與「引述已撤回的主張」。** 修正該列時若在更正說明裡
+    引用舊措辭（例如「原理由誤寫『無方向性的量』」），這條會照樣中止——
+    區分 use 與 mention 不是機械做得到的事。處置是**改寫紀錄的措辭**，
+    不是放寬檢查：放寬會讓真正的矛盾一起通過。
+    """
+    docs_dir = (ROOT / "docs") if docs_dir is None else docs_dir
+    if not record.exists():
+        raise SiteDataError(f"找不到發布判定紀錄 {record}")
+    text = record.read_text(encoding="utf-8")
+
+    bad: list[str] = []
+    for m in re.finditer(r"^\| `([^`]+\.html)` \|(.*)$", text, re.M):
+        page, rest = m.group(1), m.group(2)
+        cols = [c.strip() for c in rest.split("|")]
+        if len(cols) < 3:
+            continue
+        reason = cols[2]
+        if not any(c in reason for c in NO_DIRECTION_CLAIMS):
+            continue
+        path = docs_dir / page
+        if not path.exists():
+            continue          # 缺頁由 check_publication_record 負責
+        html = path.read_text(encoding="utf-8")
+        found = sorted({d for d in DIRECTIONAL_MARKERS if d in html})
+        if found:
+            bad.append(f"{page}：理由聲稱無方向性，但頁面含 {found}")
+    if bad:
+        raise SiteDataError(
+            "發布判定紀錄的理由與頁面內容矛盾：\n  " + "\n  ".join(bad)
+            + "\n理由是下一個人判斷同類案例的對照物——矛盾的理由會被重複使用。"
+            + "\n⚠️ 若該頁確實含方向性敘述但仍屬凍結歷史數據，"
+              "理由應改以【無推估】為依據，並明文承認方向性的存在。"
+        )
+
+
+# 在 repo 根目錄、且屬於「已發布且帶選舉數字」的檔案。
+#
+# ⚠️ README.md 含地方公職九屆的投票率與【跨屆變化欄】（14→18、18→22），
+#    與 index.html 上那些百分點變化同一性質。它不是 GitHub Pages 的頁面，
+#    但它是公開的，而涵蓋檢查要擋的是「多了一份東西，沒有人想起要判定」
+#    ——那個失效與副檔名無關。
+#
+# ⚠️ 目前【不】涵蓋 docs/schema/*.md 與 openspec/ 下的文件：它們是給維護者
+#    看的技術文件，不是對一般讀者發布的材料。這個排除是刻意的，寫在這裡
+#    而不是靠沉默——依 spec 的 Scenario「A file type is deliberately left
+#    out of scope」，排除必須具名且有理由。
+ROOT_LEVEL_PUBLISHED = ("README.md",)
+
+
+def canonical_published_key(key: str) -> str:
+    """把紀錄表的人類可讀鍵轉成 repo-relative 的正規路徑。
+
+    兩個命名空間，**不可混用**：
+      - root-relative：列於 `ROOT_LEVEL_PUBLISHED`，原樣（如 `README.md`）
+      - docs-relative：其餘一律加 `docs/` 前綴（如 `index.html`）
+
+    ⚠️ 紀錄表維持人類可讀的鍵（`index.html`、`en/index.html`），轉換只在
+    檢查內部發生。但轉換必須**集中在這一個函式**並拒絕逃逸——把未分類的
+    字串直接混進同一個集合，會重蹈「用檔名讓 index.html 與 en/index.html
+    互相掩護」那個坑。2026-08-27 外部覆核列出的五個具體失效：
+      1. 根目錄新增 CHANGELOG.md，被誤當成 docs/CHANGELOG.md
+      2. `README.md` 與 `docs/../README.md` 成為同一檔的兩個別名
+      3. 把 `docs/index.html` 填進要求 docs-relative 的欄位 → docs/docs/index.html
+      4. `../` 或絕對路徑逃出預期根目錄
+      5. 第二個根目錄公開檔案出現時，特例逐漸散落各處
+    """
+    if key.startswith("/") or key.startswith("\\") or ":" in key:
+        raise SiteDataError(f"發布判定紀錄的鍵不可是絕對路徑：{key!r}")
+    if ".." in key.split("/"):
+        raise SiteDataError(f"發布判定紀錄的鍵不可含 `..`：{key!r}")
+    if key in ROOT_LEVEL_PUBLISHED:
+        return key
+    if key.startswith("docs/"):
+        raise SiteDataError(
+            f"發布判定紀錄的鍵 {key!r} 不可含 `docs/` 前綴——"
+            f"docs 底下的頁面一律填【相對於 docs/ 的路徑】"
+            f"（如 `index.html`、`en/index.html`）。"
+        )
+    return f"docs/{key}"
+
+
 def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
-    """發布判定紀錄必須涵蓋 docs/ 下每一個 HTML，兩個方向都驗。
+    """發布判定紀錄必須涵蓋每一份已發布且帶選舉數字的檔案，兩個方向都驗。
+
+    涵蓋範圍：`docs/**/*.html` 與 `ROOT_LEVEL_PUBLISHED` 列出的根目錄檔案
+    （目前只有 `README.md`）。排除的範圍與理由見該常數的註解。
 
     ⚠️ 要擋的不是「判定寫錯」（那需要人看），而是**「多了一頁，
        沒有人想起要判定」**。後者是靜默的，而且會隨時間必然發生。
@@ -904,9 +1011,12 @@ def check_publication_record(record: Path = PUBLICATION_RECORD) -> None:
     #    那兩頁會被安靜地跳過而不報錯，而「多了一頁沒人判定」正是這條
     #    檢查存在的理由。鍵用**相對路徑**而不是檔名：docs/index.html 與
     #    docs/en/index.html 的檔名相同，用檔名兩者會互相掩護。
-    listed = set(re.findall(r"^\| `([^`]+\.html)` \|", text, re.M))
+    listed = {canonical_published_key(k)
+              for k in re.findall(r"^\| `([^`]+\.(?:html|md))` \|", text, re.M)}
     docs = ROOT / "docs"
-    on_disk = {p.relative_to(docs).as_posix() for p in docs.rglob("*.html")}
+    on_disk = {f"docs/{p.relative_to(docs).as_posix()}"
+               for p in docs.rglob("*.html")}
+    on_disk |= {n for n in ROOT_LEVEL_PUBLISHED if (ROOT / n).exists()}
 
     missing = sorted(on_disk - listed)
     if missing:
@@ -1702,7 +1812,13 @@ def main() -> None:
     # 發布判定紀錄的涵蓋檢查。⚠️ 放在最前面，且 --write 與 --check 都跑——
     # 新增一頁卻沒有判定，要在寫任何檔案之前就中止。
     check_publication_record()
-    print("✓ 發布判定紀錄涵蓋 docs/ 下每一個頁面")
+    print("✓ 發布判定紀錄涵蓋每一份已發布且帶選舉數字的檔案")
+
+    # ⚠️ 這一項【必須有執行點】。它只驗機械可判定的矛盾（理由聲稱「無方向性」
+    #    而頁面有方向性字樣），不驗理由是否正確——但沒有人跑它的話，
+    #    連那一種都擋不住。本專案為「規則存在但沒有執行點」付過代價。
+    check_record_reason_consistency()
+    print("✓ 發布判定紀錄的理由與頁面內容無機械可判定的矛盾")
 
     # 立委頁的兩個常數。三張立委長表與界限表只在這裡讀一次。
     #

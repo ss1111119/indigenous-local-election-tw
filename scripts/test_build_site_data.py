@@ -1337,8 +1337,85 @@ def test_publication_record_covers_every_page() -> None:
                      lambda: build_site_data.check_publication_record(tmp),
                      "較嚴的一段")
 
+    print("\n       README.md 漏列 → 中止並具名（涵蓋範圍不以副檔名為準）")
+    tmp.write_text(re.sub(r"^\| `README\.md`.*\n", "", orig, flags=re.M),
+                   encoding="utf-8")
+    check_raises_msg("漏列 README.md",
+                     lambda: build_site_data.check_publication_record(tmp),
+                     "README.md")
+
     check("還原後仍通過",
           build_site_data.check_publication_record() is None, True)
+
+
+@reports
+def test_publication_record_key_namespaces() -> None:
+    """紀錄鍵的兩個命名空間必須明確分開，逃逸一律中止。
+
+    ⚠️ 把未分類的字串直接混進同一個集合，會重蹈「用檔名讓 index.html 與
+    en/index.html 互相掩護」那個坑。2026-08-27 外部覆核列出的五個具體失效：
+    根目錄新增 CHANGELOG.md 被誤當成 docs/CHANGELOG.md；README.md 與
+    docs/../README.md 成為別名；把 docs/index.html 填進要求 docs-relative
+    的欄位而變成 docs/docs/index.html；`..` 或絕對路徑逃出預期根目錄；
+    第二個根目錄公開檔案出現時特例散落。
+    """
+    print("\n[單元] 發布判定紀錄鍵的命名空間")
+    k = build_site_data.canonical_published_key
+    check("docs-relative 加前綴", k("index.html"), "docs/index.html")
+    check("子目錄同理", k("en/index.html"), "docs/en/index.html")
+    check("root-relative 原樣", k("README.md"), "README.md")
+
+    for bad, why in (("docs/index.html", "含 docs/ 前綴會變成 docs/docs/…"),
+                     ("../x.html", "`..` 逃出預期根目錄"),
+                     ("a/../b.html", "路徑中段的 `..`"),
+                     ("/etc/x.html", "POSIX 絕對路徑"),
+                     ("C:/x.html", "Windows 絕對路徑")):
+        check_raises(f"拒絕 {bad}（{why}）", lambda b=bad: k(b))
+
+
+@reports
+def test_record_reason_matches_page() -> None:
+    """判定理由不得與頁面內容矛盾（只驗機械可判定的那一種）。
+
+    ⚠️ 這是**窄範圍 lint**，不是理由正確性檢查。它認得一組已知措辭與一組
+    方向性字樣；換一種說法就繞得過去。限制寫在 `check_record_reason_
+    consistency()` 的 docstring，**不寫成行為斷言**——斷言「同義措辭抓不到」
+    會把當前的不完整性釘死成契約，日後擴充措辭清單時該測試會失敗，
+    而失敗的理由是「檢查變強了」。
+
+    ⚠️ 但「理由未作該聲稱時不中止」**要測**：那不是釘死漏洞，是防止這條
+    退化成「只要頁面有方向性字樣就失敗」。
+    """
+    print("\n[合成] 判定理由與頁面內容的機械矛盾")
+    d = Path(tempfile.mkdtemp())
+    (d / "p.html").write_text("<p>投票率上升 3.08 個百分點</p>", encoding="utf-8")
+    (d / "q.html").write_text("<p>共 34 席</p>", encoding="utf-8")
+    rec = d / "rec.md"
+
+    def row(page, reason):
+        return f"| `{page}` | 類別 | 已凍結的歷史數據 | {reason} | 2026-08-27 |\n"
+
+    rec.write_text(row("p.html", "逐票全查；無方向性的量。兩問皆否。"),
+                   encoding="utf-8")
+    check_raises_msg("理由聲稱無方向性、頁面有方向性字樣 → 中止並具名",
+                     lambda: build_site_data.check_record_reason_consistency(rec, d),
+                     "p.html")
+
+    # ⚠️ 這一條防的是「退化成：只要頁面有方向性字樣就失敗」
+    rec.write_text(row("p.html", "逐票全查，無推估；該頁確實含方向性敘述。"),
+                   encoding="utf-8")
+    check("理由未作該聲稱 → 不因這條中止",
+          build_site_data.check_record_reason_consistency(rec, d) is None, True)
+
+    rec.write_text(row("q.html", "逐票全查；無方向性的量。兩問皆否。"),
+                   encoding="utf-8")
+    check("聲稱無方向性且頁面確實沒有 → 不中止",
+          build_site_data.check_record_reason_consistency(rec, d) is None, True)
+
+    rec.write_text(row("nosuch.html", "逐票全查；無方向性的量。"),
+                   encoding="utf-8")
+    check("頁面不存在 → 這條不管（交給涵蓋檢查）",
+          build_site_data.check_record_reason_consistency(rec, d) is None, True)
 
 
 @reports
@@ -1911,6 +1988,8 @@ def test_heading_segmentation_is_idempotent() -> None:
 def main() -> int:
     for fn in (test_seats_from_authoritative,
                test_excluded_types_are_named_not_skipped,
+               test_publication_record_key_namespaces,
+               test_record_reason_matches_page,
                test_no_winners_does_not_divide_by_zero,
                test_zero_electors_turnout_is_none,
                test_site_mark_branches,

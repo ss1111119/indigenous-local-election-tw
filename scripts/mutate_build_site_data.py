@@ -292,8 +292,10 @@ MUTATIONS = [
      '                   and v[0].strip() and v[1] in LABEL_SOURCES)]',
      '    bad = []'),
     ("多語：涵蓋列舉改回非遞迴（docs/en/ 的兩頁被靜默跳過）",
-     '    on_disk = {p.relative_to(docs).as_posix() for p in docs.rglob("*.html")}',
-     '    on_disk = {p.relative_to(docs).as_posix() for p in docs.glob("*.html")}'),
+     '    on_disk = {f"docs/{p.relative_to(docs).as_posix()}"\n'
+     '               for p in docs.rglob("*.html")}',
+     '    on_disk = {f"docs/{p.relative_to(docs).as_posix()}"\n'
+     '               for p in docs.glob("*.html")}'),
     ("多語：靜態限定語的檢查改回 grep 整個檔案（const T 會掩護它）",
      '        html = re.sub(r"<script>.*?</script>", "",\n'
      '                      page.read_text(encoding="utf-8"), flags=re.S)',
@@ -309,6 +311,25 @@ MUTATIONS = [
     ("index：排除登記被清空（不該呈現的種類會流上站台或直接崩潰）",
      'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "D1-MT": (',
      'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "_UNUSED": (' ),
+    # ---- 發布判定紀錄的涵蓋與理由一致性 ----
+    ("紀錄：理由一致性檢查空轉（與頁面矛盾的理由會被下一個人重複使用）",
+     '    if bad:\n'
+     '        raise SiteDataError(\n'
+     '            "發布判定紀錄的理由與頁面內容矛盾：\\n  "',
+     '    if False:\n'
+     '        raise SiteDataError(\n'
+     '            "發布判定紀錄的理由與頁面內容矛盾：\\n  "'),
+    ("紀錄：涵蓋範圍不含根目錄檔案（README 又會落回沒人判定的狀態）",
+     '    on_disk |= {n for n in ROOT_LEVEL_PUBLISHED if (ROOT / n).exists()}',
+     '    on_disk |= set()'),
+    ("紀錄：鍵不再正規化（docs-relative 與 root-relative 混進同一集合）",
+     '    listed = {canonical_published_key(k)\n'
+     '              for k in re.findall(r"^\\| `([^`]+\\.(?:html|md))` \\|", text, re.M)}',
+     '    listed = set(re.findall(r"^\\| `([^`]+\\.(?:html|md))` \\|", text, re.M))'),
+    ("紀錄：鍵的逃逸檢查空轉（`..` 與絕對路徑不再被拒）",
+     '    if ".." in key.split("/"):',
+     '    if False:'),
+
     ("roster：排除只在輸出時略過，沒有先濾掉候選人（政黨索引會整批重排）",
      '    kept = [c for c in cands\n'
      '            if c["年度"] in keep and c["選舉種類"] not in SITE_EXCLUDED_TYPES]',
