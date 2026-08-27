@@ -315,7 +315,7 @@ MUTATIONS = [
      'AGE_ALWAYS_NO_DATA = frozenset({"0"})'),
     ("年齡 直接抄 r[10]（哨兵值原封不動流進乾淨欄位）",
      "build_local_election.py",
-     '            "年齡": valid_age(year, r[10]),',
+     '            "年齡": valid_age(year, etype, r[10]),',
      '            "年齡": r[10],'),
     ("拿掉「列入的屆別必須整批是無資料值」那條斷言",
      "build_local_election.py",

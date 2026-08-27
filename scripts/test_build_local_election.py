@@ -1173,39 +1173,39 @@ def test_valid_age() -> None:
     """
     print("\n[單元] 年齡（乾淨值）——0 與 99 的處置不對稱")
     print("       0 不可能是真實年齡 → 任何屆別都留空")
-    check("1998 的 0", valid_age("1998", "0"), "")
-    check("2022 的 0", valid_age("2022", "0"), "")
+    check("1998 的 0", valid_age("1998", "T2", "0"), "")
+    check("2022 的 0", valid_age("2022", "T2", "0"), "")
     # 空白比 0 與 99 更明確地就是無資料，且不可能是年齡。
     # 列入不是為了處理現況（實測 0 筆），是為了移除一個錯誤行為：
     # 不列入的話，具名的五屆出現空白時 check_age_sentinel 會誤中止。
-    check("1998 的空白", valid_age("1998", ""), "")
-    check("2022 的空白", valid_age("2022", ""), "")
+    check("1998 的空白", valid_age("1998", "T2", ""), "")
+    check("2022 的空白", valid_age("2022", "T2", ""), "")
 
     print("\n       99 落在合法年齡值域內 → 只在具名的五屆留空")
     for term in ("1994", "1998", "2002", "2005", "2006"):
-        check(f"{term} 的 99", valid_age(term, "99"), "")
+        check(f"{term} 的 99", valid_age(term, "T2", "99"), "")
     # 若判準寫成無條件，將來真有 99 歲候選人時他的年齡會被默默吃掉
-    check("2022 的 99 原樣保留", valid_age("2022", "99"), "99")
-    check("2014 的 99 原樣保留", valid_age("2014", "99"), "99")
+    check("2022 的 99 原樣保留", valid_age("2022", "T2", "99"), "99")
+    check("2014 的 99 原樣保留", valid_age("2014", "T2", "99"), "99")
 
     print("\n       其餘一律原樣")
-    check("1998 的 52", valid_age("1998", "52"), "52")
-    check("2022 的 45", valid_age("2022", "45"), "45")
+    check("1998 的 52", valid_age("1998", "T2", "52"), "52")
+    check("2022 的 45", valid_age("2022", "T2", "45"), "45")
 
     print("\n       兩條前提斷言：不成立即中止")
-    base = [{"年度": "1998", "年齡_原始": "99"},
-            {"年度": "2022", "年齡_原始": "45"}]
+    base = [{"年度": "1998", "選舉種類": "T2", "年齡_原始": "99"},
+            {"年度": "2022", "選舉種類": "T2", "年齡_原始": "45"}]
     check_age_sentinel(base)
     check("前提成立時不中止", True, True)
     # 格式文件把 0 與 99 並列，所以舊屆出現 0 不是異常，不得誤中止
-    check_age_sentinel(base + [{"年度": "1998", "年齡_原始":"0"}])
+    check_age_sentinel(base + [{"年度": "1998", "選舉種類": "T2", "年齡_原始": "0"}])
     check("列入清單的屆別出現 0 → 不中止", True, True)
-    check_age_sentinel(base + [{"年度": "1998", "年齡_原始":""}])
+    check_age_sentinel(base + [{"年度": "1998", "選舉種類": "T2", "年齡_原始": ""}])
     check("列入清單的屆別出現空白 → 不中止", True, True)
 
     def with_row(term, raw):
         return lambda: check_age_sentinel(
-            base + [{"年度": term, "年齡_原始": raw}])
+            base + [{"年度": term, "選舉種類": "T2", "年齡_原始": raw}])
 
     check_raises("列入清單的屆別出現非無資料值 → 中止", with_row("1998", "52"))
     check_raises("清單外的屆別出現 99 → 中止", with_row("2022", "99"))

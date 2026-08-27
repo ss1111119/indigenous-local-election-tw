@@ -51,15 +51,17 @@
 
 ### Modified Capabilities
 
-（無）
+- `legacy-source-quirks`: 哨兵值的具名範圍由「屆別」細化為「屆別＋選舉種類」——實測發現 1998 鄉鎮市長檔用 `100` 作為年齡未記載值，而同屆其他五個檔一律用 `99`，屆別層級的具名清單無法表達這種檔案專屬的哨兵
 
 ⚠️ 前綴撇號**不需要新增或修改任何規範**。既有的來源陷阱能力（spec 目錄 legacy-source-quirks）已有一條 "A Change In Key Formatting Aborts Rather Than Silently Failing To Match"，治理此陷阱且比本 change 原先設想的更嚴格——它要求格式變動時中止建置，而非僅剝除。清點文件稱其為「新發現」指的是在鄉鎮市長那批來源檔上新觀察到，不是規範缺口。本 change 新增的自訂選舉種類依循該既有規範，不修改它。
 
 ## Impact
 
-- Affected specs: `mountain-township-chief-elections`（新）
+- Affected specs: `mountain-township-chief-elections`（新）、`legacy-source-quirks`（修改）
 - Affected code:
-  - New: `data/reference/mountain-township-codes.csv`
+  - New: `data/reference/mountain-township-codes.csv`, `scripts/build_mountain_township_codes.py`
+    （對照表由具名腳本產生而非手工維護，比照既有的 `scripts/build_town_crosswalk.py`；
+    建置期仍不做名稱比對——名稱只用在產生器裡）
   - Modified: `scripts/build_local_election.py`, `scripts/oracles.py`, `scripts/test_build_local_election.py`, `scripts/mutate_build_local_election.py`, `data/sources.json`, `data/reference/cec-town-code-crosswalk-1998-2005.csv`, `docs/schema/cec-local-election.md`, `docs/schema/山地鄉鄉長資料清點.md`, `README.md`
   - Removed: (none)
 - Affected data: `data/processed/cec-local-election-summary-long.csv.gz`, `data/processed/cec-local-election-votes-long.csv.gz`, `data/processed/cec-local-election-candidates-long.csv` 三份長表將新增 `D1-MT` 的列；既有六種選舉種類的列不得改變

@@ -90,6 +90,7 @@ YEARS = {
             "D2": {"單一": "D2"},
             "R3": {"單一": "R3"},
             "R2": {"單一": "R2"},
+            "D1-MT": {"單一": "D1"},
             "T1": {"city": "T1/city", "prv": "T1/prv"},
         },
     },
@@ -102,6 +103,7 @@ YEARS = {
             "D2": {"單一": "直轄市區長"},
             "R3": {"單一": "直轄市區民代表"},
             "R2": {"單一": "縣市鄉鎮市民平原代表"},
+            "D1-MT": {"單一": "縣市鄉鎮市長"},
             "T1": {"city": "縣市區域議員", "prv": "直轄市區域議員"},
         },
     },
@@ -118,6 +120,7 @@ YEARS = {
             "D2": {"單一": "直轄市區長"},
             "R3": {"單一": "直轄市區民代表"},
             "R2": {"單一": "縣市鄉鎮市民平原代表"},
+            "D1-MT": {"單一": "縣市鄉鎮市長"},
             "T1": {"city": "縣市區域議員", "prv": "直轄市區域議員"},
         },
     },
@@ -146,6 +149,9 @@ YEARS = {
                    "五都 2010-11-27": "20101127-五都市長議員及里長/山地議員"},
             "T1": {"縣市 2009-12-05": "20091205-縣市長縣市議員及鄉鎮長/區域議員",
                    "五都 2010-11-27": "20101127-五都市長議員及里長/區域議員"},
+            # ⚠️ D1-MT 只有縣市那一腿。直轄市沒有鄉鎮市，2010 五都檔內
+            #    沒有鄉鎮市長——故標為「單一」而非兩腿。
+            "D1-MT": {"單一": "20091205-縣市長縣市議員及鄉鎮長/鄉鎮市長"},
         },
     },
     # ---- 1998／2002／2005 縣市議員（Task 3.2 納入）----
@@ -171,19 +177,22 @@ YEARS = {
     "2005": {
         "quoted": False,
         "parts": {"T2": {"city": "2005縣市議員/平原"},
-                  "T3": {"city": "2005縣市議員/山原"}},
+                  "T3": {"city": "2005縣市議員/山原"},
+                  "D1-MT": {"單一": "2005鄉鎮市長"}},
     },
     "2002": {
         "quoted": False,
         "parts": {"T2": {"city": "2002縣市議員/平原"},
                   "T3": {"city": "2002縣市議員/山原"},
-                  "T-COMBO": {"直轄市": "2002直轄市議員(原住民)"}},
+                  "T-COMBO": {"直轄市": "2002直轄市議員(原住民)"},
+                  "D1-MT": {"單一": "2002鄉鎮市長選舉"}},
     },
     "1998": {
         "quoted": False,
         "parts": {"T2": {"city": "1998縣市議員/平原"},
                   "T3": {"city": "1998縣市議員/山原"},
-                  "T-COMBO": {"直轄市": "1998直轄市議員/原住民"}},
+                  "T-COMBO": {"直轄市": "1998直轄市議員/原住民"},
+                  "D1-MT": {"單一": "1998鄉鎮市長"}},
     },
     # ---- 1994 台灣省議員與直轄市合併類別（Task 3.3 納入，皆不進主序列）----
     #
@@ -244,7 +253,30 @@ AGE_ALWAYS_NO_DATA = frozenset({"0", ""})
 AGE_NO_DATA_VALUES = AGE_ALWAYS_NO_DATA | {AGE_UNRECORDED_VALUE}
 
 
-def valid_age(year: str, raw: str) -> str:
+# ---- 同一屆內不同檔用不同哨兵值 ----
+#
+# 具名粒度預設是【屆別】（AGE_UNRECORDED_TERMS × AGE_UNRECORDED_VALUE）。
+# 但實測發現同一屆的檔案並不共用同一套約定：
+#
+#   1998 鄉鎮市長      827 位候選人：100 × 751、99 × 76  ← 整檔無真實年齡
+#   1998 縣市議員/區域 1,803 位：全部 99
+#   1998 縣市議員/山原    80 位：全部 99
+#   1998 縣市議員/平原    69 位：全部 99
+#   1998 直轄市議員/原住民 10 位：全部 99
+#   1998 直轄市長          7 位：全部 99
+#   2002／2005 鄉鎮市長：全部 99
+#
+# 現象是【檔案專屬】的，故具名範圍細化到（屆別, 選舉種類）。
+#
+# ⚠️ 不把 100 加成 1998 的屆別層級無資料值。理由與 99 相同且更強：
+#    100 落在合法年齡值域內，屆別層級的宣告會讓 1998 任何檔案未來出現的
+#    真實 100 歲被靜默吃掉。
+AGE_UNRECORDED_EXTRA: dict[tuple[str, str], frozenset[str]] = {
+    ("1998", "D1-MT"): frozenset({"100"}),
+}
+
+
+def valid_age(year: str, etype: str, raw: str) -> str:
     """輸出的 `年齡`：有記載放值、未記載留空。
 
     ⚠️ **來源原值完整保留在 `年齡_原始`。** 這裡回傳的是乾淨值，放進 `年齡`。
@@ -259,36 +291,91 @@ def valid_age(year: str, raw: str) -> str:
         return ""
     if raw == AGE_UNRECORDED_VALUE and year in AGE_UNRECORDED_TERMS:
         return ""
+    if raw in AGE_UNRECORDED_EXTRA.get((year, etype), frozenset()):
+        return ""
     return raw
 
 
 def check_age_sentinel(cands: list[dict]) -> None:
-    """守住 AGE_UNRECORDED_TERMS 的兩個前提。任一不成立即中止。
+    """守住哨兵具名清單的前提。任一不成立即中止。
 
     具名清單是依「實測整批為無資料值」建立的。那個前提若不再成立，
     清單就是錯的，而錯的方向是**安靜的**——多出一個真實年齡會被當成
     未記載而消失，或新屆的 99 會被當成真年齡放進乾淨的 `年齡` 欄。
+
+    ⚠️ 分組鍵是（屆別, 選舉種類）而不只是屆別：實測 1998 鄉鎮市長用 100、
+    同屆其他五個檔用 99（見 AGE_UNRECORDED_EXTRA 的註解）。只依屆別分組時，
+    1998 的值集合會是 {99, 100}，第一項檢查必然中止而無法表達「這是兩個檔
+    各自的約定」。
+
+    三項檢查必須同時成立，缺任一項這個機制就會靜默失效：
+      1. 已登記範圍內不得出現宣告以外的值。
+      2. 登記的哨兵值不得出現在宣告範圍【之外】的同屆其他選舉種類——
+         否則 100 擴散到別的檔時會被當成「100 歲」而留下一個錯的年齡。
+      3. 登記若【從未被用到】即中止。過期的宣告與一開始就寫錯的宣告
+         無法分辨，而它會放寬第 1 項所接受的範圍。
     """
-    by_term: dict[str, set[str]] = {}
+    by_scope: dict[tuple[str, str], set[str]] = {}
     for c in cands:
-        by_term.setdefault(c["年度"], set()).add(c["年齡_原始"])
-    for term, ages in sorted(by_term.items()):
+        by_scope.setdefault((c["年度"], c["選舉種類"]), set()).add(c["年齡_原始"])
+
+    for (term, etype), ages in sorted(by_scope.items()):
+        extra_declared = AGE_UNRECORDED_EXTRA.get((term, etype), frozenset())
         if term in AGE_UNRECORDED_TERMS:
-            extra = ages - AGE_NO_DATA_VALUES
-            if extra:
+            allowed = AGE_NO_DATA_VALUES | extra_declared
+            unexpected = ages - allowed
+            if unexpected:
                 raise ValidationError(
-                    f"{term} 屆被列為「年齡未記載」，但年齡欄出現了 "
-                    f"{sorted(extra)}。列入的前提是整批為格式文件所列的無資料值 "
-                    f"{sorted(AGE_NO_DATA_VALUES)}，該前提已不成立——"
+                    f"{term} {etype} 被列為「年齡未記載」，但年齡欄出現了 "
+                    f"{sorted(unexpected)}。列入的前提是整批為無資料值 "
+                    f"{sorted(allowed)}，該前提已不成立——"
                     f"若逕行套用，這些真實年齡會被當成未記載而從 `年齡` 消失。"
-                    f"請重新判斷 AGE_UNRECORDED_TERMS。"
+                    f"請重新判斷 AGE_UNRECORDED_TERMS／AGE_UNRECORDED_EXTRA。"
                 )
         elif AGE_UNRECORDED_VALUE in ages:
             raise ValidationError(
-                f"{term} 屆不在「年齡未記載」清單中，但年齡欄出現了 "
+                f"{term} {etype} 不在「年齡未記載」清單中，但年齡欄出現了 "
                 f"{AGE_UNRECORDED_VALUE}。這可能是哨兵值的用法擴散到新屆，"
                 f"也可能真的有 {AGE_UNRECORDED_VALUE} 歲的候選人——"
                 f"兩者無法自動分辨，不猜。"
+            )
+
+    # 檢查 2：具名的窄化哨兵不得出現在宣告範圍之外的同屆其他選舉種類。
+    #
+    # ⚠️ 以目前唯一的登記（1998 D1-MT）而言，這一項被上面第 1 項【遮蔽】——
+    #    1998 在 AGE_UNRECORDED_TERMS 內，所以 100 出現在 1998 其他選舉種類時，
+    #    是第 1 項先攔下的。本項要成為唯一偵測者，得是「額外哨兵登記在
+    #    【不屬於】AGE_UNRECORDED_TERMS 的屆別」那種設定——那時第 1 項的
+    #    分支不適用，而 elif 只看 AGE_UNRECORDED_VALUE，擴散的 100 會被
+    #    當成「100 歲」靜默留下。
+    #    2026-08-27 實測記錄：不刪，但也不宣稱它現在擋住了什麼。
+    for (term, etype), values in sorted(AGE_UNRECORDED_EXTRA.items()):
+        for (t2, e2), ages in sorted(by_scope.items()):
+            if t2 != term or e2 == etype:
+                continue
+            spread = ages & values
+            if spread:
+                raise ValidationError(
+                    f"{term} {e2} 的年齡欄出現了 {sorted(spread)}，"
+                    f"而該值只登記為 {term} {etype} 的哨兵。"
+                    f"這可能是哨兵約定擴散，也可能真的是那個歲數的候選人——"
+                    f"兩者無法自動分辨，不猜。"
+                )
+
+    # 檢查 3：登記從未被用到即中止。
+    for (term, etype), values in sorted(AGE_UNRECORDED_EXTRA.items()):
+        seen = by_scope.get((term, etype))
+        if seen is None:
+            raise ValidationError(
+                f"AGE_UNRECORDED_EXTRA 登記了 {term} {etype}，"
+                f"但本次建置沒有該範圍的候選人。宣告已過期或範圍寫錯。"
+            )
+        unused = values - seen
+        if unused:
+            raise ValidationError(
+                f"AGE_UNRECORDED_EXTRA 為 {term} {etype} 登記的 "
+                f"{sorted(unused)} 在該範圍內從未出現。"
+                f"未被用到的宣告會放寬上面第 1 項所接受的值域。"
             )
 
 # ---------------------------------------------------------------------------
@@ -361,6 +448,45 @@ TURNOUT_AGGREGATE_LEVELS = ("檔別合計", "直轄市縣市")
 #    等於連該欄的內容一起放棄驗證——日後若整檔冒出第三種錯誤代碼，
 #    只要正規化後不碰撞、得票總數相符，就會靜默通過。現在逐檔釘死允許值。
 DISTRICT_COLUMN_INCONSISTENT = {
+    # ---- 山地鄉鄉長（D1-MT）：五屆的選舉區欄跨檔不一致 ----
+    #
+    # 鄉鎮市長選舉本來就不分選舉區，四個來源檔卻各寫各的。實測
+    # （2026-08-26 清點，見 docs/schema/山地鄉鄉長資料清點.md 第三之三節）：
+    #
+    #   屆別        elbase  elcand  elprof   elctks
+    #   1998        00      00      00/01    00
+    #   2002        00      01      00/01    00
+    #   2005        00      01      00/01    01
+    #   2009-2010   00      01      00/01    01
+    #   2014        00      01      00/01    01
+    #   2018/2022   00      00      00       00     ← 一致，【不】登記
+    #
+    # ⚠️ elprof 的兩種值【依層級分布】：彙總層級（檔別合計、直轄市縣市）為 00，
+    #    較細層級為 01；2005 是例外——00 一路到村里，只有投開票所是 01。
+    #    故 elprof 的允許值是兩個值的集合，不是單一值。
+    #
+    # ⚠️ 【不】為 2018／2022 登記。四檔一致時多寫一筆條目，等於預先赦免
+    #    日後真的出現的分歧——它會被靜默正規化掉而不是中止。
+    ("1998", "D1-MT", "單一"): {
+        "elbase": {"00"}, "elcand": {"00"},
+        "elprof": {"00", "01"}, "elctks": {"00"},
+    },
+    ("2002", "D1-MT", "單一"): {
+        "elbase": {"00"}, "elcand": {"01"},
+        "elprof": {"00", "01"}, "elctks": {"00"},
+    },
+    ("2005", "D1-MT", "單一"): {
+        "elbase": {"00"}, "elcand": {"01"},
+        "elprof": {"00", "01"}, "elctks": {"01"},
+    },
+    ("2009-2010", "D1-MT", "單一"): {
+        "elbase": {"00"}, "elcand": {"01"},
+        "elprof": {"00", "01"}, "elctks": {"01"},
+    },
+    ("2014", "D1-MT", "單一"): {
+        "elbase": {"00"}, "elcand": {"01"},
+        "elprof": {"00", "01"}, "elctks": {"01"},
+    },
     # 省議員平原第二選舉區：只有 elcand 寫 02，其餘三檔都是 00。
     ("1994", "T-PRV2", "平原2"): {
         "elbase": {"00"}, "elcand": {"02"}, "elprof": {"00"}, "elctks": {"00"},
@@ -625,6 +751,11 @@ TOWN_CROSSWALK_PATH = (
     ROOT / "data" / "reference" / "cec-town-code-crosswalk-1998-2005.csv"
 )
 
+# 山地鄉的逐屆代碼對照表，由 scripts/build_mountain_township_codes.py 產生。
+MOUNTAIN_CODES_PATH = (
+    ROOT / "data" / "reference" / "mountain-township-codes.csv"
+)
+
 # 需要經 crosswalk 換算縣市代碼的屆別，值為同屆「區域」檔的資料夾。
 COUNTY_CROSSWALK_YEARS = {
     "1998": "1998縣市議員/區域",
@@ -636,7 +767,10 @@ COUNTY_CROSSWALK_YEARS = {
 #        完全相同（臺北市 01000、高雄市 02000），本來就不需要換算；
 #    (2) 上面登記的區域檔是「縣市議員／區域」，拿它去查直轄市的代碼是【對錯檔】——
 #        01000 在縣市議員區域檔裡根本不存在，會誤判成「未知代碼」而中止。
-COUNTY_CROSSWALK_TYPES = {"T2", "T3"}
+# ⚠️ D1-MT 也在內：實測 1998／2002 的鄉鎮市長檔省市碼為 03，同屆區域檔為 01，
+#    18 個縣市的 identity 一個都對不上（縣市三碼相同、只有省別前綴不同）。
+#    對照表因此新增 36 列，每一列在建置時都要通過三方名稱一致驗證。
+COUNTY_CROSSWALK_TYPES = {"T2", "T3", "D1-MT"}
 
 # ⚠️ **鄉鎮市區代碼也在各檔內部重新編號，而且比縣市更晚才恢復。**
 #
@@ -657,6 +791,11 @@ TOWN_CODES_FILE_LOCAL = {
     ("1998", "T2"), ("1998", "T3"),
     ("2002", "T2"), ("2002", "T3"),
     ("2005", "T2"), ("2005", "T3"),
+    # ⚠️ 山地鄉鄉長只有 1998／2002 需要換算。2005 的 D1 實測乾淨
+    #    （319 個共同代碼與同屆區域檔逐一相符），而同屆的 T2／T3 卻需要——
+    #    同屆不同選舉種類的重編情形不同，不可互相推論。
+    #    實測差異數：1998 為 230/319、2002 為 123/319、2005 為 0/319。
+    ("1998", "D1-MT"), ("2002", "D1-MT"),
 }
 
 # 四個開頭少一個字的鄉鎮名稱。鍵是（屆別, 選舉種類, 縣市名稱, 原始名稱），
@@ -687,6 +826,9 @@ EXPECTED_TOWN_COUNTS = {
     ("1998", "T2"): 177, ("1998", "T3"): 226,
     ("2002", "T2"): 211, ("2002", "T3"): 226,
     ("2005", "T2"): 224, ("2005", "T3"): 226,
+    # D1 涵蓋全部鄉鎮市（18 個縣市、319 個鄉鎮市區），不只山地鄉——
+    # 代碼換算在篩出山地鄉【之前】進行，故宣告值是整檔的數量。
+    ("1998", "D1-MT"): 319, ("2002", "D1-MT"): 319,
 }
 
 TOWN_NAME_ALIASES = {
@@ -987,6 +1129,31 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             )
         return got
 
+    # ---- 山地鄉投影層（只對 D1-MT 生效）----
+    #
+    # D1-MT 是官方 D1「鄉(鎮、市)長選舉」的【子集】——這是本專案第一個子集型
+    # 選舉種類，其餘九種都是「一個代碼對應一或兩個完整資料夾」。
+    #
+    # ⚠️ 投影【必須】在上面三項之後：選舉區欄允許值檢查、縣市代碼換算、
+    #    鄉鎮市區代碼換算，三者的宣告值都是對【完整來源檔】量測的。
+    #    先投影會讓觀察到的值集合改變，那些檢查就變成在驗投影後的殘骸。
+    #
+    # ⚠️ elbase 【不】投影：它只用於行政區名稱查詢與上述換算，
+    #    保留完整內容不會有任何一列進入長表。
+    mountain_selected: set = set()
+    if etype == "D1-MT":
+        mountain = load_mountain_township_codes()
+        want = mountain.get(year, {})
+        prof_source = prof          # ⚠️ 投影【前】的 elprof，供 ghost 檢查用
+        prof, cand, ctks = project_mountain_townships(
+            year, label, prof, cand, ctks, set(want))
+        mountain_selected = {(r[0], r[1], r[3]) for r in prof}
+        # ⚠️ 第五個引數必須是投影【前】的 elprof。傳投影後的會讓
+        #    「對照表列到但來源沒有」這項檢查恆為真——投影後的來源集合
+        #    依定義等於選中集合，該項就再也偵測不到過期的對照表。
+        check_mountain_township_selection(
+            year, label, mountain_selected, want, prof_source)
+
     # ---- elprof：選舉概況 ----
     summary = []
     file_total = None
@@ -1029,6 +1196,41 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
                 raise ValidationError(f"{year} {sub} elprof 出現多列檔別合計")
             file_total = row
 
+    if etype == "D1-MT":
+        # 投影層沒有來源檔別合計可用：D1 的那一列涵蓋全部 319 個鄉鎮市，
+        # 縣市層級列更是混合母體（同時含山地鄉、平地原住民鄉、一般鄉鎮市）。
+        # 直接沿用會產出一個標成 D1-MT 卻描述全體鄉鎮市長的數字。
+        #
+        # ⚠️ 衍生的合計【只作為驗證用的內部值，不寫進 summary】，因此
+        #    長表裡每一列 D1-MT 都是來源原值。這也避開了「人口數要填什麼」
+        #    的假數字問題——該欄在鄉鎮市區層級是常數垃圾值
+        #    （1998／2002 為 1888、2005 為 1234），加總會產出一個看似合理
+        #    卻無意義的人口數，而它所在的層級恰好被標為「縣市以上_適用」。
+        #
+        # ⚠️ 這【不是】放寬 file_total 的硬性要求。其餘九種選舉種類走原路徑，
+        #    找不到來源檔別合計仍然中止。
+        if file_total is not None:
+            raise ValidationError(
+                f"{year} {sub} D1-MT 投影後仍出現檔別合計列——"
+                f"投影應只保留鄉鎮市區層級"
+            )
+        if not summary:
+            raise ValidationError(f"{year} {sub} D1-MT 投影後沒有任何列")
+        file_total = {
+            **summary[0],
+            "層級": "檔別合計",
+            "省市": "00", "縣市": "000", "選舉區": "00",
+            "鄉鎮市區": "000", "村里": "0000", "投開票所": "0",
+            "行政區名稱": "", "縣市_正規化": "", "鄉鎮市區_正規化": "",
+            "有效票": sum(s["有效票"] for s in summary),
+            "無效票": sum(s["無效票"] for s in summary),
+            "投票數": sum(s["投票數"] for s in summary),
+            "選舉人數": sum(s["選舉人數"] for s in summary),
+            "人口數": "0",          # 來源在未填時的自身寫法；不加總垃圾值
+            "候選人數": sum(s["候選人數"] for s in summary),
+            "當選人數": sum(s["當選人數"] for s in summary),
+            "投票率": "",           # 由 cross_validate 重算，不宣稱來源值
+        }
     if file_total is None:
         raise ValidationError(f"{year} {sub} elprof 找不到檔別合計列（前 6 欄皆為 0）")
 
@@ -1060,7 +1262,7 @@ def process_one(zf, names, year: int, etype: str, label: str, sub: str) -> dict:
             "性別": GENDER.get(r[8], r[8]),
             # ⚠️ 階段邊界：`r[10]` 是來源原值，輸出的 `年齡` 是【乾淨值】。
             #    乾淨值一律經 valid_age()，不得直接引用 r[10]。
-            "年齡": valid_age(year, r[10]),
+            "年齡": valid_age(year, etype, r[10]),
             "年齡_原始": r[10],
             "現任": r[13],
             "當選註記": mark.strip(),
@@ -1178,6 +1380,98 @@ def load_town_crosswalk() -> dict[tuple[str, str, str, str], str]:
     if not out:
         raise ValidationError("鄉鎮市區代碼對照表沒有任何資料列")
     return out
+
+
+def load_mountain_township_codes() -> dict[str, dict[tuple[str, str, str], str]]:
+    """讀山地鄉代碼對照表。回傳 {屆別: {(省市, 縣市, 鄉鎮市區): 山地鄉名}}。
+
+    對照表由 scripts/build_mountain_township_codes.py 產生。建置期**只用代碼**
+    識別山地鄉——名稱比對只命中 24／30，且「三民」是全國常見地名會誤配。
+
+    ⚠️ 鍵重複即中止。重複列會讓集合比對的基數與實際列數脫節，
+    使「集合相等」的斷言在對照表自身有瑕疵時仍然通過。
+    """
+    if not MOUNTAIN_CODES_PATH.exists():
+        raise ValidationError(f"找不到山地鄉代碼對照表 {MOUNTAIN_CODES_PATH}")
+    out: dict[str, dict[tuple[str, str, str], str]] = {}
+    with MOUNTAIN_CODES_PATH.open(encoding="utf-8-sig", newline="") as fh:
+        for i, row in enumerate(csv.DictReader(fh), start=2):
+            term = row["屆別"]
+            key = (row["省市"], row["縣市"], row["鄉鎮市區"])
+            if key in out.setdefault(term, {}):
+                raise ValidationError(
+                    f"山地鄉代碼對照表第 {i} 列的鍵 {term} {key} 重複"
+                )
+            out[term][key] = row["山地鄉名"]
+    if not out:
+        raise ValidationError("山地鄉代碼對照表沒有任何資料列")
+    return out
+
+
+def check_mountain_township_selection(
+    year: str, label: str, selected: set, expected: dict, prof_rows: list,
+) -> None:
+    """驗證山地鄉篩選正確——比對【集合】而不只是數量。
+
+    ⚠️ 只比對數量會讓三種失效靜默通過：
+      1. 少選 A 鄉、誤選 B 鄉——總數不變。
+      2. 對照表某列代碼被改成另一個合法鄉鎮的代碼——總數不變。
+      3. 對照表重複一列、同時漏掉另一列——總數不變。
+    （2026-08-27 外部覆核指出；本函式因此比對集合並輸出差集。）
+
+    ⚠️ 這是【唯一】能擋住「篩選漏鄉」的機制。cross_validate() 第 4 項
+    （elprof 的候選／當選人數 對 elcand 實際列數）在投影層仍是跨檔比對、
+    仍有辨識力，但漏掉的鄉在兩邊同時消失，那一項照樣通過。
+    """
+    want = set(expected)
+    if not want:
+        raise ValidationError(
+            f"{label} 的山地鄉代碼對照表沒有 {year} 這一屆。"
+            f"缺屆不可視為「該屆沒有山地鄉」——請補對照表或查明來源。"
+        )
+    if selected != want:
+        extra, missing = sorted(selected - want), sorted(want - selected)
+        raise ValidationError(
+            f"{label} 選中的山地鄉集合與對照表不符："
+            f"多選 {extra}、少選 {missing}。"
+            f"（選中 {len(selected)} 個、對照表 {len(want)} 個）"
+        )
+    # 對照表的每個鍵都必須在該屆來源中確實存在——對照表列到了但來源沒有，
+    # 代表對照表過期，而上面的集合比對只證明兩邊一致、不證明來源有那一列。
+    in_source = {(r[0], r[1], r[3]) for r in prof_rows
+                 if admin_level(r) == "鄉鎮市區"}
+    ghost = sorted(want - in_source)
+    if ghost:
+        raise ValidationError(
+            f"{label} 對照表列出的山地鄉在該屆 elprof 找不到：{ghost}。"
+            f"對照表可能過期——請重新產生後再建置。"
+        )
+
+
+def project_mountain_townships(
+    year: str, label: str, prof: list, cand: list, ctks: list, keys: set,
+) -> tuple[list, list, list]:
+    """把 D1 的三個明細檔投影成山地鄉子集，只保留鄉鎮市區層級。
+
+    ⚠️ 層級限制不是效能考量，是正確性考量。村里／投開票所層級有三個
+    來源缺陷（見 docs/schema/山地鄉鄉長資料清點.md 第七之二節），其中
+    「2002／2005 的 elctks 當選註記 100% 帶星號」**不會報錯**——它會讓
+    每一位落選人都被算成當選，而建置順利跑完。
+
+    ⚠️ elprof／elctks 有 6 個代碼欄，elbase／elcand 只有 5 個
+    （elcand 第 6 欄是號次不是投開票所）。層級判定必須分開處理，
+    用錯欄數會把號次當成投開票所代碼。
+    """
+    def keep6(r):
+        return admin_level(r) == "鄉鎮市區" and (r[0], r[1], r[3]) in keys
+
+    def keep5(r):
+        return (admin_level(list(r[:5]) + [""]) == "鄉鎮市區"
+                and (r[0], r[1], r[3]) in keys)
+
+    return ([r for r in prof if keep6(r)],
+            [r for r in cand if keep5(r)],
+            [r for r in ctks if keep6(r)])
 
 
 def resolve_county_code(
