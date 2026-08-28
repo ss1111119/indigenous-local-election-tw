@@ -545,20 +545,94 @@ def test_missing_column_aborts_at_header() -> None:
         check("完整的合成表可讀取（summary 列數）", len(summ), 1)
         check("完整的合成表可讀取（candidates 列數）", len(cands), 4)
 
+    # `縣市_正規化` 是縣市名稱查表的鍵。缺了它若退回原始的 `縣市`，
+    # 1998／2002 逐檔重編的代碼會再度撞鍵，而那是**安靜**的——所以必須中止。
     for col in ("鄉鎮市區", "admin_code_system", "當選",
-                "政黨代號"):
+                "政黨代號", "縣市_正規化"):
         with tempfile.TemporaryDirectory() as td:
             d = Path(td)
             _write_synthetic_tables(d, drop_from_cands=col)
             check_raises(f"candidates 缺 {col} → 中止",
                          lambda d=d: load_long_tables(d))
 
-    for col in ("鄉鎮市區", "admin_code_system", "is_main_sequence"):
+    for col in ("鄉鎮市區", "admin_code_system", "is_main_sequence",
+                "縣市_正規化"):
         with tempfile.TemporaryDirectory() as td:
             d = Path(td)
             _write_synthetic_tables(d, drop_from_summary=col)
             check_raises(f"summary 缺 {col} → 中止",
                          lambda d=d: load_long_tables(d))
+
+
+# ------------------------------- 縣市名稱查表的鍵必須能區辨逐檔重編的代碼
+
+@reports
+def test_county_lookup_key_distinguishes_renumbered_codes() -> None:
+    """1998／2002 的縣市代碼逐檔重編，同一組原始代碼在不同選舉種類指向不同縣。
+
+    合成情境重現 1998 的 (01, 008)：平原檔是臺東縣、山原檔是嘉義縣。兩者的
+    原始 `縣市` 相同、`縣市_正規化` 不同。若查表鍵用原始 `縣市`，後寫入者會
+    覆蓋前者，兩種選舉的候選人都會拿到同一個（其中一個是錯的）縣名。
+
+    ⚠️ 斷言的是**兩邊各自拿到正確的縣名**，不是「有沒有中止」——鍵改錯時
+       不會中止，只會安靜地貼錯標籤，那正是這條檢查要抓的失效方式。
+    """
+    print("\n[合成] 逐檔重編的縣市代碼：兩個選舉種類各自取得正確縣名")
+    # ⚠️ `is_main_sequence` 在同一選舉種類的所有列必須一致，否則建置會先在
+    #    那道檢查中止，本測試就測不到查表鍵——曾因此假失敗一次。
+    base = dict(年度="1998", 省市="01", 縣市="008",
+                admin_code_system="test", 層級="直轄市縣市",
+                is_main_sequence="true")
+    summ = [
+        summary_row(**base, 選舉種類="T2", 檔別="city",
+                    縣市_正規化="013", 行政區名稱="臺東縣"),
+        summary_row(**base, 選舉種類="T3", 檔別="city",
+                    縣市_正規化="010", 行政區名稱="嘉義縣"),
+        summary_row(年度="1998", 選舉種類="T2", 選舉種類名稱="平原",
+                    層級="檔別合計", 檔別="city", 選舉人數="100", 投票數="50",
+                    is_main_sequence="true", admin_code_system="test"),
+        summary_row(年度="1998", 選舉種類="T3", 選舉種類名稱="山原",
+                    層級="檔別合計", 檔別="city", 選舉人數="100", 投票數="50",
+                    is_main_sequence="true", admin_code_system="test"),
+    ]
+    cbase = dict(年度="1998", 省市="01", 縣市="008", 檔別="city",
+                 admin_code_system="test", 鄉鎮市區="000", 選舉區="06",
+                 號次="1", 性別="男", 年齡="50", 現任="N", 當選註記="*", 當選="Y")
+    cands = [
+        cand_row(**cbase, 選舉種類="T2", 縣市_正規化="013", 姓名="平原甲",
+                 政黨代號="1", 政黨名稱="中國國民黨", 行政區名稱="臺東縣第六選區"),
+        cand_row(**cbase, 選舉種類="T3", 縣市_正規化="010", 姓名="山原甲",
+                 政黨代號="1", 政黨名稱="中國國民黨", 行政區名稱="嘉義縣第六選區"),
+    ]
+
+    rows = build_roster_data(summ, cands)["rows"]["1998"]
+    check("平原（T2）的縣市標籤", [g[0] for g in rows["T2"]], ["臺東縣"])
+    check("山原（T3）的縣市標籤", [g[0] for g in rows["T3"]], ["嘉義縣"])
+
+
+@reports
+def test_county_lookup_conflict_aborts_naming_both() -> None:
+    """同一個查表鍵出現兩個縣名 → 中止，且訊息必須同時含該鍵與兩個名稱。
+
+    ⚠️ 只斷言「有中止」不夠：後寫入覆蓋改成先寫入保留一樣不會中止，
+       而訊息若不含兩個名稱，看到錯誤的人查不出是哪兩筆撞在一起。
+    """
+    print("\n[合成] 縣市查表同鍵兩名 → 中止並具名雙方")
+    base = dict(年度="1998", 省市="01", 縣市="008", 縣市_正規化="013",
+                admin_code_system="test", 層級="直轄市縣市", 檔別="city")
+    summ = [
+        summary_row(**base, 選舉種類="T2", 行政區名稱="臺東縣"),
+        summary_row(**base, 選舉種類="T3", 行政區名稱="嘉義縣"),
+    ]
+    check_raises("同鍵兩名 → SiteDataError",
+                 lambda: build_roster_data(summ, []))
+    try:
+        build_roster_data(summ, [])
+    except SiteDataError as exc:
+        msg = str(exc)
+        check("訊息含第一個名稱", "臺東縣" in msg, True)
+        check("訊息含第二個名稱", "嘉義縣" in msg, True)
+        check("訊息含撞鍵的正規化代碼", "013" in msg, True)
 
 
 # ------------------------------------------------------------------ 執行
@@ -1998,6 +2072,8 @@ def main() -> int:
                test_turnout_round_half_up,
                test_required_columns_matches_actual_reads,
                test_missing_column_aborts_at_header,
+               test_county_lookup_key_distinguishes_renumbered_codes,
+               test_county_lookup_conflict_aborts_naming_both,
                test_party_bucket_key_semantics,
                test_party_code_and_name_hygiene,
                test_age_read_from_derived_column,

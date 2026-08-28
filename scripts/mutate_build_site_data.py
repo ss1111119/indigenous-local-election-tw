@@ -334,6 +334,31 @@ MUTATIONS = [
      '    kept = [c for c in cands\n'
      '            if c["年度"] in keep and c["選舉種類"] not in SITE_EXCLUDED_TYPES]',
      '    kept = [c for c in cands if c["年度"] in keep]'),
+
+    # ---- 縣市名稱查表的鍵 ----
+    #
+    # ⚠️ 三項各自對應一個不同的測試，不是三個變異打同一道檢查：
+    #    建表端改鍵 → test_county_lookup_key_distinguishes_renumbered_codes
+    #    衝突偵測拿掉 → test_county_lookup_conflict_aborts_naming_both
+    #    必要欄位拿掉 → test_missing_column_aborts_at_header
+    ("縣市查表：建表端改回未正規化的原始代碼（1998／2002 逐檔重編會撞鍵）",
+     '        k = (r["年度"], r["省市"], r["縣市_正規化"])',
+     '        k = (r["年度"], r["省市"], r["縣市"])'),
+    ("縣市查表：查表端改回未正規化的原始代碼",
+     '        name = county_name.get((c["年度"], c["省市"], c["縣市_正規化"]))',
+     '        name = county_name.get((c["年度"], c["省市"], c["縣市"]))'),
+    ("縣市查表：同鍵兩名不再中止，改為後寫入覆蓋",
+     '        prev = county_name.setdefault(k, r["行政區名稱"])\n'
+     '        if prev != r["行政區名稱"]:\n'
+     '            raise SiteDataError(\n'
+     '                f"縣市 {k} 出現兩個名稱：{prev!r} 與 {r[\'行政區名稱\']!r}"\n'
+     '                "——查表鍵無法區辨這兩筆，不可任取其一"\n'
+     '            )',
+     '        county_name[k] = r["行政區名稱"]'),
+    ("縣市查表：`縣市_正規化` 不再是必要欄位（缺欄不再中止）",
+     '        "admin_code_system", "is_main_sequence",\n'
+     '        "縣市_正規化",',
+     '        "admin_code_system", "is_main_sequence",'),
 ]
 
 # 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。
