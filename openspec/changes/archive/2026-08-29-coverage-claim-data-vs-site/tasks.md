@@ -13,7 +13,7 @@
 - [x] 2.2 以 `git diff --stat docs/` 確認只有 `docs/index.html` 與 `docs/en/index.html` 變動，其餘頁面與 `docs/sitemap.xml` 位元組不變。
 - [x] 2.3 比對兩頁的資料常數（`const DATA`／`const T`／`const L`）在改寫前後**逐鍵相同**——本次只應有散文變動，任何常數差異都代表改到了不該改的東西。
 - [x] 2.4 執行 `python -m pytest scripts/test_build_site_data.py -q`，全數通過。
-- [ ] 2.5 執行 `python scripts/mutate_build_site_data.py`，全部變異皆被偵測、漏網為 0，且**未驗證項為 0**。⚠️ **必須先把 `docs/index.html` 的改動提交**：有 8 項變異要改真檔再以 git 還原，該檔不乾淨時它們會被跳過，總數顯示 77／85 但工具會印「未驗證不等於通過」。實測第一次跑就是這樣。⚠️ 必須在 2.1 重新產生頁面**之後**才跑：頁面過期時 `test_existing_pages_still_reproduce` 會讓每個變異都「被偵測」，結果全是假陽性。
+- [x] 2.5 執行 `python scripts/mutate_build_site_data.py`，全部變異皆被偵測、漏網為 0，且**未驗證項為 0**。⚠️ **必須先把 `docs/index.html` 的改動提交**：有 8 項變異要改真檔再以 git 還原，該檔不乾淨時它們會被跳過，總數顯示 77／85 但工具會印「未驗證不等於通過」。實測第一次跑就是這樣。⚠️ 必須在 2.1 重新產生頁面**之後**才跑：頁面過期時 `test_existing_pages_still_reproduce` 會讓每個變異都「被偵測」，結果全是假陽性。
 
 ## 3. 文件
 
