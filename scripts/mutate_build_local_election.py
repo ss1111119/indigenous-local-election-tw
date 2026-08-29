@@ -39,7 +39,8 @@ SEL = ("test_custom_election_types or test_comparability_flags "
        "or test_mountain_codes_table "
        "or test_mountain_township_level_postcondition "
        "or test_mountain_codes_generator_guards "
-       "or test_spec_trace_integrity_guards")
+       "or test_spec_trace_integrity_guards "
+       "or test_doc_numbers_match_reality")
 
 MUTATIONS = [
     # ⚠️ 字串必須唯一。`"T-COMBO": "直轄市議員` 在 oracles.py 出現兩次
@@ -424,6 +425,18 @@ MUTATIONS = [
      "check_spec_traces.py",
      '    if not spec_files:',
      '    if False:'),
+
+    # ---- 文件數字檢查 ----
+    # ⚠️ 真實文件目前零漂移，所以「有漂移就失敗」那條不會觸發。
+    #    這兩個變異驗的是測試裡那份【改壞的副本】真的咬得到。
+    ("文件數字：Requirement 比對被拿掉（文件寫錯數字也不報）",
+     "check_doc_numbers.py",
+     '            if int(got) != want:',
+     '            if False:'),
+    ("文件數字：日期戳整個不見時不再回報（HANDOFF 沒有日期也算通過）",
+     "check_doc_numbers.py",
+     '    if not stamps:',
+     '    if False:'),
 ]
 
 def prepare() -> None:
@@ -437,6 +450,7 @@ def prepare() -> None:
     for f in ("oracles.py", "build_local_election.py",
               "build_mountain_township_codes.py",
               "check_spec_traces.py",
+              "check_doc_numbers.py",
               "test_build_local_election.py"):
         shutil.copy(ROOT / "scripts" / f, MUT / f)
 

@@ -58,6 +58,7 @@ import build_local_election  # noqa: E402
 #    根目錄——它把【真正的】scripts/ 插到 sys.path[0]。任何在那之後才做的
 #    import 都會載到未變異的原始模組：變異測試報「偵測不到」，
 #    而單獨跑同一個測試卻會失敗。2026-08-27 實測踩到三次。
+import check_doc_numbers  # noqa: E402
 import check_spec_traces  # noqa: E402
 from build_local_election import (  # noqa: E402
     COLS,
@@ -2203,6 +2204,70 @@ def test_unguarded_source_checks() -> None:
             DISTRICT_COLUMN_INCONSISTENT[dist_key] = saved_decl
 
 
+@reports
+def test_doc_numbers_match_reality() -> None:
+    """文件裡的高風險數字與實際相符，且該檢查本身會失敗。
+
+    ⚠️ **只斷言「目前相符」不夠。** 那樣把 `check_claims()` 整個改成
+       `return []` 也會通過——檢查變成一段永遠說 OK 的程式碼。
+       所以同時餵一份改壞的文件，斷言它抓得到。
+
+    ⚠️ 這支只驗**數字**，不驗散文是否正確。文件說了什麼、說得對不對，
+       仍然只能靠人看——見 HANDOFF 地雷 1u。
+    """
+    C = check_doc_numbers
+    print("\n[真實] 文件數字與實際相符")
+    check("目前沒有漂移", C.check_claims(), [])
+
+    # 改壞一份副本，確認抓得到。用副本而不是動真檔——真檔被改壞而
+    # 測試中途失敗的話，會留下污染。
+    import re as _re
+    import shutil as _shutil
+    with tempfile.TemporaryDirectory() as d:
+        work = pathlib.Path(d)
+        (work / "scripts").mkdir()
+        _shutil.copy(C.__file__, work / "scripts" / "check_doc_numbers.py")
+        for f in ("HANDOFF.md", "README.md"):
+            _shutil.copy(C.ROOT / f, work / f)
+        _shutil.copytree(C.ROOT / "openspec" / "specs", work / "openspec" / "specs")
+        (work / "data" / "processed").mkdir(parents=True)
+        _shutil.copy(
+            C.ROOT / "data" / "processed" / "cec-local-election-summary-long.csv.gz",
+            work / "data" / "processed" / "cec-local-election-summary-long.csv.gz")
+
+        h = work / "HANDOFF.md"
+        text = h.read_text(encoding="utf-8")
+        broken = _re.sub(r"個能力、\*\*(\d+) 條 Requirement",
+                         "個能力、**1 條 Requirement", text, count=1)
+        check("變異字串確實有改到", broken != text, True)
+        h.write_text(broken, encoding="utf-8")
+
+        # 讓檢查對著改壞的副本跑
+        real_root = C.ROOT
+        try:
+            C.ROOT = work
+            problems = C.check_claims()
+        finally:
+            C.ROOT = real_root
+        check("Requirement 數被改壞 → 抓得到",
+              any("Requirement 數" in p for p in problems), True)
+
+        # ⚠️ 日期戳「整個不見」這一支要另外餵。只改 Requirement 數的話，
+        #    `if not stamps:` 永遠不會被走到——把它改成 `if False:` 完全
+        #    看不出差別（變異測試實測到這個漏網）。
+        h.write_text(text.replace("**最後更新：2026-08-29。**",
+                                  "（本節沒有日期）", 1), encoding="utf-8")
+        check("日期戳確實被拿掉", "最後更新：2026-08-29"
+              not in h.read_text(encoding="utf-8"), True)
+        try:
+            C.ROOT = work
+            problems = C.check_claims()
+        finally:
+            C.ROOT = real_root
+        check("日期戳整個不見 → 抓得到",
+              any("找不到帶日期的「最後更新」" in p for p in problems), True)
+
+
 def main() -> int:
     # 逐一執行；@reports 會在該組有失敗時丟 AssertionError，
     # 這裡吞掉以便跑完全部並一次列出所有失敗（pytest 則會逐組報失敗）。
@@ -2227,7 +2292,8 @@ def main() -> int:
                test_mountain_codes_table,
                test_mountain_township_level_postcondition,
                test_mountain_codes_generator_guards,
-               test_spec_trace_integrity_guards):
+               test_spec_trace_integrity_guards,
+               test_doc_numbers_match_reality):
         try:
             fn()
         except AssertionError:
