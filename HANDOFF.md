@@ -7,7 +7,7 @@
 
 ## 一、現在停在哪裡
 
-**最後更新：2026-08-27。**
+**最後更新：2026-08-29。**
 
 ### 資料集
 
@@ -19,84 +19,56 @@
 
 ⚠️ **三者是三個不同的母體，不可互相比較，也不可相加。** 見地雷 1c。
 
-### 已歸檔的 change（11 個）
+### 已歸檔的 change（31 個）
 
-`fix-party-bucket-drift`、`include-1994-2006-terms`、`update-site-to-nine-terms`、
-`add-indigenous-legislative-elections`、`age-99-is-unrecorded`、
-`candidate-age-valid-column`、`elected-column-swap`、
-`normalise-town-codes-1998-2005`、`site-accessibility-baseline`、
-`test-unguarded-source-checks`、`add-party-list-votes`。
+全部在 `openspec/changes/archive/`，目錄名帶歸檔日期，`ls` 一次就看得到完整清單，
+此處不重抄——**逐一列名的清單會過期，而過期的清單比沒有清單更糟**
+（這一段先前停在 11 個，實際已有 31 個）。
 
-全部在 `openspec/changes/archive/`，目錄名帶歸檔日期。
+最近四個（2026-08-28～29）與名錄頁有關，接手前值得先看：
 
-### 主 specs：18 個能力、**104 條 Requirement**
+| Change | 做了什麼 |
+| --- | --- |
+| `publication-record-consistency` | 修正發布判定的理由、把 `README.md` 納入涵蓋檢查 |
+| `roster-county-label-mismatch` | 修好 28 組選舉區掛在錯誤縣市標題下（線上可見的缺陷） |
+| `roster-district-township-coverage` | 名錄頁顯示每個選舉區涵蓋的鄉鎮市區 |
+| `trace-dead-link-cleanup` | 剝除 4,723 條指向未入庫路徑的 `@trace` |
 
-| 能力 | 條數 |
-| --- | ---: |
-| `legacy-source-quirks` | 22 |
-| `site-data-generation` | 9 |
-| `site-chart-accessibility` | 8 |
-| `indigenous-legislative-elections` | 7 |
-| `party-list-votes` | 5 |
-| `bounded-estimates` | 4 |
-| `election-period-publication` | 7 |
-| `historical-terms-1994-2006` | 4 |
-| `site-translation` | 4 |
-| `site-heading-segmentation` | 4 |
-| `column-oracle-documentation` | 5 |
-| `site-multi-dataset` | 5 |
-| `mountain-township-chief-census` | 5 |
-| `mountain-township-chief-elections` | 7 |
-| `spec-trace-integrity` | 3 |
-| `site-navigation` | 2 |
-| `site-offline-resource-policy` | 2 |
-| `site-editorial-neutrality` | 1 |
+### 主 specs：19 個能力、**109 條 Requirement**（2026-08-29）
 
-### 已歸檔的 change（續）
+| 能力 | 條數 | 管什麼 |
+| --- | ---: | --- |
+| `legacy-source-quirks` | 22 | 來源跨屆的形狀差異與缺陷怎麼處理 |
+| `site-data-generation` | 10 | 站台常數怎麼由長表產生 |
+| `site-chart-accessibility` | 8 | 圖表的顏色、鍵盤、列印 |
+| `election-period-publication` | 7 | 選舉期間可以發布什麼 |
+| `indigenous-legislative-elections` | 7 | 原住民立委資料集 |
+| `mountain-township-chief-elections` | 7 | 山地鄉鄉長（投影層 `D1-MT`） |
+| `column-oracle-documentation` | 5 | 欄位語意的權威來源 |
+| `mountain-township-chief-census` | 5 | 山地鄉鄉長的清點 |
+| `party-list-votes` | 5 | 不分區政黨票 |
+| `site-multi-dataset` | 5 | 三個資料集分開呈現 |
+| `bounded-estimates` | 4 | 界限估計 |
+| `historical-terms-1994-2006` | 4 | 哪些舊屆進主序列 |
+| `site-district-geography` | 4 | 選舉區涵蓋哪些鄉鎮市區 |
+| `site-heading-segmentation` | 4 | 標題的語意斷詞 |
+| `site-translation` | 4 | 英文版與限定語 |
+| `spec-trace-integrity` | 3 | `@trace` 的路徑可解析 |
+| `site-navigation` | 2 | 頁內目錄與資料集地圖 |
+| `site-offline-resource-policy` | 2 | 不連外部資源 |
+| `site-editorial-neutrality` | 1 | 導覽標籤不過強宣稱 |
 
-`site-legislative-and-party-preference`（11/11）與 `election-period-publication`
-（10/10）於 2026-08-23 歸檔，`site-english-pages`（12/12）與
-`site-chart-interactivity`（8/8）於 2026-08-24 歸檔，`budoux-heading-wrap`
-（10/10，新增 `site-heading-segmentation` 能力：建置期用 BudouX 替
-`docs/index.html`、`docs/legislative.html` 的靜態中文標題插入語意斷詞點）、
-`legislative-oracle-doc-and-population-check`（6/6，新增
-`column-oracle-documentation` 能力：立委的欄位 oracle 對外曝光＋人口數
-驗證）、`population-decimal-hardening-and-atomic-oracle-write`（5/5，
-強化人口數驗證邊界情況＋oracle 文件原子寫入）、`party-list-oracle-doc`
-（2/2，補上政黨票長表同一類的 oracle 對外曝光缺口）與
-`oracles-shared-fn-mutation-coverage`（7/7，補齊
-check_population_column／write_oracle_document／
-_render_manifest_sections 的變異測試覆蓋，含修過期的 mutate SEL 篩選器）
-與 `remove-external-font-dependency`（6/6，拿掉五個頁面對 Google Fonts
-的外部連結、改用系統字型，新增 site-offline-resource-policy 能力驗證
-docs/ 下不含外部資源參照）於 2026-08-25 歸檔，`neutral-legislative-page-naming`
-（4/4，立委頁導覽標籤「立委與政黨傾向」與標題「···的政黨版圖」改為
-「立委選舉」「原住民立法委員九屆的政黨得票率」，新增
-site-editorial-neutrality 能力：`check_no_overclaiming_labels()` 驗
-nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長頁面
-加上頁內目錄與 section id、三頁都加資料集地圖，新增 `site-navigation`
-能力：目錄連結與實際 section 一致、每頁都說明其他資料集在哪）與
-`census-mountain-township-chief`（11/11，山地鄉鄉長來源資料的可用性清點，
-新增 `mountain-township-chief-census` 能力：名單的權威出處與屆別適用範圍、
-逐屆清點紀錄、清點不下納入結論的界線）於 2026-08-26 歸檔。
-`census-elctks-elprof-township-chief`（7/7，補 elctks／elprof 七屆結構清點，
-`mountain-township-chief-census` 由 3 條增為 5 條）與
-`include-mountain-township-chief`（24/24，山地鄉鄉長納入資料層，選舉種類代碼
-`D1-MT`，七屆共 187 個單位；新增 `mountain-township-chief-elections` 7 條、
-修改 `legacy-source-quirks` 的哨兵具名粒度 1 條）於 2026-08-27 歸檔。
-`site-builder-excluded-types`（13/13，修好 build_site_data.py——D1-MT 沒有
-檔別合計列導致建置器完全無法執行；新增具名排除登記，未登記且缺彙總列即中止；
-`site-multi-dataset` 由 3 條增為 5 條）與 `trace-dead-link-cleanup`（12/12，
-剝除 4,723 條指向 scratch/ 的 @trace 死鏈、修正 13 條過期路徑、新增
-`scripts/check_spec_traces.py` 與執行點；新增 `spec-trace-integrity` 3 條）
-亦於 2026-08-27 歸檔。
-`publication-record-consistency`（16/16）於 2026-08-28 歸檔：修正
-`index.html` 的判定理由與頁面內容矛盾（理由誤寫「無方向性的量」，該頁實含
-「+3.08 個百分點」等；結論不變、依據改為「無推估」）、把 `README.md` 納入
-發布判定紀錄的涵蓋範圍（它含跨屆變化欄且是公開的）、補上「兩個各自在單一
-計數母體內取得的比率相減仍屬凍結歷史數據」這條判例。
-`election-period-publication` 由 4 條增為 7 條。
-**目前沒有進行中的 change。**
+⚠️ 這張表會過期。要當下的數字就跑
+`grep -h '^### Requirement' openspec/specs/*/spec.md | wc -l`。
+
+### 各 change 做了什麼
+
+不在這裡重述。每個 change 的 `proposal.md` 與 `design.md` 都在
+`openspec/changes/archive/<日期>-<名稱>/` 裡，那是唯一真相；
+此處的摘要一旦寫下就開始腐爛。
+
+查某個能力是哪個 change 帶進來的，用 spec 檔尾的 `@trace` 的 `source:` 欄。
+⚠️ 但 `@trace` 只保證路徑指得到，不保證關聯正確——見地雷 1q。
 
 議員席次序列（權威值）：
 
@@ -118,29 +90,54 @@ nav／h1 不含過強字眼）、`page-toc-and-dataset-map`（14/14，四個長�
 
 ## 二、下一步（依優先序）
 
-**沒有待辦的工程項目。** 山地鄉鄉長的兩個 change 皆已於 2026-08-27 歸檔。
+**目前沒有進行中的 change。** 以下依「需要誰決定」分三類。
 
-`census-mountain-township-chief`（2026-08-26 歸檔）留下的三件事，
-**第 1 與第 2 件已處理**，清點報告在 `docs/schema/山地鄉鄉長資料清點.md`：
+### A. 需要使用者決定，我不該替你決定
 
-1. ~~山地鄉鄉長要不要納入長表~~ **已納入資料層（2026-08-27）**。
-   依 `election-period-publication` 的兩段式測試，席次／候選人數／選舉人數／
-   投票數／投票率**全屬 frozen historical data**（可由官方計數加總取得且不帶
-   方向，spec 的 Scenario 明文涵蓋 turnout 與 seat count）。
-   ⚠️ **但站台刻意未呈現**——本次範圍是資料層，不修改 `docs/` 下任何 HTML，
-   故該能力所管的 published page 一條都不觸及。**站台是否呈現仍未決定。**
-2. ~~一批標為「未檢查」的項目~~ **elctks／elprof 結構、鄉鎮市區代碼檔內重編、
-   當選註記損壞、elcand 第 14／15 欄語意已於 2026-08-27 清點完成**
-   （前置 change `census-elctks-elprof-township-chief`）。
-   ⚠️ **仍未檢查**：2009／2014／2018／2022 的 `elbase`／`elcand` 尾隨空白、
-   91 年公告後是否修正、地制法第 83 條之 2 確切施行日。
-   **不要把「未檢查」讀成「乾淨」。**
-3. `data/reference/mountain-township-list.csv` 的授權依據是**著作權法第 9 條
-   標的排除**，不是原民會站台的開放授權——不可比照 `cec-votedata` 處理。
+**1. 站台是否呈現 `D1-MT`（山地鄉鄉長）。**
+資料層自 2026-08-27 起已涵蓋 **7 屆（1998–2022）187 個單位**，站台則
+**刻意未呈現**——`build_site_data.py` 的 `SITE_EXCLUDED_TYPES` 具名排除它，
+原文是「站台呈現**待 2026-12-04 公告當選人名單後決定**」。
 
-另外還開著的是 `README.md`「尚未解決」第 2 點：**地方層級的代表性指標未定義**。
-各縣市席次、選區與選舉人範圍不同，全國加總後除以席次會掩蓋地方差異。
+⚠️ 注意那句話說的是**決定本身延後到那個日期之後**，不是「那個日期之前
+不能呈現」。要不要提前呈現歷史七屆，是一個還沒有人做過的判斷——
+不要把「延後決定」讀成「已決定不做」，也不要讀成「時候到了就自動要做」。
+
+依 `election-period-publication` 的兩問測試，席次／候選人數／選舉人數／
+投票數／投票率全屬已凍結的歷史數據（可由官方計數加總取得且不帶方向），
+**發布規則本身不構成阻礙**；擋著的是這個未做的判斷。
+
+**2. `README.md`「尚未解決」第 2 點：地方層級的代表性指標未定義。**
+各縣市席次、選區與選舉人範圍都不同，全國加總後除以席次會掩蓋地方差異。
 ⚠️ **立委頁不是它的答案**——立委是全國選舉區，地方層級算不出同一個東西。
+這是開放性研究，沒有現成答案，建議先 `/spectra-discuss` 而不是直接 propose。
+⚠️ 本 repo **不計算人口比例對席次比例**，那是刻意的決定，不要當成缺口補上。
+
+### B. 外部查證，結論可能是「查不到」
+
+- **91 年公告後是否修正**、**地制法第 83 條之 2 確切施行日**。
+  兩者都需要查政府法規沿革頁，臺灣的法規頁不一定保留歷次版本。
+  ⚠️ 查不到也要把「查過、查不到、查了哪裡」寫下來，否則下一個人會再查一次。
+
+### C. 已查證完畢（不要再查）
+
+- ~~2009／2014／2018／2022 的 `elbase`／`elcand` 尾隨空白~~
+  **2026-08-29 查證：專案讀取範圍內零處。**
+  唯一一處是 `立委補選/2009苗栗縣1/elbase.csv` 的 `高埔村 `，
+  而該資料夾**不在 `SOURCE_DIRS` 的具名清單裡**——帶空白的形式在六張長表中
+  出現 **0 次**。且它落在**名稱欄**，而 `legacy-source-quirks` 的
+  `Relational Key Field Trailing Whitespace Normalization` 明訂
+  只正規化關聯鍵欄、名稱欄原樣保留，因此即使被讀到也不該剝除。
+
+### 其他持續有效的注意事項
+
+- `data/reference/mountain-township-list.csv` 的授權依據是**著作權法第 9 條
+  標的排除**，不是原民會站台的開放授權——不可比照 `cec-votedata` 處理。
+- 同一個檔是 `data/reference/` 下**唯一沒有消費者**的檔（有產生者
+  `build_mountain_township_codes.py`，但沒有任何腳本讀它）。
+  ⚠️ 這不必然是缺陷——但若要在該目錄新增檔案，先想清楚判準是什麼：
+  實測五個檔裡**三個是腳本產生的**，所以判準不是「人工 vs 產生」，
+  而是「可丟棄的產物 vs 要保留的建置輸入」。
 
 ### 2026-08-23 做成的兩個決定（不要重開）
 
