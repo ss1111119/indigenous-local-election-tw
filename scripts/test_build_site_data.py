@@ -52,7 +52,14 @@ from build_site_data import (  # noqa: E402
     build_bounds_data,
     build_index_data,
     build_legislative_data,
+    EXPECTED_DISTRICTS,
+    EXPECTED_RELATIONS,
+    TOWN_NAME_ALIASES,
+    build_district_townships,
     build_roster_data,
+    check_alias_usage,
+    check_district_coverage,
+    check_district_scale,
     election_types,
     load_legislative_tables,
     load_long_tables,
@@ -633,6 +640,137 @@ def test_county_lookup_conflict_aborts_naming_both() -> None:
         check("訊息含第一個名稱", "臺東縣" in msg, True)
         check("訊息含第二個名稱", "嘉義縣" in msg, True)
         check("訊息含撞鍵的正規化代碼", "013" in msg, True)
+
+
+# ------------------------------------------ 選舉區涵蓋的鄉鎮市區
+
+@reports
+def test_district_coverage_is_pinned() -> None:
+    """規模釘住：996 個選舉區、5,178 組關係，且四筆截斷名別名全部被用到。
+
+    ⚠️ 這一項用**真實資料**。它擋的是「涵蓋範圍變了卻沒人發現」——
+       多一個選舉區、少一組關係都會讓頁面上的地理範圍靜靜地改變。
+    """
+    print("\n[真實] 選舉區涵蓋關係的規模與別名使用")
+    summ, _ = load_long_tables(DATA_DIR)
+    districts, whole, alias_used = build_district_townships(summ)
+    check("選舉區數", len(districts), EXPECTED_DISTRICTS)
+    check("選區—鄉鎮配對數", sum(len(v) for v in districts.values()),
+          EXPECTED_RELATIONS)
+    check("沒有空的選舉區", [k for k, v in districts.items() if not v], [])
+    check("別名條目全部被用到", sorted(set(TOWN_NAME_ALIASES) - alias_used), [])
+    check("全縣型的選舉區數", len(whole), 121)
+
+
+@reports
+def test_district_geography_takes_the_defining_side() -> None:
+    """1998 平原花蓮縣萬榮鄉在第 7 選舉區，不在第 6。
+
+    兩份長表在這一組上不一致：summary（選舉概況側）第 07、
+    votes（得票側）第 06。地理定義採前者。
+
+    ⚠️ **兩個方向都要斷言。** 只驗「第 7 含萬榮鄉」的話，若推導改成
+       兩邊都放，測試照樣通過；只驗「第 6 不含」則連來源整個換掉都測不出。
+    """
+    print("\n[真實] 選舉區地理採定義側，不採得票側")
+    summ, _ = load_long_tables(DATA_DIR)
+    districts, _whole, _ = build_district_townships(summ)
+    d7 = districts.get(("1998", "T2", "01", "015", "07"), [])
+    d6 = districts.get(("1998", "T2", "01", "015", "06"), [])
+    check("第 7 選舉區含萬榮鄉", "萬榮鄉" in d7, True)
+    check("第 6 選舉區不含萬榮鄉", "萬榮鄉" in d6, False)
+    check("第 6 選舉區的其餘鄉鎮不變", d6,
+          ["鳳林鎮", "壽豐鄉", "光復鄉", "豐濱鄉"])
+
+
+@reports
+def test_truncated_town_names_do_not_reach_the_page() -> None:
+    """頁面上不得出現截斷名，且完整名必須在。
+
+    ⚠️ 「地門鄉」是「三地門鄉」的子字串，直接用 `in` 比對會恆為真。
+       必須先把完整名從文字中拿掉，剩下的才是真正的截斷形式。
+    """
+    print("\n[真實] 截斷的鄉鎮名不會出現在名錄頁上")
+    roster = ROOT / "docs" / "roster.html"
+    if not roster.exists():
+        skipped.append("roster.html 不存在")
+        return
+    text = roster.read_text(encoding="utf-8")
+    full = ("三地門鄉", "阿里山鄉", "太麻里鄉")
+    stripped = text
+    for name in full:
+        stripped = stripped.replace(name, "")
+    for name in ("地門鄉", "里山鄉", "麻里鄉"):
+        check(f"頁面不含截斷名 {name}", name in stripped, False)
+    for name in full:
+        check(f"頁面含完整名 {name}", name in text, True)
+
+
+@reports
+def test_whole_county_claim_is_verified() -> None:
+    """單一選舉區但未涵蓋該縣全集 → 中止，且訊息具名差異。
+
+    ⚠️ 合成情境：某縣只有一個選舉區，但該縣另有一個鄉鎮出現在別的
+       選舉種類的列裡（因此屬於該縣的鄉鎮全集）卻不在這個選舉區內。
+       若判定只看「選舉區數 == 1」就標為全縣，這個情境會安靜地通過。
+    """
+    print("\n[合成] 全縣型必須查證，不可由選舉區數推論")
+    base = dict(年度="1998", 省市="01", 縣市="008", 縣市_正規化="013",
+                admin_code_system="test", 檔別="city", is_main_sequence="true")
+    summ = [
+        summary_row(**base, 選舉種類="T2", 層級="直轄市縣市",
+                    行政區名稱="臺東縣"),
+        summary_row(**base, 選舉種類="T2", 層級="鄉鎮市區", 選舉區="01",
+                    鄉鎮市區="001", 行政區名稱="臺東市"),
+        # 同縣的另一個鄉鎮，出現在【不含選舉區地理】的選舉種類（D2）→
+        # 它屬於該縣的鄉鎮全集，但不在 T2 那個唯一選舉區內。
+        # ⚠️ 這裡刻意不用 T3：那會產生第二個選舉區，中止訊息可能指向它，
+        #    測試就測不準是哪一項守衛失敗。
+        summary_row(**base, 選舉種類="D2", 層級="鄉鎮市區", 選舉區="00",
+                    鄉鎮市區="002", 行政區名稱="成功鎮"),
+    ]
+    check_raises("單一選舉區未涵蓋全集 → 中止",
+                 lambda: build_district_townships(summ))
+    try:
+        build_district_townships(summ)
+    except SiteDataError as exc:
+        check("訊息具名缺少的鄉鎮", "成功鎮" in str(exc), True)
+
+
+@reports
+def test_district_scale_guard_aborts() -> None:
+    """規模守衛本身要能失敗。
+
+    ⚠️ **這一項不能靠 test_district_coverage_is_pinned 代勞。** 那個測試自己
+       斷言了數量，所以把守衛整個拿掉它照樣通過——實測變異「規模守衛失效」
+       在只有那個測試時**沒有被偵測**。守衛要有測試直接驗它會中止，
+       否則它就是一段沒有人在看的程式碼。
+    """
+    print("\n[合成] 涵蓋規模守衛：數量不符與空選舉區都要中止")
+    good = {("y", "T1", "01", "001", str(i)): ["某鄉"] for i in range(3)}
+    check_raises("選舉區數不符 → 中止", lambda: check_district_scale(good))
+    check_raises("有空的選舉區 → 中止",
+                 lambda: check_district_scale({("y", "T1", "01", "001", "01"): []}))
+
+
+@reports
+def test_unused_alias_entry_aborts() -> None:
+    """別名表有條目在資料中沒被用到 → 中止。
+
+    ⚠️ 這一項驗的是**補丁的生命週期**：來源若被修好，補丁就該移除。
+       留著的廢條目與「資料路徑悄悄消失了」外觀完全相同。
+    """
+    print("\n[合成] 別名條目未被使用 → 中止")
+    check_raises("一個別名都沒用到 → 中止", lambda: check_alias_usage(set()))
+    try:
+        check_alias_usage(set())
+    except SiteDataError as exc:
+        msg = str(exc)
+        check("訊息具名未使用的條目", "地門鄉" in msg, True)
+        check("訊息說明該怎麼處理", "移除該條目" in msg, True)
+    # 全部用到就不該中止——沒有這個方向，把守衛改成「一律中止」也會通過
+    check("全部用到 → 不中止",
+          check_alias_usage(set(TOWN_NAME_ALIASES)), None)
 
 
 # ------------------------------------------------------------------ 執行
@@ -2074,6 +2212,12 @@ def main() -> int:
                test_missing_column_aborts_at_header,
                test_county_lookup_key_distinguishes_renumbered_codes,
                test_county_lookup_conflict_aborts_naming_both,
+               test_district_coverage_is_pinned,
+               test_district_geography_takes_the_defining_side,
+               test_truncated_town_names_do_not_reach_the_page,
+               test_whole_county_claim_is_verified,
+               test_district_scale_guard_aborts,
+               test_unused_alias_entry_aborts,
                test_party_bucket_key_semantics,
                test_party_code_and_name_hygiene,
                test_age_read_from_derived_column,

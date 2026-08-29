@@ -35,6 +35,10 @@ from pathlib import Path
 
 import budoux
 
+# 截斷鄉鎮名的別名表：唯一真相在資料層建置器，此處**匯入**不另存一份。
+# 與 build_town_crosswalk.py 的做法相同（該檔註解明寫「這裡匯入，不另存一份」）。
+from build_local_election import TOWN_NAME_ALIASES  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data" / "processed"
 
@@ -264,6 +268,205 @@ def district_key(row: dict, uses_town: bool) -> tuple:
     """
     base = (row["省市"], row["縣市"], row["選舉區"])
     return base + ((row["鄉鎮市區"],) if uses_town else ())
+
+
+def build_county_name_table(summary: list[dict]) -> dict[tuple[str, str, str], str]:
+    """(年度, 省市, 縣市_正規化) → 縣市名。
+
+    縣市名稱取自 summary 的縣市層級列——候選人列的 `行政區名稱` 是選舉區或
+    鄉鎮市區的名稱，不是縣市名。
+
+    ⚠️ **鍵必須用 `縣市_正規化`，不可用原始的 `縣市`。** 1998／2002 的縣市代碼
+       是**逐檔重編**的：同一組原始代碼在平原檔與山原檔指向不同的縣。
+         1998 (01, 002)  平原=桃園縣  山原=宜蘭縣
+         1998 (01, 008)  平原=臺東縣  山原=嘉義縣
+       實測 **18 組**鍵如此。用原始代碼當鍵時後寫入者覆蓋前者且不留痕跡，
+       名錄頁因此曾有 28 組選舉區（1998 平原 13、2002 平原 15）連同 123 列
+       候選人掛在錯誤的縣市標題下——`南投縣` 底下放著 `屏東縣第八選區`。
+       `縣市_正規化` 是縣市代碼對照表的產物，資料層一直在用；此處讀原始代碼
+       等於繞過那份對照表。正規化只在**縣市層級**成立，本用途恰在該層級。
+
+    ⚠️ **不改用 `(年度, 選舉種類, 省市, 縣市)`。** 那樣建表衝突也會歸零，
+       但把一張表切成 318 份，候選人列若其選舉種類該屆沒有縣市層級的彙總列
+       就查不到——實測查無由 167 暴增到 486。「查不到名字」與「錯的名字」
+       是同一個查表的兩種失敗，換掉一個而讓另一個變差不算修好。
+
+    ⚠️ 同鍵兩名一律**中止**，不取任一個。選對鍵是修正，會中止是保險：
+       這條錯誤存在多久沒人知道，正因為它從不出聲。
+    """
+    table: dict[tuple[str, str, str], str] = {}
+    for r in summary:
+        if r["層級"] != "直轄市縣市":
+            continue
+        k = (r["年度"], r["省市"], r["縣市_正規化"])
+        prev = table.setdefault(k, r["行政區名稱"])
+        if prev != r["行政區名稱"]:
+            raise SiteDataError(
+                f"縣市 {k} 出現兩個名稱：{prev!r} 與 {r['行政區名稱']!r}"
+                "——查表鍵無法區辨這兩筆，不可任取其一"
+            )
+    return table
+
+
+# 有地理範圍可呈現的選舉種類：選舉區把數個鄉鎮市區綁在一起。
+#
+# ⚠️ 其餘種類具名排除，不是遺漏：
+#    D1-MT／D2 一鄉一職，選舉區欄整屆是單一填充值，無分區結構；
+#    R2／R3 的選舉區是【各鄉鎮自己】的區內編號，跨鄉鎮同號無關聯；
+#    T-COMBO 的鄉鎮市區層級行政區名稱三屆全部為空；
+#    T-PRV2／T-PRV3 來源只有檔別合計層級。
+GEOGRAPHY_TYPES = ("T1", "T2", "T3")
+
+# 帶選舉區後綴的行政區名稱不是鄉鎮市區名。
+#
+# ⚠️ 後綴**格式跨屆不同**：2018 是「第04選區」、2022 是「第04選舉區」。
+#    只認一種會讓另一種混進縣市鄉鎮全集，全縣型判定就會誤判——實測清點
+#    「全縣型」時因此連錯兩次（先算出 29 個例外、再算出 20 個），
+#    正確答案是 0 個。這些名稱只來自 R2／R3。
+DISTRICT_SUFFIX = re.compile(r"第[0-9〇一二三四五六七八九十]+選(?:舉)?區$")
+
+EXPECTED_DISTRICTS = 996
+EXPECTED_RELATIONS = 5178
+
+
+def build_district_townships(
+    summary: list[dict],
+) -> tuple[dict[tuple, list[str]], set[tuple]]:
+    """選舉區 → 涵蓋的鄉鎮市區名稱。回傳（對照, 全縣型的鍵集合）。
+
+    鍵為 (年度, 選舉種類, 省市, 縣市_正規化, 選舉區)。
+
+    ⚠️ **來源是 summary（選舉概況側），不是 votes（得票側）。** 兩份長表
+       在恰好一組上不一致：1998 平地原住民花蓮縣萬榮鄉，summary 記在
+       第 07 選舉區、votes 記在第 06 選舉區（且 votes 那一列名稱為空）。
+       這是 validation report 的 `已知來源異常_得票加總` 具名記載的異常。
+       「這個選舉區涵蓋哪些鄉鎮」問的是**選區怎麼劃**，那是定義側的事；
+       得票檔回答的是「票記在哪裡」，不是地理定義。
+
+    ⚠️ 先前一份獨立產物採了第 06 選舉區，理由是「2002／2005／2022 各屆的
+       平地原住民第 6 選區都含萬榮鄉」。**該理由已被推翻**：選舉區劃分本來
+       就會跨屆改變，用 2022 的劃分判定 1998 哪一邊對，是把跨屆一致性
+       誤當成同屆正確性。此處如實記錄，不改寫成事後合理的版本。
+    """
+    county_name = build_county_name_table(summary)
+
+    # 該屆該縣的鄉鎮市區全集，供全縣型判定用。
+    county_towns: dict[tuple[str, str, str], set[str]] = {}
+    districts: dict[tuple, list[str]] = {}
+    seen: dict[tuple, set[str]] = {}
+    alias_used: set[tuple] = set()
+
+    for r in summary:
+        if r["層級"] != "鄉鎮市區":
+            continue
+        raw = r["行政區名稱"].strip()
+        if not raw or DISTRICT_SUFFIX.search(raw):
+            continue
+
+        ckey = (r["年度"], r["省市"], r["縣市_正規化"])
+        cname = county_name.get(ckey)
+
+        # 四個被來源截斷的鄉鎮名（三地門鄉、阿里山鄉、太麻里鄉）走**既有**的
+        # 具名別名表還原。唯一真相在 build_local_election.TOWN_NAME_ALIASES，
+        # 此處匯入而不另存一份——與 build_town_crosswalk.py 同樣的做法。
+        # ⚠️ 別名的鍵含縣市名，因此本函式依賴 build_county_name_table 是對的。
+        akey = (r["年度"], r["選舉種類"], cname, raw)
+        alias = TOWN_NAME_ALIASES.get(akey)
+        name = alias[0] if alias else raw
+        if alias:
+            alias_used.add(akey)
+
+        county_towns.setdefault(ckey, set()).add(name)
+        if r["選舉種類"] not in GEOGRAPHY_TYPES:
+            continue
+        dkey = ckey[:1] + (r["選舉種類"],) + ckey[1:] + (r["選舉區"],)
+        if name in seen.setdefault(dkey, set()):
+            continue
+        seen[dkey].add(name)
+        districts.setdefault(dkey, []).append(name)
+
+    whole = _whole_county_districts(districts, county_towns)
+    return districts, whole, alias_used
+
+
+def check_district_coverage(summary: list[dict]) -> None:
+    """完整性守衛：規模與別名使用。三項都必須能失敗，見對應的變異。
+
+    ⚠️ **這一項不在 build_district_townships 裡面，而是由建置主路徑呼叫。**
+       期望值 996／5,178 與「別名全部被用到」都是**真實資料集**的性質，
+       不是推導函式的前置條件——放在函式裡會讓每一個用合成資料的測試
+       都在這裡中止，等於逼測試去湊真實資料的數量。
+
+    ⚠️ 但它**必須有執行點**：沒有人跑的檢查與不存在的檢查無法區分。
+       執行點在 main() 的檢查區，與發布判定的兩項檢查放在一起。
+    """
+    districts, _whole, alias_used = build_district_townships(summary)
+    check_district_scale(districts)
+    check_alias_usage(alias_used)
+
+
+def check_district_scale(districts: dict[tuple, list[str]]) -> None:
+    """涵蓋範圍的規模沒有改變。"""
+    empty = sorted(k for k, v in districts.items() if not v)
+    if empty:
+        raise SiteDataError(f"選舉區沒有任何鄉鎮市區：{empty[:5]}")
+
+    n_rel = sum(len(v) for v in districts.values())
+    if len(districts) != EXPECTED_DISTRICTS or n_rel != EXPECTED_RELATIONS:
+        raise SiteDataError(
+            f"選舉區涵蓋關係的規模改變：選舉區 {len(districts)}"
+            f"（應 {EXPECTED_DISTRICTS}）、關係 {n_rel}"
+            f"（應 {EXPECTED_RELATIONS}）——涵蓋範圍變了就不該安靜通過"
+        )
+
+
+def check_alias_usage(alias_used: set[tuple]) -> None:
+    """截斷名的別名條目全部有被用到。
+
+    ⚠️ 沒被用到就中止。來源若已修正，補丁應該移除而不是留著；
+       留著的廢條目與「資料路徑悄悄消失了」外觀完全相同。
+
+    ⚠️ 與規模檢查**分開兩個函式**，不是風格問題：合在一起時規模那一項
+       會先失敗，於是任何合成資料都測不到這一項——那會讓這條守衛
+       實際上沒有測試在驗它。
+    """
+    stale = sorted(set(TOWN_NAME_ALIASES) - alias_used)
+    if stale:
+        raise SiteDataError(
+            f"TOWN_NAME_ALIASES 有未被使用的條目：{stale}"
+            "——來源可能已修正，請移除該條目"
+        )
+
+
+def _whole_county_districts(districts: dict[tuple, list[str]],
+                            county_towns: dict[tuple, set[str]]) -> set[tuple]:
+    """判定哪些選舉區涵蓋該縣全部鄉鎮市區。
+
+    ⚠️ **「該縣該類只有一個選舉區」不等於「涵蓋全縣所有鄉鎮」。** 前者是
+       選舉區有幾個，後者是涵蓋範圍的宣稱，而來源列出的鄉鎮不必然等於
+       行政上全縣所有鄉鎮。因此逐組**實際比對**，不由選舉區數推論。
+       實測 121 個單一選舉區組合全部通過；不通過者中止，不得降級放行。
+    """
+    by_county: dict[tuple, list[tuple]] = {}
+    for dkey in districts:
+        by_county.setdefault((dkey[0], dkey[1], dkey[2], dkey[3]), []).append(dkey)
+
+    whole: set[tuple] = set()
+    for ckey, dkeys in by_county.items():
+        if len(dkeys) != 1:
+            continue
+        dkey = dkeys[0]
+        got = set(districts[dkey])
+        want = county_towns.get((ckey[0], ckey[2], ckey[3]), set())
+        if got != want:
+            raise SiteDataError(
+                f"{dkey} 是該縣該選舉種類唯一的選舉區，但其鄉鎮市區"
+                f"（{len(got)} 個）不等於該縣全集（{len(want)} 個）；"
+                f"缺 {sorted(want - got)[:5]}、多 {sorted(got - want)[:5]}"
+                "——不可標為涵蓋全縣，也不可降級後放行"
+            )
+        whole.add(dkey)
+    return whole
 
 
 def _round_half_up(value: Decimal, places: str) -> Decimal:
@@ -1466,38 +1669,7 @@ def build_roster_data(summary: list[dict], cands: list[dict],
                if c["選舉種類"] == code)
     }
 
-    # 縣市名稱取自 summary 的縣市層級列——候選人列的 `行政區名稱` 是選舉區或
-    # 鄉鎮市區的名稱，不是縣市名。
-    #
-    # ⚠️ **鍵必須用 `縣市_正規化`，不可用原始的 `縣市`。** 1998／2002 的縣市代碼
-    #    是**逐檔重編**的：同一組原始代碼在平原檔與山原檔指向不同的縣。
-    #      1998 (01, 002)  平原=桃園縣  山原=宜蘭縣
-    #      1998 (01, 008)  平原=臺東縣  山原=嘉義縣
-    #    實測 **18 組**鍵如此。用原始代碼當鍵時後寫入者覆蓋前者且不留痕跡，
-    #    名錄頁因此有 28 組選舉區（1998 平原 13、2002 平原 15）連同 123 列候選人
-    #    掛在錯誤的縣市標題下——`南投縣` 底下放著 `屏東縣第八選區`。
-    #    `縣市_正規化` 是縣市代碼對照表的產物，資料層一直在用；此處讀原始代碼
-    #    等於繞過那份對照表。正規化只在**縣市層級**成立，本用途恰在該層級。
-    #
-    # ⚠️ **不改用 `(年度, 選舉種類, 省市, 縣市)`。** 那樣建表衝突也會歸零，
-    #    但把一張表切成 318 份，候選人列若其選舉種類該屆沒有縣市層級的彙總列
-    #    就查不到——實測查無由 167 暴增到 486。「查不到名字」與「錯的名字」
-    #    是同一個查表的兩種失敗，換掉一個而讓另一個變差不算修好。
-    #    用正規化代碼則查無維持 167，與修正前逐筆相同。
-    #
-    # ⚠️ 同鍵兩名一律**中止**，不取任一個。選對鍵是這次的修正，會中止是下次的
-    #    保險：這條錯誤存在多久沒人知道，正因為它從不出聲。
-    county_name: dict[tuple[str, str, str], str] = {}
-    for r in summary:
-        if r["層級"] != "直轄市縣市":
-            continue
-        k = (r["年度"], r["省市"], r["縣市_正規化"])
-        prev = county_name.setdefault(k, r["行政區名稱"])
-        if prev != r["行政區名稱"]:
-            raise SiteDataError(
-                f"縣市 {k} 出現兩個名稱：{prev!r} 與 {r['行政區名稱']!r}"
-                "——查表鍵無法區辨這兩筆，不可任取其一"
-            )
+    county_name = build_county_name_table(summary)
 
     # 鄉鎮市區名稱的回填來源。
     #
@@ -1581,7 +1753,10 @@ def build_roster_data(summary: list[dict], cands: list[dict],
         grp = rows.setdefault(y, {}).setdefault(code, {}).setdefault(
             gkey,
             {"county": county_label(c),
-             "label": district_label(c), "cands": []},
+             "label": district_label(c), "cands": [],
+             # 地理範圍的鍵用 `縣市_正規化`，與 build_district_townships 一致。
+             # ⚠️ 分組鍵 gkey 用的是【原始】縣市代碼（見上），兩者不可混用。
+             "geo": (y, code, c["省市"], c["縣市_正規化"], c["選舉區"])},
         )
         grp["cands"].append([
             int(c["號次"]),
@@ -1593,6 +1768,32 @@ def build_roster_data(summary: list[dict], cands: list[dict],
             site_mark(c),
         ])
 
+    # 選舉區涵蓋的鄉鎮市區。名稱去重後以整數索引參照——相異名稱只有 453 個
+    # 而關係有 5,178 組，直接內嵌字串多花 36 KB（86 vs 50 KB）。
+    districts, whole_county, _ = build_district_townships(summary)
+    town_list: list[str] = []
+    town_index: dict[str, int] = {}
+    for names in districts.values():
+        for n in names:
+            if n not in town_index:
+                town_index[n] = len(town_list)
+                town_list.append(n)
+
+    def geography(gkey: tuple) -> tuple:
+        """該組的地理範圍，回傳（鄉鎮市區索引清單, 是否全縣型）。
+
+        索引清單 0 代表該選舉種類沒有選舉區層級的地理範圍（見 GEOGRAPHY_TYPES）。
+
+        ⚠️ **全縣型也存索引，即使畫面上不列出名稱。** 呈現與搜尋是兩件事：
+           畫面上全縣型只寫「涵蓋該縣全部 N 個鄉鎮市區」，但頁內搜尋必須
+           找得到那些鄉鎮——否則搜「阿里山」會在嘉義縣山原那一區落空。
+           代價實測 +10 KB（2,504 個索引），為此付得起。
+        """
+        names = districts.get(gkey)
+        if names is None:
+            return 0, 0
+        return [town_index[n] for n in names], (1 if gkey in whole_county else 0)
+
     out_rows: dict[str, dict[str, list]] = {}
     for y in years:
         if y not in rows:
@@ -1602,7 +1803,8 @@ def build_roster_data(summary: list[dict], cands: list[dict],
             out_rows[y][code] = [
                 # 組內：當選者在前，其次依號次
                 [g["county"], g["label"],
-                 sorted(g["cands"], key=lambda t: (t[6] not in ("*", "!"), t[0]))]
+                 sorted(g["cands"], key=lambda t: (t[6] not in ("*", "!"), t[0])),
+                 *geography(g["geo"])]
                 for g in sorted(groups.values(),
                                 key=lambda g: (g["county"], g["label"]))
             ]
@@ -1615,7 +1817,8 @@ def build_roster_data(summary: list[dict], cands: list[dict],
              for code in meta
              if any(code in by_type for by_type in out_rows.values())]
 
-    return {"types": types, "parties": parties, "years": years, "rows": out_rows}
+    return {"types": types, "parties": parties, "years": years,
+            "towns": town_list, "rows": out_rows}
 
 
 def normalise_roster(d: dict) -> dict:
@@ -1634,7 +1837,10 @@ def normalise_roster(d: dict) -> dict:
             y: {code: [[cty, dist,
                         [[t[0], t[1], parties[t[2]], t[3], t[4], t[5], t[6]]
                          for t in cs]]
-                       for cty, dist, cs in groups]
+                       # ⚠️ 第四個元素是地理範圍，本函式刻意不比對它：
+                       #    normalise_roster 驗的是候選人資料的意義，
+                       #    地理範圍有自己的測試（見 test_district_*）。
+                       for cty, dist, cs, *_ in groups]
                 for code, groups in by_type.items()}
             for y, by_type in d["rows"].items()
         },
@@ -1851,6 +2057,12 @@ def main() -> None:
     #    連那一種都擋不住。本專案為「規則存在但沒有執行點」付過代價。
     check_record_reason_consistency()
     print("✓ 發布判定紀錄的理由與頁面內容無機械可判定的矛盾")
+
+    # 選舉區地理範圍的完整性。⚠️ 這是它的【執行點】——守衛寫在
+    #    check_district_coverage 裡但沒有人呼叫，與沒寫是一樣的。
+    check_district_coverage(summary)
+    print(f"✓ 選舉區涵蓋關係完整（{EXPECTED_DISTRICTS} 個選舉區、"
+          f"{EXPECTED_RELATIONS} 組關係，截斷名別名全部用到）")
 
     # 立委頁的兩個常數。三張立委長表與界限表只在這裡讀一次。
     #

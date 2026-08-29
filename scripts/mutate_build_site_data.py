@@ -41,7 +41,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MUT = ROOT / "_mut"
 HTML = ROOT / "docs" / "index.html"
-COPIED = ("build_site_data.py", "test_build_site_data.py")
+# ⚠️ **漏掉任何一個被匯入的檔，就是全面假通過。** 副本匯入失敗時每個變異
+#    都會「被偵測」，但理由是 ModuleNotFoundError 而不是變異本身——
+#    整份變異測試會變成一個永遠報成功的空殼。
+#    `build_local_election` 是 build_site_data 匯入的（截斷名別名表的唯一真相），
+#    而它又匯入 `oracles`——整條鏈都要複製。實測漏掉任一個，未變異的副本
+#    就在 collection 階段 ModuleNotFoundError，基準檢查會擋下來。
+COPIED = ("build_site_data.py", "test_build_site_data.py",
+          "build_local_election.py", "oracles.py")
 
 # (說明, 檔名, 原字串, 變異字串)
 MUTATIONS = [
@@ -347,18 +354,57 @@ MUTATIONS = [
     ("縣市查表：查表端改回未正規化的原始代碼",
      '        name = county_name.get((c["年度"], c["省市"], c["縣市_正規化"]))',
      '        name = county_name.get((c["年度"], c["省市"], c["縣市"]))'),
+    # ⚠️ 變數叫 `table` 不是 `county_name`：這段在 2026-08-28 從 build_roster_data
+    #    抽成模組層級的 build_county_name_table，變異字串跟著改過一次。
+    #    重構移動程式碼會讓變異字串失配——那不是漏網，是變異本身壞掉，
+    #    `apply_to_copy` 的「必須恰好出現一次」會報出來。
     ("縣市查表：同鍵兩名不再中止，改為後寫入覆蓋",
-     '        prev = county_name.setdefault(k, r["行政區名稱"])\n'
+     '        prev = table.setdefault(k, r["行政區名稱"])\n'
      '        if prev != r["行政區名稱"]:\n'
      '            raise SiteDataError(\n'
      '                f"縣市 {k} 出現兩個名稱：{prev!r} 與 {r[\'行政區名稱\']!r}"\n'
      '                "——查表鍵無法區辨這兩筆，不可任取其一"\n'
      '            )',
-     '        county_name[k] = r["行政區名稱"]'),
+     '        table[k] = r["行政區名稱"]'),
     ("縣市查表：`縣市_正規化` 不再是必要欄位（缺欄不再中止）",
      '        "admin_code_system", "is_main_sequence",\n'
      '        "縣市_正規化",',
      '        "admin_code_system", "is_main_sequence",'),
+
+    # ---- 選舉區涵蓋的鄉鎮市區 ----
+    #
+    # ⚠️ 五項各自對應不同的測試，不是五個變異打同一道檢查：
+    #    後綴不排除 → test_district_coverage_is_pinned（真實資料規模改變）
+    #    後綴只認一種 → 同上（跨屆格式不同，漏掉一種就多算鄉鎮）
+    #    截斷名不還原 → test_truncated_town_names_do_not_reach_the_page
+    #    全縣型由數量推論 → test_whole_county_claim_is_verified
+    #    別名守衛失效 → test_unused_alias_entry_aborts
+    ("地理：縣市鄉鎮全集不排除帶選舉區後綴的名稱（R2／R3 的區名混進來）",
+     '        if not raw or DISTRICT_SUFFIX.search(raw):\n'
+     '            continue',
+     '        if not raw:\n'
+     '            continue'),
+    ("地理：後綴只認「第N選舉區」，漏掉 2018 的「第N選區」",
+     r'DISTRICT_SUFFIX = re.compile(r"第[0-9〇一二三四五六七八九十]+選(?:舉)?區$")',
+     r'DISTRICT_SUFFIX = re.compile(r"第[0-9〇一二三四五六七八九十]+選舉區$")'),
+    ("地理：截斷的鄉鎮名不再還原（三地門鄉會印成地門鄉）",
+     '        name = alias[0] if alias else raw',
+     '        name = raw'),
+    ("地理：全縣型改由「該縣只有一個選舉區」推論，不比對鄉鎮全集",
+     '        got = set(districts[dkey])\n'
+     '        want = county_towns.get((ckey[0], ckey[2], ckey[3]), set())\n'
+     '        if got != want:',
+     '        got = set(districts[dkey])\n'
+     '        want = county_towns.get((ckey[0], ckey[2], ckey[3]), set())\n'
+     '        if False:'),
+    ("地理：別名未使用守衛失效（廢條目留著也不報）",
+     '    stale = sorted(set(TOWN_NAME_ALIASES) - alias_used)\n'
+     '    if stale:',
+     '    stale = sorted(set(TOWN_NAME_ALIASES) - alias_used)\n'
+     '    if False:'),
+    ("地理：規模守衛失效（涵蓋範圍變了也不報）",
+     '    if len(districts) != EXPECTED_DISTRICTS or n_rel != EXPECTED_RELATIONS:',
+     '    if False:'),
 ]
 
 # 立委頁的變異：與 index.html 同樣只能改真檔，因為斷言讀的是 ROOT/docs/。
