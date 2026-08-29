@@ -492,11 +492,25 @@ def _round_half_up(value: Decimal, places: str) -> Decimal:
 #    本專案已為同類問題付過代價——1994-2005 的無黨籍席次被算成「其他」，
 #    在站台上活了一整天，而規則早就抓得到，缺的是執行點。
 SITE_EXCLUDED_TYPES: dict[str, str] = {
+    # ⚠️ **這裡有兩個獨立的理由，解除其中一個【不足以】讓它可呈現。**
+    #    本能力的 spec 說「removing its declaration SHALL be sufficient to make
+    #    the build require it, so that the declaration is the only place the
+    #    decision lives」——宣告既是決定唯一存在的地方，就必須寫齊，
+    #    否則日後解除延後的人會以為移除宣告即可，然後撞上結構性的那一個。
     "D1-MT": (
-        "山地鄉鄉長：資料層已納入（7 屆 187 個單位），站台呈現待 2026-12-04 "
-        "公告當選人名單後決定。依 include-mountain-township-chief 的 design "
-        "決策 8，該種類刻意不產生檔別合計列——D1 的檔別合計涵蓋全部 319 個 "
-        "鄉鎮市，縣市層級更是混合母體（同時含山地鄉、平地原住民鄉、一般鄉鎮市）。"
+        "山地鄉鄉長：資料層已納入（7 屆 187 個單位），站台未呈現有【兩個】理由。"
+        "（1）**結構性，且目前無法只靠決定解除**：該種類沒有任何檔別合計列"
+        "（實測長表中只有 187 列鄉鎮市區層級）。本能力的 "
+        "`A presented type's national figures come from the source's own "
+        "aggregate row` 明訂沒有該列者 SHALL 被視為 not presentable、"
+        "且不得由明細列自行加總；該 Requirement 的 Scenario 寫的是整個站台層級，"
+        "不是只限首頁。而 D1-MT 之所以沒有該列，是 include-mountain-township-chief "
+        "的 design 決策 8：D1 的檔別合計涵蓋全部 319 個鄉鎮市，縣市層級更是混合母體"
+        "（同時含山地鄉、平地原住民鄉、一般鄉鎮市），挪用會是錯的母體。"
+        "（2）**編輯決定**：是否呈現本身待 2026-12-04 公告當選人名單後決定。"
+        "⚠️ 只解除（2）會讓建置在（1）中止。要呈現得先處理（1），"
+        "而那需要把「呈現」的粒度由站台層級拆成逐頁——名錄頁不顯示任何全國數字，"
+        "aggregate row 對它並不相關。那是改 spec，不是改這個常數。"
     ),
 }
 
