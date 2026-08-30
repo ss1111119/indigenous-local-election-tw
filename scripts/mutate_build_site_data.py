@@ -262,22 +262,10 @@ MUTATIONS = [
      '            "stations": int(r["涵蓋原住民選舉人"]),\n'
      '            "electors": int(r["所數"]),'),
 
-    # ---- 選舉期間的發布規則 ----
-    ("發布：拿掉「紀錄漏列頁面」的檢查（多一頁沒人判定也不會被發現）",
-     '    missing = sorted(on_disk - listed)',
-     '    missing = []'),
-    ("發布：拿掉「紀錄列了不存在頁面」的檢查（單向驗等於沒驗）",
-     '    phantom = sorted(listed - on_disk)',
-     '    phantom = []'),
+    # ---- 本屆限定語 ----
     ("發布：本屆限定語的檢查改成比對「2026」（頁尾本來就有，永遠通過）",
      '        if STRINGS["current_term_notice"][lang] not in html:',
      '        if "2026" not in html:'),
-    ("發布：凍結形狀的檢查被拿掉（指標可以無聲長大）",
-     '    if got != FROZEN_BOUNDS_SHAPE:',
-     '    if False:'),
-    ("發布：未查證時的從嚴預設被拿掉",
-     '    if "未查證" in text.split("## 逐頁判定")[0]:',
-     '    if False:'),
 
     # ---- 多語（英文版）----
     ("多語：STRINGS 少一個 en 值（那一版的限定語整句消失）",
@@ -318,24 +306,6 @@ MUTATIONS = [
     ("index：排除登記被清空（不該呈現的種類會流上站台或直接崩潰）",
      'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "D1-MT": (',
      'SITE_EXCLUDED_TYPES: dict[str, str] = {\n    "_UNUSED": (' ),
-    # ---- 發布判定紀錄的涵蓋與理由一致性 ----
-    ("紀錄：理由一致性檢查空轉（與頁面矛盾的理由會被下一個人重複使用）",
-     '    if bad:\n'
-     '        raise SiteDataError(\n'
-     '            "發布判定紀錄的理由與頁面內容矛盾：\\n  "',
-     '    if False:\n'
-     '        raise SiteDataError(\n'
-     '            "發布判定紀錄的理由與頁面內容矛盾：\\n  "'),
-    ("紀錄：涵蓋範圍不含根目錄檔案（README 又會落回沒人判定的狀態）",
-     '    on_disk |= {n for n in ROOT_LEVEL_PUBLISHED if (ROOT / n).exists()}',
-     '    on_disk |= set()'),
-    ("紀錄：鍵不再正規化（docs-relative 與 root-relative 混進同一集合）",
-     '    listed = {canonical_published_key(k)\n'
-     '              for k in re.findall(r"^\\| `([^`]+\\.(?:html|md))` \\|", text, re.M)}',
-     '    listed = set(re.findall(r"^\\| `([^`]+\\.(?:html|md))` \\|", text, re.M))'),
-    ("紀錄：鍵的逃逸檢查空轉（`..` 與絕對路徑不再被拒）",
-     '    if ".." in key.split("/"):',
-     '    if False:'),
 
     ("roster：排除只在輸出時略過，沒有先濾掉候選人（政黨索引會整批重排）",
      '    kept = [c for c in cands\n'
@@ -640,7 +610,7 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
        像「沒被偵測到的變異」，實際上是那個寫法本身沒有辨識力。
 
     ⚠️ **也不能用 pytest 的退出碼來量。** 測試檔另有一條獨立斷言直接比對
-       限定語，限定語一被拿掉它就紅——不論 check_publication_record 拿什麼比。
+       限定語，限定語一被拿掉它就紅——不論這支檢查拿什麼比。
        實測第一版就是這樣得到 (1, 1) 而看不出差別。
        所以這裡**直接呼叫那個函式**，只問它有沒有丟出 SiteDataError。
 
@@ -663,10 +633,8 @@ def prove_named_string_beats_year() -> tuple[bool, str]:
         '        if STRINGS["current_term_notice"][lang] not in html:',
         '        if "2026" not in html:')
 
-    # ⚠️ 只呼叫**限定語的那一支**，不跑測試套件。
-    #    限定語的檢查已從 check_publication_record 拆到
-    #    check_current_term_notice；呼叫舊的那支永遠是 OK——
-    #    探針量錯函式，輸出看起來像「檢查沒抓到」。
+    # ⚠️ 只呼叫 check_current_term_notice，不跑測試套件——
+    #    探針量錯函式，輸出會看起來像「檢查沒抓到」。
     # 印出 RAISED / OK，讓「工具自己壞掉」與「檢查沒抓到」分得開。
     snippet = (
         "import sys\n"

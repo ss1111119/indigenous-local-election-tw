@@ -52,7 +52,6 @@ code:
   - AGENTS.md
   - scripts/build_site_data.py
   - docs/en/index.html
-  - docs/發布判定紀錄.md
   - docs/en/legislative.html
   - docs/sitemap.xml
   - .spectra.yaml

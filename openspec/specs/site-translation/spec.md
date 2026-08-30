@@ -39,13 +39,19 @@ Translating a qualifier more fluently is the failure mode this guards against. A
 
 Where a qualifier exists in one language and not another, the page SHALL abort rather than publish the unqualified version.
 
+The current-term statement is required because the published figures end at a term earlier than the one the reader may assume, which is true of the data regardless of whether an election is under way. Its enforcement SHALL NOT be conditioned on any election phase.
+
 #### Scenario: A qualifier string is missing in one language
 - **WHEN** a declared string has a value in one language and not another
 - **THEN** the generator SHALL abort and name the key, rather than emitting a page with the qualifier absent
 
 #### Scenario: A translated page omits the current-term statement
-- **WHEN** a translated page presents historical figures during an election period without the statement that they do not represent the current term
+- **WHEN** a translated page presents historical figures without the statement that they do not represent the current term
 - **THEN** the check SHALL fail and name that page, on the same terms as the original-language page
+
+#### Scenario: The statement is treated as conditional on an election being under way
+- **WHEN** the current-term statement is removed on the grounds that no election is currently in progress
+- **THEN** the check SHALL still fail and name that page, because the statement describes the span of the data rather than the electoral calendar
 
 #### Scenario: Coverage ordering in the translated page
 - **WHEN** a translated page presents a figure derived from a subset of the population
@@ -59,7 +65,6 @@ code:
   - AGENTS.md
   - scripts/build_site_data.py
   - docs/en/index.html
-  - docs/發布判定紀錄.md
   - docs/en/legislative.html
   - docs/sitemap.xml
   - .spectra.yaml
@@ -103,7 +108,6 @@ code:
   - AGENTS.md
   - scripts/build_site_data.py
   - docs/en/index.html
-  - docs/發布判定紀錄.md
   - docs/en/legislative.html
   - docs/sitemap.xml
   - .spectra.yaml
@@ -135,7 +139,6 @@ code:
   - AGENTS.md
   - scripts/build_site_data.py
   - docs/en/index.html
-  - docs/發布判定紀錄.md
   - docs/en/legislative.html
   - docs/sitemap.xml
   - .spectra.yaml
@@ -168,7 +171,6 @@ code:
   - AGENTS.md
   - scripts/build_site_data.py
   - docs/en/index.html
-  - docs/發布判定紀錄.md
   - docs/en/legislative.html
   - docs/sitemap.xml
   - .spectra.yaml

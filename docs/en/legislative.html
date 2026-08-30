@@ -582,11 +582,11 @@ function tableFrom(el, head, rows){
       /* ⚠️ 限定語與數字必須在同一個可複製的區塊內——不是放在頁尾註腳。
          讀者複製這一塊貼到別處時，限定語要跟著走。
 
-         ⚠️ CURRENT_TERM_NOTICE 也在這裡，理由相同。2026 年地方公職人員選舉
-            的選舉公告已於 2026-08-20 發布、投票日 2026-11-28，本頁上線時
-            已在選舉期間內——保留的歷史資料必須明文說它不代表本屆。
+         ⚠️ CURRENT_TERM_NOTICE 也在這裡，理由相同。本頁的數字只到 2024 年，
+            讀者可能預設看到的是最近一屆——歷史資料必須明文說它不代表本屆。
+            這是資料涵蓋範圍的事實陳述，與選舉期程無關。
             這段字串與 scripts/build_site_data.py 的 CURRENT_TERM_NOTICE
-            逐字相同，該處的檢查比對的就是它。 */
+            逐字相同，該處的 check_current_term_notice 比對的就是它。 */
       const q = document.createElement("p"); q.className = "qual";
       q.textContent = fmt(T.bounds_qual, { stations: m.stations,
         coverage: m.coverage.toFixed(1),

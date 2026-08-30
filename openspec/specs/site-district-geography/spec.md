@@ -47,7 +47,6 @@ source: roster-district-township-coverage
 updated: 2026-08-29
 code:
   - scripts/build_site_data.py
-  - docs/發布判定紀錄.md
   - docs/roster.html
   - HANDOFF.md
   - scripts/mutate_build_site_data.py
@@ -75,7 +74,6 @@ source: roster-district-township-coverage
 updated: 2026-08-29
 code:
   - scripts/build_site_data.py
-  - docs/發布判定紀錄.md
   - docs/roster.html
   - HANDOFF.md
   - scripts/mutate_build_site_data.py
@@ -109,7 +107,6 @@ source: roster-district-township-coverage
 updated: 2026-08-29
 code:
   - scripts/build_site_data.py
-  - docs/發布判定紀錄.md
   - docs/roster.html
   - HANDOFF.md
   - scripts/mutate_build_site_data.py
@@ -142,7 +139,6 @@ source: roster-district-township-coverage
 updated: 2026-08-29
 code:
   - scripts/build_site_data.py
-  - docs/發布判定紀錄.md
   - docs/roster.html
   - HANDOFF.md
   - scripts/mutate_build_site_data.py

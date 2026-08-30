@@ -2255,10 +2255,16 @@ def test_doc_numbers_match_reality() -> None:
         # ⚠️ 日期戳「整個不見」這一支要另外餵。只改 Requirement 數的話，
         #    `if not stamps:` 永遠不會被走到——把它改成 `if False:` 完全
         #    看不出差別（變異測試實測到這個漏網）。
-        h.write_text(text.replace("**最後更新：2026-08-29。**",
-                                  "（本節沒有日期）", 1), encoding="utf-8")
-        check("日期戳確實被拿掉", "最後更新：2026-08-29"
-              not in h.read_text(encoding="utf-8"), True)
+        # ⚠️ 日期戳的值**不可寫死**：HANDOFF 的日期每次更新都會變，
+        #    寫死會讓這個變異在下次改日期時靜默失配——replace 沒改到任何
+        #    東西，檢查當然不報，看起來像「檢查壞了」。2026-08-30 實際發生過。
+        stamp = _re.search(r"\*\*最後更新：\s*\d{4}-\d{2}-\d{2}。\*\*", text)
+        check("找得到日期戳可供變異", stamp is not None, True)
+        h.write_text(text.replace(stamp.group(0), "（本節沒有日期）", 1),
+                     encoding="utf-8")
+        check("日期戳確實被拿掉",
+              _re.search(r"最後更新：\s*\d{4}-\d{2}-\d{2}",
+                        h.read_text(encoding="utf-8")) is None, True)
         try:
             C.ROOT = work
             problems = C.check_claims()
