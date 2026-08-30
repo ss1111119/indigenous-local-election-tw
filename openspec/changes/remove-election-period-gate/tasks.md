@@ -93,11 +93,11 @@
       失敗的建置會回報 0。
 - [x] 4.2 執行 python scripts/check_spec_traces.py，exit code 為 0，
       且回報涵蓋的能力數已由 17 降為 16。
-- [ ] 4.3 執行 pytest scripts/test_build_site_data.py，全數通過且無跳過項因
+- [x] 4.3 執行 pytest scripts/test_build_site_data.py，全數通過且無跳過項因
       找不到發布判定紀錄而產生。
-- [ ] 4.4 變異驗證：執行 scripts/mutate_build_site_data.py，確認針對
+- [x] 4.4 變異驗證：執行 scripts/mutate_build_site_data.py，確認針對
       current_term_notice 的變異項**仍然被抓到**。
       ⚠️ 這是保留現屆聲明有效的唯一證據——若該變異項在移除發布閘後變成通過，
       表示聲明已失去執行者，必須回頭修，不可視為變異項過期而刪除。
-- [ ] 4.5 人工檢視 docs/index.html、docs/legislative.html、docs/en/index.html、
+- [x] 4.5 人工檢視 docs/index.html、docs/legislative.html、docs/en/index.html、
       docs/en/legislative.html 四頁，確認現屆聲明文字仍在且與改動前逐字相同。
